@@ -63,6 +63,7 @@ public abstract class MinecraftClientPassThroughLocalCrystalMixin {
                 || this.player == null
                 || this.player.isUsingItem()
                 || batch.isEmpty()
+                || !batch.requiresOrderedReplay()
                 || !this.kct$isCrystalCycle(batch)) {
             return;
         }

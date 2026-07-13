@@ -67,10 +67,10 @@ Sources reviewed:
 ## Verification boundaries
 
 - All eight published JARs contain readable Fabric metadata matching their documented Minecraft and Java ranges.
-- The 1.21.10, 1.21.11, and 26.1.2 projects completed clean Gradle builds for the placement/rendering integration.
+- The 1.21.10, 1.21.11, 26.1, 26.1.1, 26.1.2, and 26.2 projects completed clean Gradle builds for the complete release 2 integration.
 - No Minecraft instance was launched. Runtime multiplayer and optional-mod compatibility remain beta testing responsibilities.
-- Automated tests verify real KoHs mixin-signature extraction, selector normalization, exact-overlap detection, different-method tolerance, and unrelated-mod tolerance.
-- The 26.1.2 custom sound runtime replacement remains incomplete; the port analysis documents the required modern audio path.
+- Nine automated tests per port verify input ordering, exact causal placement matching, fresh configuration defaults, real KoHs mixin-signature extraction, selector normalization, exact-overlap detection, different-method tolerance, and unrelated-mod tolerance.
+- The 26.x runtime sound path is implemented with `SoundBufferLibrary`, `SoundBuffer`, `WeighedSoundEvents`, and `SoundEngine`; invalid or disabled custom files restore the captured vanilla explosion registration.
 
 ## Legitimacy constraints
 

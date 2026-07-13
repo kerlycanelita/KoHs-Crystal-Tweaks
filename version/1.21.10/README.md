@@ -2,26 +2,25 @@
 
 ## Build matrix
 
-- Mod version: `1.1.0-beta.2+mc1.21.10`
-- Minecraft: `>=1.21.10 <1.21.11`
+- Mod version: `2.0.0+mc1.21.10`
+- Minecraft: `1.21.10`
 - Java: 21
 - Yarn mappings: `1.21.10+build.3`
 - Fabric Loader: `0.17.2`
 - Fabric API: `0.138.4+1.21.10`
-- Artifact: `kohs-crystal-tweaks-1.1.0-beta.2+mc1.21.10.jar`
-- Distribution status: GitHub beta/pre-release
+- Artifact: `kohs-crystal-tweaks-2.0.0+mc1.21.10.jar`
 
-## Beta implementation
+## Release 2 implementation
 
-- Placement Fix is integrated into `ClientPlayerInteractionManager.interactBlock` and enabled by default.
-- The `Tweaks` confirmation uses `Accept` to disable and `Restore` to keep the feature enabled.
-- Local prediction runs only after `ActionResult.isAccepted()`.
-- Valid bases match vanilla: obsidian or bedrock.
-- The visual timeout starts at 12 ticks and adapts after successful pairing.
-- Outer/core tint is selected by `ModelPart` identity during actual queued rendering.
-- The screen layout is bounded by the current logical dimensions.
-
-Placement Fix changes only the current interaction's `BlockHitResult`. It sends no extra packets, repeats no clicks, and automates no combat action.
+- Placement Fix preserves physical hotbar/attack/use ordering and retargets only the current accepted vanilla interaction.
+- Ordinary single clicks remain on Minecraft's direct input path; ordered replay is used only for multi-action or slot-sensitive same-tick cycles.
+- Rapid Attack Fix keeps one validated prediction attack pending until the matching real entity ID is available.
+- Outgoing attacks remove the matching real crystal locally without depending on Local Crystal prediction, restoring immediate explosion feedback with the default configuration.
+- Safe Crystal is switchable, defaults to OFF, and protects only normal obsidian.
+- Local Crystal and Seamless Mode default to OFF; Placement Fix, Rapid Attack Fix, and Flotation default to ON.
+- Timing-critical disable dialogs are bilingual; all descriptions use hover tooltips.
+- Runtime custom sound, rendering controls, and the early incompatibility guard are included.
+- No input is synthesized, no cooldown is removed, and no extra placement or attack packet is created.
 
 ## Verified build
 
@@ -29,4 +28,4 @@ Placement Fix changes only the current interaction's `BlockHitResult`. It sends 
 .\gradlew.bat clean build --no-daemon
 ```
 
-Build completed successfully on 2026-07-13. Minecraft was not launched.
+The build and all 10 regression tests completed successfully on 2026-07-13. Minecraft was not launched.

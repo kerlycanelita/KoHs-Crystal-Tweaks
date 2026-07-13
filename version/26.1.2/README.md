@@ -2,26 +2,23 @@
 
 ## Build matrix
 
-- Mod version: `1.1.0-beta.2+mc26.1.2`
-- Minecraft: `~26.1.2`
+- Mod version: `2.0.0+mc26.1.2`
+- Minecraft: `26.1.2`
 - Java: 25
 - Mappings: official Mojang names
 - Fabric Loader: `0.19.3`
-- Fabric API: `0.153.0+26.1.2`
-- Artifact: `kohs-crystal-tweaks-1.1.0-beta.2+mc26.1.2.jar`
-- Distribution status: GitHub beta/pre-release
+- Fabric API: `0.154.2+26.1.2`
+- Artifact: `kohs-crystal-tweaks-2.0.0+mc26.1.2.jar`
 
-## Beta implementation
+## Release 2 implementation
 
-- Placement Fix is integrated into `MultiPlayerGameMode.useItemOn` and enabled by default.
-- The `Tweaks` confirmation uses `Accept` to disable and `Restore` to keep the feature enabled.
-- Local prediction runs only after `InteractionResult.Success`.
-- The visual timeout starts at 12 ticks and adapts after successful pairing.
-- Frame/core tint is selected per part during actual queued rendering.
-- `Spin Speed`, `Crystal Flotation`, and `Static Crystal` are connected to both the model and beam.
-- The responsive panel, tabs, buttons, and picker remain inside logical screen bounds.
-
-Placement Fix changes only the current interaction's `BlockHitResult`. It sends no extra packets, repeats no clicks, and automates no combat action.
+- Full feature parity with the stable 1.21.11 branch, adapted to `MultiPlayerGameMode`, official names, and the submit renderer.
+- Ordered keyboard/mouse input, exact causal Placement Fix, deduplicated Rapid Attack Fix, and switchable Safe Crystal.
+- Fresh defaults: Placement Fix, Rapid Attack Fix, and Flotation ON; Local Crystal, Seamless, Safe Crystal, and Static Crystal OFF.
+- Responsive tooltip-based Mod Menu interface with bilingual warnings only for timing-critical options.
+- Runtime WAV/OGG/MP3 replacement through `SoundBufferLibrary` and `SoundEngine`.
+- Early high-confidence mixin incompatibility guard with a mandatory bilingual shutdown screen.
+- No synthesized input, guessed entity IDs, cooldown removal, retry loops, or extra interaction packets.
 
 ## Verified build
 
@@ -30,4 +27,4 @@ $env:JAVA_HOME='C:\Program Files\Java\jdk-25.0.2'
 .\gradlew.bat clean build --no-daemon
 ```
 
-Build completed successfully on 2026-07-13. Minecraft was not launched. Runtime custom sound replacement remains incomplete on this branch; see `PORTING_ANALYSIS.md`.
+The build and all 9 regression tests completed successfully on 2026-07-13. Minecraft was not launched.

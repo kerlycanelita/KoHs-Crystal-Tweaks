@@ -15,6 +15,7 @@
 
 - Fresh installations default `Local Crystal` and `Seamless Mode` to OFF; existing explicit JSON values remain unchanged.
 - Placement Fix records physical hotbar changes from number keys and the mouse wheel together with attack/use inputs.
+- Ordinary single attack/use clicks stay on Minecraft's direct input path; replay is reserved for multi-action or slot-sensitive same-tick cycles.
 - Same-tick replay restores the item selected at each physical input instead of executing every use with the final slot processed by vanilla.
 - A pending base exists only after an accepted obsidian interaction. Earlier crystal input is consumed normally and is never deferred or retried.
 - Retargeting is limited to the recorded base or its exact placement offset; the former one-block neighborhood fallback was removed.
@@ -35,6 +36,7 @@
 - An accepted predicted crystal becomes the immediate target for a following physical attack in the same client tick.
 - Pending attacks are deduplicated, require the real server entity ID, and expire with the prediction timeout.
 - Real-crystal cleanup resolves the outgoing packet ID and immediately retraces the crosshair through prediction-aware raycasting.
+- Real-crystal cleanup remains active when optional Local Crystal prediction is OFF, restoring immediate explosion feedback with the default configuration.
 - Placement Fix is integrated into `ClientPlayerInteractionManager.interactBlock` and enabled by default.
 - The `Tweaks` confirmation uses `Accept` to disable and `Restore` to keep the feature enabled.
 - Local prediction runs only after `ActionResult.isAccepted()`.
@@ -54,4 +56,4 @@ Placement Fix changes only the current interaction's `BlockHitResult`. Rapid Att
 .\gradlew.bat clean build --no-daemon
 ```
 
-Build completed successfully on 2026-07-13. Minecraft was not launched.
+The build and all 10 regression tests completed successfully on 2026-07-13. Minecraft was not launched.

@@ -32,6 +32,12 @@ dependencies {
 
     implementation "javazoom:jlayer:1.0.1"
     include "javazoom:jlayer:1.0.1"
+
+    testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+}
+
+test {
+    useJUnitPlatform()
 }
 
 processResources {
@@ -48,6 +54,12 @@ tasks.withType(JavaCompile).configureEach {
 
 tasks.withType(AbstractArchiveTask).configureEach {
     archiveVersion.set(artifactVersion)
+}
+
+jar {
+    from("../../LICENSE") {
+        rename { "LICENSE_kohs_crystal_tweaks" }
+    }
 }
 
 java {

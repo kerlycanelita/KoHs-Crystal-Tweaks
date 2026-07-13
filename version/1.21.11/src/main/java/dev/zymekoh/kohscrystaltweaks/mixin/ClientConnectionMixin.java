@@ -1,6 +1,5 @@
 package dev.zymekoh.kohscrystaltweaks.mixin;
 
-import dev.zymekoh.kohscrystaltweaks.core.CrystalPredictor;
 import dev.zymekoh.kohscrystaltweaks.marlow.InteractHandler;
 import dev.zymekoh.kohscrystaltweaks.marlow.MarlowOptimizerCompat;
 import net.minecraft.client.MinecraftClient;
@@ -20,7 +19,11 @@ public abstract class ClientConnectionMixin {
 
     @Inject(method = "send(Lnet/minecraft/network/packet/Packet;)V", at = @At("HEAD"))
     private void kct$onPacketSend(Packet<?> packet, CallbackInfo ci) {
-        if (!CrystalPredictor.isEnabled() || MarlowOptimizerCompat.isOptedOut()) {
+        // Real outgoing crystal attacks are safe to clean up immediately even
+        // when optional local placement prediction is disabled. Tying this path
+        // to Local Crystal made server-confirmed explosions look delayed on the
+        // release-2 defaults, where Local Crystal intentionally starts OFF.
+        if (MarlowOptimizerCompat.isOptedOut()) {
             return;
         }
         if (packet instanceof PlayerInteractEntityC2SPacket interactionPacket) {

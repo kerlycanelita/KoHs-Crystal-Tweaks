@@ -43,6 +43,7 @@ public final class CrystalPlacementFix {
     public static void reset() {
         pendingObsidian = null;
         clientTick = 0;
+        OrderedCrystalInput.clear();
     }
 
     public static void recordObsidianPlacement(ClientPlayerEntity player, BlockHitResult hit) {
@@ -71,11 +72,17 @@ public final class CrystalPlacementFix {
             return hit;
         }
 
-        BlockPos base = pending.position();
-        if (!isObsidian(world, base) || !hasCrystalSpace(world, base.up())) {
+        if (isValidCrystalBase(world, hit.getBlockPos())) {
+            pendingObsidian = null;
             return hit;
         }
-        if (isValidCrystalBase(world, hit.getBlockPos()) || !isSameFastPlacement(hit, base)) {
+
+        BlockPos base = pending.position();
+        if (!isSameFastPlacement(hit, base)) {
+            return hit;
+        }
+        if (!isObsidian(world, base) || !hasCrystalSpace(world, base.up())) {
+            pendingObsidian = null;
             return hit;
         }
 
@@ -93,15 +100,9 @@ public final class CrystalPlacementFix {
         return isObsidian(world, clicked) ? clicked : null;
     }
 
-    private static boolean isSameFastPlacement(BlockHitResult hit, BlockPos base) {
+    static boolean isSameFastPlacement(BlockHitResult hit, BlockPos base) {
         BlockPos clicked = hit.getBlockPos();
-        if (clicked.equals(base) || clicked.offset(hit.getSide()).equals(base)) {
-            return true;
-        }
-
-        return Math.abs(clicked.getX() - base.getX()) <= 1
-                && Math.abs(clicked.getY() - base.getY()) <= 1
-                && Math.abs(clicked.getZ() - base.getZ()) <= 1;
+        return clicked.equals(base) || clicked.offset(hit.getSide()).equals(base);
     }
 
     private static boolean isValidCrystalBase(ClientWorld world, BlockPos pos) {

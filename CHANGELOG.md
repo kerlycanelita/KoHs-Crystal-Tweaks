@@ -2,15 +2,18 @@
 
 ## 2.0.0 — 2026-07-13
 
-### Minecraft 1.21.11
+### Minecraft 1.21.10, 1.21.11, 26.1, 26.1.1, 26.1.2, and 26.2
 
-- Promoted the tested release 2 implementation to the first stable 2.0.0 build.
+- Ported the complete tested release 2 implementation to every listed target with exact per-version metadata and dependencies.
 - Preserves physical number-key, mouse-wheel, attack, and use ordering during same-tick crystal cycles.
 - Retargets a crystal interaction only after vanilla accepts the preceding obsidian placement and only to that exact causal base.
 - Keeps `Placement Fix`, `Rapid Attack Fix`, and `Crystal Flotation` enabled by default while `Local Crystal`, `Seamless Mode`, `Safe Crystal`, and `Static Crystal` start disabled on fresh installations.
 - Keeps pending predicted attacks deduplicated until the server supplies the real crystal entity ID; no IDs are guessed and no attack is generated.
 - Retains the early incompatibility guard for Marlow Crystal Optimizer and high-confidence mixin conflicts.
-- Includes bilingual timing-feature warnings, compact hover descriptions, MIT metadata, and the nine-test regression suite.
+- Includes bilingual timing-feature warnings, compact hover descriptions, MIT metadata, and the regression suites (10 tests on 1.21.10 and 1.21.11; nine on each 26.x release-2 port).
+- Restores runtime WAV/OGG/MP3 crystal sound replacement on the official-name 26.x branches.
+- Adapts the 26.2 screen ownership and entity registry changes while keeping the same user-facing behavior.
+- On Minecraft 1.21.10 and 1.21.11, keeps ordinary single clicks on the direct vanilla path and decouples real-crystal attack cleanup from optional Local Crystal prediction, removing the placement/explosion slowdown reported with either Safe Crystal state.
 - Contains no automation, synthesized input, cooldown removal, interaction retry, remote targeting, or extra packets.
 
 ## 2.0.0-beta.4 — 2026-07-13

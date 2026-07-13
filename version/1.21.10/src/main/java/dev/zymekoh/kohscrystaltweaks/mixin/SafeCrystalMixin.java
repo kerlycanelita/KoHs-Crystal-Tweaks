@@ -1,5 +1,6 @@
 package dev.zymekoh.kohscrystaltweaks.mixin;
 
+import dev.zymekoh.kohscrystaltweaks.config.KoHsCrystalTweaksConfig;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
@@ -20,13 +21,17 @@ public abstract class SafeCrystalMixin {
             at = @At("HEAD"),
             cancellable = true)
     private void kct$blockObsidianBreakWithCrystal(BlockPos pos, Direction direction, CallbackInfoReturnable<Boolean> cir) {
+        if (!KoHsCrystalTweaksConfig.get().safeCrystalEnabled) {
+            return;
+        }
+
         ClientPlayerEntity player = MinecraftClient.getInstance().player;
         if (player == null || !player.getMainHandStack().isOf(Items.END_CRYSTAL)) {
             return;
         }
 
         Block block = player.getEntityWorld().getBlockState(pos).getBlock();
-        if (block == Blocks.OBSIDIAN || block == Blocks.CRYING_OBSIDIAN) {
+        if (block == Blocks.OBSIDIAN) {
             cir.setReturnValue(false);
         }
     }
@@ -36,13 +41,17 @@ public abstract class SafeCrystalMixin {
             at = @At("HEAD"),
             cancellable = true)
     private void kct$blockObsidianProgressWithCrystal(BlockPos pos, Direction direction, CallbackInfoReturnable<Boolean> cir) {
+        if (!KoHsCrystalTweaksConfig.get().safeCrystalEnabled) {
+            return;
+        }
+
         ClientPlayerEntity player = MinecraftClient.getInstance().player;
         if (player == null || !player.getMainHandStack().isOf(Items.END_CRYSTAL)) {
             return;
         }
 
         Block block = player.getEntityWorld().getBlockState(pos).getBlock();
-        if (block == Blocks.OBSIDIAN || block == Blocks.CRYING_OBSIDIAN) {
+        if (block == Blocks.OBSIDIAN) {
             cir.setReturnValue(false);
         }
     }
