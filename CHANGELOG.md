@@ -14,6 +14,7 @@
 - Restores runtime WAV/OGG/MP3 crystal sound replacement on the official-name 26.x branches.
 - Adapts the 26.2 screen ownership and entity registry changes while keeping the same user-facing behavior.
 - On Minecraft 1.21.10 and 1.21.11, keeps ordinary single clicks on the direct vanilla path and decouples real-crystal attack cleanup from optional Local Crystal prediction, removing the placement/explosion slowdown reported with either Safe Crystal state.
+- Restricts the 1.21.11 artifact to Minecraft 1.21.11 exactly, preventing its intermediary-named classes from being loaded accidentally on official-name 26.x installations.
 - Contains no automation, synthesized input, cooldown removal, interaction retry, remote targeting, or extra packets.
 
 ## 2.0.0-beta.4 — 2026-07-13

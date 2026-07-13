@@ -3,7 +3,7 @@
 ## Build matrix
 
 - Mod version: `2.0.0+mc1.21.11`
-- Minecraft: `>=1.21.11`
+- Minecraft: `1.21.11` (exact; Fabric rejects this artifact on 26.x)
 - Java: 21
 - Yarn mappings: `1.21.11+build.5`
 - Fabric Loader: `0.17.2`

@@ -6,6 +6,8 @@ KoHs Crystal Tweaks is a client-side Fabric mod for legitimate Crystal PvP quali
 
 > Release 2 is built for Minecraft 1.21.10, 1.21.11, 26.1, 26.1.1, 26.1.2, and 26.2. The mod does not automate clicks, attacks, or placements.
 
+Each release-2 JAR targets exactly the Minecraft version shown in its filename. Cross-version installation is rejected by Fabric before KoHs mixins or entrypoints load.
+
 ## Available builds
 
 | Minecraft | Java | Internal mod version | Artifact |
