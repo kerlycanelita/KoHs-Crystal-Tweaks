@@ -2,16 +2,22 @@
 
 ## Build matrix
 
-- Mod version: `1.1.0-beta.5+mc1.21.11`
+- Mod version: `1.1.0-beta.6+mc1.21.11`
 - Minecraft: `>=1.21.11`
 - Java: 21
 - Yarn mappings: `1.21.11+build.5`
 - Fabric Loader: `0.17.2`
 - Fabric API: `0.140.0+1.21.11`
-- Artifact: `kohs-crystal-tweaks-1.1.0-beta.5+mc1.21.11.jar`
+- Artifact: `kohs-crystal-tweaks-1.1.0-beta.6+mc1.21.11.jar`
 - Distribution status: GitHub beta/pre-release
 
 ## Beta implementation
+
+- Startup incompatibility detection runs from the Mixin configuration plugin before KoHs gameplay mixins are applied.
+- `marlowcrystal` is explicitly blocked because both mods register the `marlowcrystal:opt_out` compatibility payload and modify the same client-side crystal cleanup/retargeting path.
+- Unknown mods are blocked only for a direct KoHs-class target or an exact critical target-class/method overlap from a crystal-related mixin.
+- The blocked path registers no KoHs prediction, sound, gameplay event, or compatibility-network services.
+- The mandatory bilingual screen replaces Mod Menu, restores itself if another screen is opened, ignores Escape, and exposes only a clean-shutdown button.
 
 - `Rapid Attack Fix` is enabled by default in `Tweaks` and preserves one validated attack if the local prediction is clicked before the server crystal loads.
 - Placement Fix preserves the physical order of vanilla attack/use presses during crystal cycles, including Use Item bound to a keyboard key.

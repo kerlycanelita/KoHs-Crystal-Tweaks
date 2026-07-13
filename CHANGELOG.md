@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.1.0-beta.6 — 2026-07-13
+
+### Minecraft 1.21.11
+
+- Added an early incompatibility guard for known crystal optimizers, direct mutations of KoHs classes, and exact class/method overlaps in timing-critical crystal mixins.
+- Explicitly blocks `marlowcrystal`; a confirmed beta.5 crash showed KoHs and Marlow both registering `marlowcrystal:opt_out`, causing Fabric to reject the duplicate payload during client entrypoint initialization.
+- Disables every KoHs gameplay mixin through an `IMixinConfigPlugin` before application when a conflict is found.
+- Skips KoHs prediction, placement, sound, event, and compatibility-network initialization while blocked, preventing the duplicate Marlow payload registration.
+- Replaces Mod Menu and normal gameplay with a mandatory responsive incompatibility screen that identifies each conflicting mod and provides technical reasons in English and Spanish.
+- Prevents Escape or screen replacement from bypassing the warning; the only action schedules a clean Minecraft shutdown.
+- Limits generic detection to high-confidence evidence so a shared Minecraft class or an unrelated method does not cause a false positive.
+- Added bytecode-scanner tests for real KoHs hooks, exact overlaps, different methods, and unrelated mods.
+
 ## 1.1.0-beta.5 — 2026-07-13
 
 ### Minecraft 1.21.11

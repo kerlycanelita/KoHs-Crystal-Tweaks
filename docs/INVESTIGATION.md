@@ -15,6 +15,9 @@ Sources reviewed:
 - [Yarn 1.21.11 `Keyboard`](https://maven.fabricmc.net/docs/yarn-1.21.11%2Bbuild.1/net/minecraft/client/Keyboard.html)
 - [Yarn 1.21.11 `Mouse`](https://maven.fabricmc.net/docs/yarn-1.21.11%2Bbuild.1/net/minecraft/client/Mouse.html)
 - [Marlow's Crystal Optimizer v1.1.0 source (MIT)](https://github.com/Bram1903/MarlowsCrystalOptimizer/tree/v1.1.0)
+- [Fabric Loader mod discovery API](https://maven.fabricmc.net/docs/fabric-loader-0.17.2/net/fabricmc/loader/api/FabricLoader.html)
+- [Fabric Loader mod-container resource API](https://maven.fabricmc.net/docs/fabric-loader-0.17.2/net/fabricmc/loader/api/ModContainer.html)
+- [Fabric mixin registration and configuration](https://wiki.fabricmc.net/tutorial%3Amixin_registration)
 - [Public KoHs Crystal Tweaks project page](https://modrinth.com/mod/kohs-crystal-tweaks)
 
 ## Code findings
@@ -29,6 +32,8 @@ Sources reviewed:
 8. Keyboard and mouse presses both increment vanilla `KeyBinding` counters. A keyboard binding is therefore not a separate placement action and does not need a separate packet path.
 9. `MinecraftClient.handleInputEvents` drains the complete attack counter before the use counter. A physical `use → attack → use` sequence received inside one client tick is therefore reordered, regardless of whether Use Item came from a keyboard binding or the right mouse button.
 10. A successful local placement is added after `interactBlock` returns, but the crosshair is normally refreshed later. Without an immediate target update, a following attack in the same input pass still sees the earlier block hit.
+11. A confirmed 1.21.11 beta.5 startup log with `marlowcrystal` failed in `PayloadTypeRegistryImpl.register`: both entrypoints registered `marlowcrystal:opt_out`, and Fabric raised `Packet type ... is already registered` before the title screen.
+12. A Fabric dependency-level `breaks` declaration cannot provide the requested in-game explanation because Loader would stop before Minecraft creates a screen.
 
 ## Implemented solution
 
@@ -44,12 +49,18 @@ Sources reviewed:
 - Record gameplay attack/use arrivals from both vanilla keyboard and mouse callbacks, then drain them in order only when a real `wasPressed()` count exists for that action.
 - Target the local crystal immediately after an accepted placement, allowing the next recorded physical attack in the same tick to enter the existing prediction handoff.
 - Keep English-first, Spanish-second `Accept` / `Restore` confirmations only for `Local Crystal`, `Seamless Mode`, `Placement Fix`, and `Rapid Attack Fix`.
+- Initialize incompatibility detection from an `IMixinConfigPlugin`, then return `false` from `shouldApplyMixin` for every KoHs gameplay mixin when startup is blocked.
+- Treat `marlowcrystal` as an explicit incompatibility and stop KoHs client initialization before its mirrored Marlow payloads can be registered.
+- For unknown mods, parse Fabric mixin metadata and ASM annotations without loading candidate classes. Block only direct KoHs targets or crystal-related exact target-class/method overlaps with KoHs critical hooks.
+- Fail open if generic metadata inspection is malformed, while retaining explicit known-mod detection. This prevents damaged third-party metadata from becoming an unsupported global deny list.
+- Replace the config screen with a bounded, scrollable bilingual report; reassert it at client tick end, disable Escape, and expose only `MinecraftClient.scheduleStop()`.
 
 ## Verification boundaries
 
 - All eight published JARs contain readable Fabric metadata matching their documented Minecraft and Java ranges.
 - The 1.21.10, 1.21.11, and 26.1.2 projects completed clean Gradle builds for the placement/rendering integration.
 - No Minecraft instance was launched. Runtime multiplayer and optional-mod compatibility remain beta testing responsibilities.
+- Automated tests verify real KoHs mixin-signature extraction, selector normalization, exact-overlap detection, different-method tolerance, and unrelated-mod tolerance.
 - The 26.1.2 custom sound runtime replacement remains incomplete; the port analysis documents the required modern audio path.
 
 ## Legitimacy constraints

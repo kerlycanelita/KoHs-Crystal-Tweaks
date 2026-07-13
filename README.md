@@ -16,7 +16,7 @@ KoHs Crystal Tweaks is a client-side Fabric mod for legitimate Crystal PvP quali
 | 1.21.6–1.21.8 | 21 | `1.0.0+mc1.21.6` | `kohs-crystal-tweaks-1.0.0+mc1.21.6.jar` |
 | 1.21.9 | 21 | `1.0.0+mc1.21.9` | `kohs-crystal-tweaks-1.0.0+mc1.21.9.jar` |
 | 1.21.10 | 21 | `1.1.0-beta.2+mc1.21.10` | `kohs-crystal-tweaks-1.1.0-beta.2+mc1.21.10.jar` |
-| 1.21.11 | 21 | `1.1.0-beta.5+mc1.21.11` | `kohs-crystal-tweaks-1.1.0-beta.5+mc1.21.11.jar` |
+| 1.21.11 | 21 | `1.1.0-beta.6+mc1.21.11` | `kohs-crystal-tweaks-1.1.0-beta.6+mc1.21.11.jar` |
 | 26.1.2 | 25 | `1.1.0-beta.2+mc26.1.2` | `kohs-crystal-tweaks-1.1.0-beta.2+mc26.1.2.jar` |
 
 The 1.0.0 artifacts keep their original internal version and are distributed as GitHub pre-releases. Placement Fix starts with the 1.21.10 build.
@@ -74,6 +74,20 @@ Rapid Attack Fix is enabled by default in the `Tweaks` tab. It addresses the los
 All option descriptions are shown as hover tooltips instead of fixed description blocks, keeping the configuration panel compact at high GUI scales.
 
 Only the four timing-critical optimization toggles use an `Accept` / `Restore` confirmation: `Local Crystal`, `Seamless Mode`, `Placement Fix`, and `Rapid Attack Fix`. Consequences are shown first in English and then in Spanish. Visual, Sound, Static Crystal, and Crystal Flotation controls switch immediately.
+
+## Intelligent incompatibility guard (1.21.11 beta.6)
+
+KoHs now checks for unsafe crystal-optimizer combinations before its gameplay mixins and runtime services are enabled. It blocks startup only when there is strong evidence:
+
+- a known incompatible optimizer is loaded;
+- another mod directly targets an internal KoHs class; or
+- a crystal-related mixin targets the same class and exact timing-critical method as KoHs.
+
+A shared Minecraft class by itself is not enough to trigger the guard. Unrelated mods and mixins that touch a different method continue normally.
+
+When blocked, KoHs skips its mixins, prediction, sound, events, and compatibility payload registration. A mandatory English-first/Spanish-second screen identifies each mod by name, ID, and version, explains the technical reason, lists detected class/method points when available, and offers only `Close Minecraft / Cerrar Minecraft`. Escape and Mod Menu cannot bypass the screen.
+
+Marlow's Crystal Optimizer is explicitly incompatible. A confirmed beta.5 startup log showed both mods registering `marlowcrystal:opt_out`, which Fabric rejects as a duplicate payload before the title screen. The beta.6 early guard prevents KoHs from performing that duplicate registration, allowing the explanatory screen to replace the crash.
 
 ## Prediction and rendering corrections in 1.1.0-beta.2
 

@@ -1,0 +1,161 @@
+package dev.zymekoh.kohscrystaltweaks.gui;
+
+import dev.zymekoh.kohscrystaltweaks.compat.IncompatibilityManager;
+import dev.zymekoh.kohscrystaltweaks.compat.IncompatibilityManager.Conflict;
+import dev.zymekoh.kohscrystaltweaks.compat.IncompatibilityManager.ConflictPoint;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.ScrollableTextWidget;
+import net.minecraft.text.Text;
+
+/** Mandatory, non-dismissible explanation shown when an unsafe mod combination is detected. */
+public final class IncompatibilityScreen extends Screen {
+    private static final Text TITLE = Text.literal("KoHs Crystal Tweaks — Startup Blocked");
+    private static final AtomicBoolean REGISTERED = new AtomicBoolean();
+
+    public IncompatibilityScreen() {
+        super(TITLE);
+    }
+
+    public static void registerBlocker() {
+        if (!REGISTERED.compareAndSet(false, true)) {
+            return;
+        }
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (IncompatibilityManager.isBlocked()
+                    && !(client.currentScreen instanceof IncompatibilityScreen)) {
+                client.setScreen(new IncompatibilityScreen());
+            }
+        });
+    }
+
+    @Override
+    protected void init() {
+        int margin = Math.max(8, Math.min(20, width / 18));
+        int bodyTop = 30;
+        int buttonHeight = 20;
+        int footerSpace = buttonHeight + 18;
+        int bodyWidth = Math.max(1, width - margin * 2);
+        int bodyHeight = Math.max(20, height - bodyTop - footerSpace);
+
+        ScrollableTextWidget details = new ScrollableTextWidget(
+                margin, bodyTop, bodyWidth, bodyHeight,
+                Text.literal(buildMessage(IncompatibilityManager.getConflicts())), textRenderer);
+        addDrawableChild(details);
+
+        int buttonWidth = Math.max(1, Math.min(220, width - margin * 2));
+        int buttonX = (width - buttonWidth) / 2;
+        int buttonY = Math.max(bodyTop + 20, height - buttonHeight - 8);
+        addDrawableChild(ButtonWidget.builder(Text.literal("Close Minecraft / Cerrar Minecraft"), button -> stopClient())
+                .dimensions(buttonX, buttonY, buttonWidth, buttonHeight)
+                .build());
+    }
+
+    @Override
+    public boolean shouldCloseOnEsc() {
+        return false;
+    }
+
+    @Override
+    public void close() {
+        stopClient();
+    }
+
+    @Override
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        context.fill(0, 0, width, height, 0xF0100C12);
+        int margin = Math.max(4, Math.min(12, width / 32));
+        context.fill(margin, margin, width - margin, height - margin, 0xE51A111D);
+        drawBorder(context, margin, margin, Math.max(1, width - margin * 2),
+                Math.max(1, height - margin * 2), 0xFFE04B4B);
+    }
+
+    @Override
+    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        renderBackground(context, mouseX, mouseY, delta);
+        super.render(context, mouseX, mouseY, delta);
+        context.drawCenteredTextWithShadow(textRenderer, TITLE, width / 2, 10, 0xFFFF6B6B);
+    }
+
+    private void stopClient() {
+        if (client != null) {
+            client.scheduleStop();
+        }
+    }
+
+    private static String buildMessage(List<Conflict> conflicts) {
+        StringBuilder english = new StringBuilder();
+        english.append("KoHs Crystal Tweaks requires you to remove the following incompatible mod(s):\n\n");
+        appendConflicts(english, conflicts, false);
+        english.append("\nKoHs has disabled all of its gameplay mixins and runtime services before they could alter Minecraft. "
+                + "Continuing is blocked because the combined callback order is not a compatibility contract and can "
+                + "corrupt crystal placement, attack prediction, or entity cleanup state. Remove the listed mod(s), "
+                + "then restart Minecraft.\n\n");
+
+        StringBuilder spanish = new StringBuilder();
+        spanish.append("ESPAÑOL\n\nKoHs Crystal Tweaks necesita que retires los siguientes mods incompatibles:\n\n");
+        appendConflicts(spanish, conflicts, true);
+        spanish.append("\nKoHs desactivó todos sus mixins de jugabilidad y servicios de ejecución antes de que pudieran "
+                + "modificar Minecraft. No se permite continuar porque el orden combinado de callbacks no es un "
+                + "contrato de compatibilidad y puede corromper el estado de colocación, predicción de ataques o "
+                + "limpieza de entidades de cristal. Retira los mods indicados y reinicia Minecraft.");
+        return english.append(spanish).toString();
+    }
+
+    private static void appendConflicts(StringBuilder output, List<Conflict> conflicts, boolean spanish) {
+        for (Conflict conflict : conflicts) {
+            output.append("• ").append(conflict.modName())
+                    .append(" (").append(conflict.modId()).append(' ')
+                    .append(conflict.version()).append(")\n");
+
+            switch (conflict.type()) {
+                case KNOWN_CRYSTAL_OPTIMIZER -> output.append(spanish
+                        ? "  Razón: KoHs y Marlow registran los mismos identificadores de payload de compatibilidad, "
+                                + "incluido marlowcrystal:opt_out; Fabric rechaza el registro duplicado antes del menú "
+                                + "principal. Ambos también eliminan cristales localmente y redirigen el objetivo tras "
+                                + "los paquetes de ataque, lo que puede duplicar la limpieza y corromper el estado "
+                                + "pendiente de colocación o ataque.\n"
+                        : "  Reason: KoHs and Marlow register the same compatibility payload identifiers, including "
+                                + "marlowcrystal:opt_out; Fabric rejects that duplicate registration before the title "
+                                + "screen. Both also remove crystals client-side and retarget after attack packets, "
+                                + "which can duplicate cleanup and corrupt pending placement or attack state.\n");
+                case MIXIN_OVERLAP -> output.append(spanish
+                        ? "  Razón: el mod inyecta en las mismas clases y métodos críticos de cristales que KoHs. Uno "
+                                + "puede leer o modificar un estado ya alterado por el otro, dependiendo de un orden de "
+                                + "aplicación no garantizado.\n"
+                        : "  Reason: the mod injects into the same timing-critical crystal classes and methods as KoHs. "
+                                + "Either mod may read or mutate state already changed by the other, depending on an "
+                                + "undefined application order.\n");
+                case DIRECT_KOHS_MUTATION -> output.append(spanish
+                        ? "  Razón: el mod apunta directamente a clases internas de KoHs. KoHs no puede garantizar sus "
+                                + "invariantes de seguridad si otro mod modifica su implementación.\n"
+                        : "  Reason: the mod directly targets internal KoHs classes. KoHs cannot guarantee its safety "
+                                + "invariants when another mod mutates its implementation.\n");
+            }
+
+            if (!conflict.points().isEmpty()) {
+                output.append(spanish ? "  Puntos detectados: " : "  Detected points: ");
+                for (int index = 0; index < conflict.points().size(); index++) {
+                    ConflictPoint point = conflict.points().get(index);
+                    if (index > 0) {
+                        output.append(", ");
+                    }
+                    output.append(point.targetClass()).append('#').append(point.targetMethod());
+                }
+                output.append("\n");
+            }
+            output.append("\n");
+        }
+    }
+
+    private static void drawBorder(DrawContext context, int x, int y, int width, int height, int color) {
+        context.fill(x, y, x + width, y + 1, color);
+        context.fill(x, y + height - 1, x + width, y + height, color);
+        context.fill(x, y, x + 1, y + height, color);
+        context.fill(x + width - 1, y, x + width, y + height, color);
+    }
+}
