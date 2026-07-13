@@ -2,6 +2,8 @@
 
 KoHs Crystal Tweaks is a client-side Fabric mod for legitimate Crystal PvP quality-of-life improvements. It provides local visual prediction, seamless server reconciliation, crystal rendering controls, safety options, and version-specific compatibility from Minecraft 1.21 through 26.1.2.
 
+[Modrinth project page](https://modrinth.com/mod/kohs-crystal-tweaks) · [GitHub beta releases](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/releases)
+
 > Release status: all downloadable builds are published through the GitHub **pre-release/beta** channel. The mod does not automate clicks, attacks, or placements.
 
 ## Available builds
@@ -89,4 +91,6 @@ Remapped JARs are written to `build/libs/`. Published artifacts were verified wi
 - [Per-version release notes](release-notes)
 - [SHA-256 checksums](CHECKSUMS.sha256)
 
-Declared license: All Rights Reserved.
+## License
+
+KoHs Crystal Tweaks is licensed under the [MIT License](LICENSE).

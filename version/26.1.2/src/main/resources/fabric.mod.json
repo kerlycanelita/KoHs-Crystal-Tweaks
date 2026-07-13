@@ -7,7 +7,7 @@
   "authors": [
     "zymekoh"
   ],
-  "license": "All-Rights-Reserved",
+  "license": "MIT",
   "environment": "client",
   "entrypoints": {
     "main": [
