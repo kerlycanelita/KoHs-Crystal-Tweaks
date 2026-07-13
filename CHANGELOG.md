@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.0-beta.3 — 2026-07-13
+
+### Minecraft 1.21.11
+
+- Limited `Safe Crystal` protection to normal obsidian.
+- Removed crying obsidian from both the initial block-attack and continued breaking-progress guards.
+- Updated the Tweaks hover description to reflect the narrower scope.
+- Kept Safe Crystal OFF by default and without a confirmation dialog.
+
 ## 2.0.0-beta.2 — 2026-07-13
 
 ### Minecraft 1.21.11

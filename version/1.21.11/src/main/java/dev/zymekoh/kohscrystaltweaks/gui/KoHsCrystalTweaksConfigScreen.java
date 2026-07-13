@@ -247,7 +247,7 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
 
         addContent(withTooltip(ButtonWidget.builder(safeCrystalLabel(), b -> requestSafeCrystalToggle())
                 .dimensions(tweaksX(2), tweaksY(y, 2), tweaksControlW(), BTN_H).build(),
-                "Prevents block-breaking input from damaging obsidian or crying obsidian while an End Crystal is held."));
+                "Prevents block-breaking input from damaging normal obsidian while an End Crystal is held."));
 
         addContent(withTooltip(ButtonWidget.builder(staticCrystalLabel(), b -> requestStaticCrystalToggle())
                 .dimensions(tweaksX(3), tweaksY(y, 3), tweaksControlW(), BTN_H).build(),

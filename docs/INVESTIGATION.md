@@ -55,7 +55,7 @@ Sources reviewed:
 - For unknown mods, parse Fabric mixin metadata and ASM annotations without loading candidate classes. Block only direct KoHs targets or crystal-related exact target-class/method overlaps with KoHs critical hooks.
 - Fail open if generic metadata inspection is malformed, while retaining explicit known-mod detection. This prevents damaged third-party metadata from becoming an unsupported global deny list.
 - Replace the config screen with a bounded, scrollable bilingual report; reassert it at client tick end, disable Escape, and expose only `MinecraftClient.scheduleStop()`.
-- Expose Safe Crystal as a default-off direct toggle. When disabled, return before player/world/block inspection and do not cancel either vanilla block-breaking method.
+- Expose Safe Crystal as a default-off direct toggle that protects normal obsidian only. Crying obsidian remains on the vanilla block-breaking path. When disabled, return before player/world/block inspection and do not cancel either method.
 - Reflow the six Tweaks controls into two columns on compact logical screens instead of compressing them into the Close-button area.
 
 ## Verification boundaries

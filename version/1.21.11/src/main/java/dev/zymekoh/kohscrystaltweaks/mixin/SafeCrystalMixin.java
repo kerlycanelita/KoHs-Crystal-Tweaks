@@ -31,7 +31,7 @@ public abstract class SafeCrystalMixin {
         }
 
         Block block = player.getEntityWorld().getBlockState(pos).getBlock();
-        if (block == Blocks.OBSIDIAN || block == Blocks.CRYING_OBSIDIAN) {
+        if (block == Blocks.OBSIDIAN) {
             cir.setReturnValue(false);
         }
     }
@@ -51,7 +51,7 @@ public abstract class SafeCrystalMixin {
         }
 
         Block block = player.getEntityWorld().getBlockState(pos).getBlock();
-        if (block == Blocks.OBSIDIAN || block == Blocks.CRYING_OBSIDIAN) {
+        if (block == Blocks.OBSIDIAN) {
             cir.setReturnValue(false);
         }
     }

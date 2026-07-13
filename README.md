@@ -16,7 +16,7 @@ KoHs Crystal Tweaks is a client-side Fabric mod for legitimate Crystal PvP quali
 | 1.21.6–1.21.8 | 21 | `1.0.0+mc1.21.6` | `kohs-crystal-tweaks-1.0.0+mc1.21.6.jar` |
 | 1.21.9 | 21 | `1.0.0+mc1.21.9` | `kohs-crystal-tweaks-1.0.0+mc1.21.9.jar` |
 | 1.21.10 | 21 | `1.1.0-beta.2+mc1.21.10` | `kohs-crystal-tweaks-1.1.0-beta.2+mc1.21.10.jar` |
-| 1.21.11 | 21 | `2.0.0-beta.2+mc1.21.11` | `kohs-crystal-tweaks-2.0.0-beta.2+mc1.21.11.jar` |
+| 1.21.11 | 21 | `2.0.0-beta.3+mc1.21.11` | `kohs-crystal-tweaks-2.0.0-beta.3+mc1.21.11.jar` |
 | 26.1.2 | 25 | `1.1.0-beta.2+mc26.1.2` | `kohs-crystal-tweaks-1.1.0-beta.2+mc26.1.2.jar` |
 
 The 1.0.0 artifacts keep their original internal version and are distributed as GitHub pre-releases. Placement Fix starts with the 1.21.10 build.
@@ -75,9 +75,9 @@ All option descriptions are shown as hover tooltips instead of fixed description
 
 Only the four timing-critical optimization toggles use an `Accept` / `Restore` confirmation: `Local Crystal`, `Seamless Mode`, `Placement Fix`, and `Rapid Attack Fix`. Consequences are shown first in English and then in Spanish. Visual, Sound, Safe Crystal, Static Crystal, and Crystal Flotation controls switch immediately.
 
-## Safe Crystal switch (2.0.0-beta.2, Minecraft 1.21.11)
+## Safe Crystal switch (2.0.0-beta.3, Minecraft 1.21.11)
 
-`Safe Crystal` is disabled by default in `Tweaks`. When enabled, it cancels vanilla block attack and breaking-progress calls only when the player is holding an End Crystal and the targeted block is obsidian or crying obsidian.
+`Safe Crystal` is disabled by default in `Tweaks`. When enabled, it cancels vanilla block attack and breaking-progress calls only when the player is holding an End Crystal and the targeted block is normal obsidian. Crying obsidian is no longer protected by this option.
 
 The switch has no confirmation dialog. When disabled, both mixin callbacks return after the cached configuration check, before reading the player, world, held item, or block state. This restores vanilla block-breaking behavior for testing without changing crystal placement (`interactBlock`) or entity attacks (`attackEntity`). Compact configuration screens arrange the six Tweaks controls in two columns to keep them above the Close button.
 
