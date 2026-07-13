@@ -8,12 +8,12 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.gui.tooltip.Tooltip;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ConfirmScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
-import net.minecraft.text.OrderedText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.MathHelper;
@@ -38,7 +38,6 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
 
     // ── Button sizes ──
     private static final int BTN_H = 16;
-    private static final int DESC_COLOR = 0xFF9E92B0;
     private static final int ROW_SPACING = 28;
 
     // ── Color picker ──
@@ -81,6 +80,7 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
     private boolean crystalFlotationEnabled;
     private boolean staticCrystalEnabled;
     private boolean placementFixEnabled;
+    private boolean rapidAttackFixEnabled;
 
     // Sound tab state
     private boolean customSoundEnabled;
@@ -132,6 +132,7 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
             crystalFlotationEnabled = cfg.crystalFlotationEnabled;
             staticCrystalEnabled = cfg.staticCrystalEnabled;
             placementFixEnabled = cfg.placementFixEnabled;
+            rapidAttackFixEnabled = cfg.rapidAttackFixEnabled;
             customSoundEnabled = cfg.customSoundEnabled;
             soundVolume = cfg.soundVolume;
             soundSpeed = cfg.soundSpeed;
@@ -191,33 +192,36 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
         int y = contentY();
 
         // Local Crystal toggle
-        addContent(ButtonWidget.builder(localCrystalLabel(), b -> {
+        addContent(withTooltip(ButtonWidget.builder(localCrystalLabel(), b -> {
             boolean next = !KoHsCrystalTweaksConfig.get().clientSideCrystalsEnabled;
             KoHsCrystalTweaksConfig.setClientSideCrystalsEnabled(next);
             CrystalPredictor.setEnabled(next);
             b.setMessage(localCrystalLabel());
-        }).dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build());
+        }).dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build(),
+                "Renders accepted crystal placements immediately on the client."));
 
         // Seamless toggle
-        addContent(ButtonWidget.builder(seamlessLabel(), b -> {
+        addContent(withTooltip(ButtonWidget.builder(seamlessLabel(), b -> {
             KoHsCrystalTweaksConfig cfg = KoHsCrystalTweaksConfig.get();
             cfg.seamlessEnabled = !cfg.seamlessEnabled;
             KoHsCrystalTweaksConfig.save();
             b.setMessage(seamlessLabel());
-        }).dimensions(cx() - buttonW / 2, y + rowSpacing, buttonW, BTN_H).build());
+        }).dimensions(cx() - buttonW / 2, y + rowSpacing, buttonW, BTN_H).build(),
+                "Smooths the handoff from a predicted crystal to the server entity."));
     }
 
     private void initVisualsTab() {
         int y = contentY();
 
         // Tint toggle — rebuilds content on click
-        addContent(ButtonWidget.builder(tintLabel(), b -> {
+        addContent(withTooltip(ButtonWidget.builder(tintLabel(), b -> {
             crystalTintEnabled = !crystalTintEnabled;
             b.setMessage(tintLabel());
             rebuildTab(); // rebuild to show/hide color config
-        }).dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build());
+        }).dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build(),
+                "Applies separate custom colors to the crystal frame and core."));
 
-        if (!crystalTintEnabled) return; // Only description text rendered
+        if (!crystalTintEnabled) return;
 
         // Layer buttons (only when ON)
         int lx = contentX();
@@ -226,12 +230,14 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
             activeTarget = TintTarget.FRAME;
             updateLayerTexts();
         }).dimensions(lx, y + 22, layerButtonW, BTN_H).build();
+        outerBtn.setTooltip(Tooltip.of(Text.literal("Selects the crystal frame color for editing.")));
         addContent(outerBtn);
 
         ButtonWidget innerBtn = ButtonWidget.builder(Text.literal(""), b -> {
             activeTarget = TintTarget.CORE;
             updateLayerTexts();
         }).dimensions(lx + layerButtonW + 4, y + 22, layerButtonW, BTN_H).build();
+        innerBtn.setTooltip(Tooltip.of(Text.literal("Selects the crystal core color for editing.")));
         addContent(innerBtn);
 
         updateLayerTexts();
@@ -240,24 +246,34 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
     private void initTweaksTab() {
         int y = contentY();
 
-        addContent(ButtonWidget.builder(placementFixLabel(), b -> requestPlacementFixToggle())
-                .dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build());
+        addContent(withTooltip(ButtonWidget.builder(placementFixLabel(), b -> requestPlacementFixToggle())
+                .dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build(),
+                "Retargets only the current crystal use to freshly predicted obsidian. Sends no extra use packets."));
 
-        addContent(ButtonWidget.builder(staticCrystalLabel(), b -> {
+        addContent(withTooltip(ButtonWidget.builder(rapidAttackFixLabel(), b -> {
+            rapidAttackFixEnabled = !rapidAttackFixEnabled;
+            b.setMessage(rapidAttackFixLabel());
+        }).dimensions(cx() - buttonW / 2, y + rowSpacing, buttonW, BTN_H).build(),
+                "Queues one validated attack when a predicted crystal is clicked before the server entity arrives. Never repeats attacks."));
+
+        addContent(withTooltip(ButtonWidget.builder(staticCrystalLabel(), b -> {
             staticCrystalEnabled = !staticCrystalEnabled;
             b.setMessage(staticCrystalLabel());
             rebuildTab();
-        }).dimensions(cx() - buttonW / 2, y + rowSpacing, buttonW, BTN_H).build());
+        }).dimensions(cx() - buttonW / 2, y + rowSpacing * 2, buttonW, BTN_H).build(),
+                "Keeps crystals completely still with no spin or floating animation."));
 
         if (staticCrystalEnabled) return;
 
-        addContent(ButtonWidget.builder(crystalFlotationLabel(), b -> {
+        addContent(withTooltip(ButtonWidget.builder(crystalFlotationLabel(), b -> {
             crystalFlotationEnabled = !crystalFlotationEnabled;
             b.setMessage(crystalFlotationLabel());
-        }).dimensions(cx() - buttonW / 2, y + rowSpacing * 2, buttonW, BTN_H).build());
+        }).dimensions(cx() - buttonW / 2, y + rowSpacing * 3, buttonW, BTN_H).build(),
+                "Enables or disables the crystal floating animation."));
 
-        addContent(new PercentSlider(cx() - buttonW / 2, y + rowSpacing * 3, buttonW, BTN_H,
-                "Spin Speed", 0.0, 3.0, crystalSpinSpeed, v -> crystalSpinSpeed = v.floatValue()));
+        addContent(withTooltip(new PercentSlider(cx() - buttonW / 2, y + rowSpacing * 4, buttonW, BTN_H,
+                "Spin Speed", 0.0, 3.0, crystalSpinSpeed, v -> crystalSpinSpeed = v.floatValue()),
+                "Controls crystal rotation speed from stopped to 300%."));
     }
 
     private void requestPlacementFixToggle() {
@@ -283,25 +299,34 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
         int y = contentY();
 
         // Custom Sound toggle — rebuilds content on click
-        addContent(ButtonWidget.builder(soundToggleLabel(), b -> {
+        addContent(withTooltip(ButtonWidget.builder(soundToggleLabel(), b -> {
             customSoundEnabled = !customSoundEnabled;
             b.setMessage(soundToggleLabel());
             rebuildTab(); // rebuild to show/hide sound config
-        }).dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build());
+        }).dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build(),
+                "Replaces the default crystal explosion sound through the vanilla sound pipeline."));
 
-        if (!customSoundEnabled) return; // Only description text rendered
+        if (!customSoundEnabled) return;
 
         // Select file button (only when ON)
-        addContent(ButtonWidget.builder(Text.literal("Select Sound File..."), b -> openFilePicker())
-                .dimensions(cx() - buttonW / 2, y + 20, buttonW, BTN_H).build());
+        addContent(withTooltip(ButtonWidget.builder(Text.literal("Select Sound File..."), b -> openFilePicker())
+                .dimensions(cx() - buttonW / 2, y + 20, buttonW, BTN_H).build(),
+                "Imports a WAV, OGG or MP3 file for crystal explosions."));
 
         // Volume slider
-        addContent(new PercentSlider(cx() - buttonW / 2, y + 42, buttonW, BTN_H,
-                "Volume", 0.0, 2.0, soundVolume, v -> soundVolume = v.floatValue()));
+        addContent(withTooltip(new PercentSlider(cx() - buttonW / 2, y + 42, buttonW, BTN_H,
+                "Volume", 0.0, 2.0, soundVolume, v -> soundVolume = v.floatValue()),
+                "Controls the custom explosion sound volume."));
 
         // Speed slider
-        addContent(new PercentSlider(cx() - buttonW / 2, y + 64, buttonW, BTN_H,
-                "Speed", 0.5, 2.0, soundSpeed, v -> soundSpeed = v.floatValue()));
+        addContent(withTooltip(new PercentSlider(cx() - buttonW / 2, y + 64, buttonW, BTN_H,
+                "Speed", 0.5, 2.0, soundSpeed, v -> soundSpeed = v.floatValue()),
+                "Controls custom sound playback speed from 50% to 200%."));
+    }
+
+    private <T extends ClickableWidget> T withTooltip(T widget, String description) {
+        widget.setTooltip(Tooltip.of(Text.literal(description)));
+        return widget;
     }
 
     private void addContent(ClickableWidget widget) {
@@ -347,10 +372,10 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
 
         // Tab-specific rendering
         switch (activeTab) {
-            case OPTIMIZATION -> renderOptimizationContent(ctx);
             case VISUALS -> renderVisualsContent(ctx, mx, my);
-            case TWEAKS -> renderTweaksContent(ctx);
             case SOUND -> renderSoundContent(ctx);
+            case OPTIMIZATION, TWEAKS -> {
+            }
         }
     }
 
@@ -369,34 +394,6 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
 
     // ── Tab: Optimization ──
 
-    private void renderTweaksContent(DrawContext ctx) {
-        if (compact) return;
-        int y = contentY();
-        int lx = contentX();
-
-        if (staticCrystalEnabled) {
-            drawDesc(ctx, "Static Crystal keeps the crystal", lx, y + rowSpacing + BTN_H + 3);
-            drawDesc(ctx, "completely still with no spin", lx, y + rowSpacing + BTN_H + 13);
-            drawDesc(ctx, "and no floating animation.", lx, y + rowSpacing + BTN_H + 23);
-            return;
-        }
-
-        drawDesc(ctx, "Placement Fix retargets only the current click;", lx, y + 116);
-        drawDesc(ctx, "it never sends extra interaction packets.", lx, y + 126);
-    }
-
-    private void renderOptimizationContent(DrawContext ctx) {
-        if (compact) return;
-        int y = contentY();
-        int lx = contentX();
-
-        // Description under Local Crystal button
-        drawDesc(ctx, "Predicts crystal placement client-side", lx, y + BTN_H + 2);
-
-        // Description under Seamless button
-        drawDesc(ctx, "Smooths transition to server crystals", lx, y + rowSpacing + BTN_H + 2);
-    }
-
     // ── Tab: Visuals ──
 
     private void renderVisualsContent(DrawContext ctx, int mx, int my) {
@@ -404,10 +401,6 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
         int lx = contentX();
 
         if (!crystalTintEnabled) {
-            // Show description when OFF
-            drawDesc(ctx, "Apply custom color tints to crystal", lx, cy + BTN_H + 3);
-            drawDesc(ctx, "frame (outer) and core (inner) layers.", lx, cy + BTN_H + 13);
-            drawDesc(ctx, "Enable to configure colors.", lx, cy + BTN_H + 23);
             return;
         }
 
@@ -485,11 +478,6 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
         int lx = contentX();
 
         if (!customSoundEnabled) {
-            // Show description when OFF
-            drawDesc(ctx, "Replace the default explosion sound", lx, y + BTN_H + 3);
-            drawDesc(ctx, "through the vanilla sound pipeline.", lx, y + BTN_H + 13);
-            drawDesc(ctx, "Supports WAV, OGG and MP3 formats.", lx, y + BTN_H + 23);
-            drawDesc(ctx, "Enable to configure sound settings.", lx, y + BTN_H + 33);
             return;
         }
 
@@ -627,6 +615,7 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
         KoHsCrystalTweaksConfig.setCrystalTweaksSettings(
                 crystalSpinSpeed, crystalFlotationEnabled, staticCrystalEnabled);
         KoHsCrystalTweaksConfig.get().placementFixEnabled = placementFixEnabled;
+        KoHsCrystalTweaksConfig.get().rapidAttackFixEnabled = rapidAttackFixEnabled;
         KoHsCrystalTweaksConfig.save();
 
         // Save sound
@@ -663,6 +652,12 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
 
     private Text placementFixLabel() {
         return Text.literal("Placement Fix: ").append(placementFixEnabled
+                ? Text.literal("ON").formatted(Formatting.GREEN)
+                : Text.literal("OFF").formatted(Formatting.RED));
+    }
+
+    private Text rapidAttackFixLabel() {
+        return Text.literal("Rapid Attack Fix: ").append(rapidAttackFixEnabled
                 ? Text.literal("ON").formatted(Formatting.GREEN)
                 : Text.literal("OFF").formatted(Formatting.RED));
     }
@@ -704,20 +699,6 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
     // ══════════════════════════════════════════════════════════════════
     //  Drawing helpers
     // ══════════════════════════════════════════════════════════════════
-
-    private int drawWrapped(DrawContext ctx, Text text, int cx, int y, int maxW, int color) {
-        List<OrderedText> lines = textRenderer.wrapLines(text, maxW);
-        int ly = y;
-        for (OrderedText line : lines) {
-            ctx.drawText(textRenderer, line, cx - textRenderer.getWidth(line) / 2, ly, color, false);
-            ly += 10;
-        }
-        return ly;
-    }
-
-    private void drawDesc(DrawContext ctx, String text, int x, int y) {
-        ctx.drawText(textRenderer, Text.literal(text), x, y, DESC_COLOR, false);
-    }
 
     private static int lerpColor(int a, int b, float t) {
         float c = MathHelper.clamp(t, 0, 1);

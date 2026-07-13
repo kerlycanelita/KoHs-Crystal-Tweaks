@@ -88,6 +88,48 @@ public final class CrystalPredictor {
         }
     }
 
+    public static EndCrystalEntity findRealCrystalForLocal(Entity entity) {
+        if (!isLocalCrystalEntity(entity)) {
+            return null;
+        }
+        return findRealAt(entity.getBlockPos());
+    }
+
+    public static boolean queueLocalCrystalAttack(Entity entity) {
+        if (!(entity instanceof EndCrystalEntity)) {
+            return false;
+        }
+
+        Local local = LOCAL.get(entity.getBlockPos().asLong());
+        if (local == null || local.entity != entity || !local.entity.isAlive()) {
+            return false;
+        }
+
+        // A boolean deliberately deduplicates butterfly clicks. The real entity ID is
+        // never guessed and no packet is sent until the server crystal is loaded.
+        local.pendingAttack = true;
+        return true;
+    }
+
+    public static void discardLocalCrystal(Entity entity) {
+        if (entity == null) {
+            return;
+        }
+
+        long key = entity.getBlockPos().asLong();
+        Local local = LOCAL.get(key);
+        if (local == null || local.entity != entity) {
+            return;
+        }
+        LOCAL.remove(key);
+        if (local.pairedRealId != -1) {
+            SeamlessCrystalBridge.clear(local.pairedRealId);
+        }
+        if (local.entity.isAlive()) {
+            local.entity.discard();
+        }
+    }
+
     public static HitResult raycastIgnoringLocal(float tickDelta) {
         if (MC.world == null) {
             return BlockHitResult.createMissed(Vec3d.ZERO, Direction.DOWN, BlockPos.ORIGIN);
@@ -197,6 +239,9 @@ public final class CrystalPredictor {
         }
         Local existing = LOCAL.get(crystalKey);
         if (existing != null) {
+            if (existing.pendingAttack) {
+                return;
+            }
             if (existing.pairedRealId != -1) {
                 return;
             }
@@ -228,6 +273,9 @@ public final class CrystalPredictor {
 
         Local exact = LOCAL.get(realKey);
         if (exact != null && exact.entity != null && exact.entity.isAlive()) {
+            if (consumePendingAttack(realKey, exact, realCrystal)) {
+                return;
+            }
             if (KoHsCrystalTweaksConfig.get().seamlessEnabled && !attacking) {
                 updateAdaptiveTimeout(exact);
                 Integer fakeAge = getAge(exact.entity);
@@ -284,6 +332,36 @@ public final class CrystalPredictor {
             LOCAL.remove(key);
             near.entity.discard();
         }
+    }
+
+    private static boolean consumePendingAttack(long key, Local local, EndCrystalEntity realCrystal) {
+        if (!local.pendingAttack) {
+            return false;
+        }
+
+        LOCAL.remove(key);
+        if (local.pairedRealId != -1) {
+            SeamlessCrystalBridge.clear(local.pairedRealId);
+        }
+        if (local.entity != null && local.entity.isAlive()) {
+            local.entity.discard();
+        }
+
+        if (!KoHsCrystalTweaksConfig.get().rapidAttackFixEnabled
+                || MC.world == null
+                || MC.player == null
+                || MC.interactionManager == null
+                || realCrystal.getEntityWorld() != MC.world
+                || !realCrystal.isAlive()
+                || !MC.player.canInteractWithEntity(realCrystal, 0.0)) {
+            return true;
+        }
+
+        // Preserve the normal interaction-manager path and give the existing local
+        // removal hook the real server entity rather than the discarded prediction.
+        MC.crosshairTarget = new EntityHitResult(realCrystal);
+        MC.interactionManager.attackEntity(MC.player, realCrystal);
+        return true;
     }
 
     public static void onEntityUnloaded(Entity entity) {
@@ -366,6 +444,23 @@ public final class CrystalPredictor {
                         EntityType.END_CRYSTAL,
                         box,
                         crystal -> !isLocalCrystal(crystal))
+                .stream()
+                .findFirst()
+                .orElse(null);
+    }
+
+    private static EndCrystalEntity findRealAt(BlockPos pos) {
+        ClientWorld world = MC.world;
+        if (world == null) {
+            return null;
+        }
+
+        Vec3d center = Vec3d.ofBottomCenter(pos);
+        Box box = new Box(center.add(-0.5, -0.5, -0.5), center.add(0.5, 1.5, 0.5));
+        return world.getEntitiesByType(
+                        EntityType.END_CRYSTAL,
+                        box,
+                        crystal -> !isLocalCrystal(crystal) && crystal.getBlockPos().equals(pos))
                 .stream()
                 .findFirst()
                 .orElse(null);
@@ -465,6 +560,7 @@ public final class CrystalPredictor {
         private final int createdTick;
         private int expiresTick;
         private int pairedRealId = -1;
+        private boolean pendingAttack;
 
         private Local(EndCrystalEntity entity, int createdTick, int expiresTick) {
             this.entity = entity;

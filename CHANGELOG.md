@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0-beta.3 — 2026-07-13
+
+### Minecraft 1.21.11
+
+- Added `Rapid Attack Fix`, enabled by default in the `Tweaks` tab.
+- Fixed a lost-attack race when very fast left/right butterfly clicks hit a predicted crystal before the matching server entity is loaded.
+- Deferred at most one already validated vanilla attack until the real crystal ID is available.
+- Deduplicated repeated clicks and bounded the pending intent by the existing prediction timeout; no guessed IDs or packet spam are used.
+- Removed fixed option-description blocks and moved their content to hover tooltips across the configuration screen.
+- Preserved the responsive compact layout after adding the new toggle.
+
 ## 1.1.0-beta.2 — 2026-07-13
 
 ### Minecraft 1.21.10, 1.21.11, and 26.1.2

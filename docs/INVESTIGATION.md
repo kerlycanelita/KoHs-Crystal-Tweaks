@@ -9,6 +9,8 @@ Sources reviewed:
 - [Community report: crystal fails to place when spamming after obsidian](https://www.reddit.com/r/MinecraftPVP/comments/1kwove8/weird_bug_or_glitch_when_practicing_hit_crystal/)
 - [Community discussion about hit-crystal consistency and delay](https://www.reddit.com/r/CompetitiveMinecraft/comments/1jbmyhx/what_am_i_doing_wrong_in_hitcrystalling/)
 - [Fabric 1.21.9/1.21.10 entity rendering migration](https://fabricmc.net/2025/09/23/1219.html)
+- [Fabric client entity lifecycle events](https://maven.fabricmc.net/docs/fabric-api-0.102.0%2B1.21/net/fabricmc/fabric/api/client/event/lifecycle/v1/ClientEntityEvents.html)
+- [Yarn 1.21.11 `ClientPlayerInteractionManager`](https://maven.fabricmc.net/docs/yarn-1.21.11%2Bbuild.1/net/minecraft/client/network/ClientPlayerInteractionManager.html)
 - [Public KoHs Crystal Tweaks project page](https://modrinth.com/mod/kohs-crystal-tweaks)
 
 ## Code findings
@@ -18,6 +20,7 @@ Sources reviewed:
 3. The 1.21.x validation accepted crying obsidian even though vanilla `EndCrystalItem` accepts only obsidian or bedrock.
 4. The 1.21.x tint implementation queued several parts while temporarily changing `ModelPart.visible`. Rendering happened later, so restoring visibility before queue consumption could duplicate subtrees or mix colors.
 5. In 26.1.2, the UI persisted tint/spin/flotation/static values but renderer hooks did not consume them.
+6. In 1.21.11, attacking a predicted local crystal removed that prediction and raycast past it. When the matching server crystal had not loaded yet, vanilla had no real entity ID to attack, so the click was lost and the later server crystal remained alive.
 
 ## Implemented solution
 
@@ -27,6 +30,8 @@ Sources reviewed:
 - Reuse the vanilla packet path; never invoke networking manually.
 - Register crystal model parts by identity and select their color in `ModelPart.render`, when queued geometry is actually consumed.
 - Bound the configuration UI to current logical dimensions for high GUI scales and compact windows.
+- In 1.21.11, intercept only the vanilla `attackEntity` call after vanilla validation. Queue one boolean attack intent on the local prediction, consume it once when the matching server entity loads, and expire it with the prediction.
+- Replace fixed option descriptions with hover tooltips so explanatory text does not consume layout space.
 
 ## Verification boundaries
 
@@ -39,3 +44,4 @@ Sources reviewed:
 
 Placement Fix changes only the `BlockHitResult` consumed by the player's current vanilla interaction. It sends no additional use or attack packets, repeats no input, and performs no remote targeting. The optimizer reacts only to an attack the player already issued and performs client-side visual cleanup.
 
+Rapid Attack Fix does not synthesize clicks, guess entity IDs, or retry packets. It preserves at most one attack that already reached vanilla's normal attack call and sends that single attack only when the corresponding real entity is available.
