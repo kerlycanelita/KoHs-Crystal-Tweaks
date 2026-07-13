@@ -1,0 +1,53 @@
+plugins {
+    id "fabric-loom" version "1.13-SNAPSHOT"
+}
+
+def artifactVersion = "${project.mod_version}+mc${project.minecraft_version}"
+
+version = artifactVersion
+group = project.maven_group
+
+base {
+    archivesName = project.archives_base_name
+}
+
+repositories {
+    maven { url = "https://maven.fabricmc.net/" }
+    maven { url = "https://maven.terraformersmc.com/releases/" }
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+    mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+
+    implementation "javazoom:jlayer:1.0.1"
+    include "javazoom:jlayer:1.0.1"
+}
+
+processResources {
+    inputs.property "version", artifactVersion
+    filesMatching("fabric.mod.json") {
+        filter { line -> line.replace('${version}', artifactVersion) }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 21
+    options.encoding = "UTF-8"
+}
+
+tasks.withType(AbstractArchiveTask).configureEach {
+    archiveVersion.set(artifactVersion)
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+    withSourcesJar()
+}
+
+

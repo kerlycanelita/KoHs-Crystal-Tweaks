@@ -1,0 +1,21 @@
+{
+  "required": true,
+  "package": "dev.zymekoh.kohscrystaltweaks.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "EndCrystalRendererSeamlessMixin",
+    "EndCrystalModelAnimationMixin",
+    "EndCrystalRenderStateMixin",
+    "MinecraftPassThroughLocalCrystalMixin",
+    "ModelPartCrystalTintMixin",
+    "MultiPlayerGameModeCrystalPredictionMixin",
+    "MultiPlayerGameModeLocalCrystalMixin",
+    "SafeCrystalMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

@@ -1,0 +1,26 @@
+# Gradle and generated artifacts
+.gradle/
+**/.gradle/
+build/
+**/build/
+
+# Minecraft development runs
+run/
+**/run/
+temp_sources/
+**/temp_sources/
+
+# Root-level decompiler output (never matches src/main/java/net/...)
+/version/*/net/
+
+# IDE and local machine files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

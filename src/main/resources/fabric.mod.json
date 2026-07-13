@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "kohs_crystal_tweaks",
+  "version": "${version}",
+  "name": "KoHs Crystal Tweaks",
+  "description": "Legit crystal QoL: safe break protection and optional local prediction.",
+  "authors": [
+    "zymekoh"
+  ],
+  "license": "All-Rights-Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "main": [
+      "dev.zymekoh.kohscrystaltweaks.KoHsCrystalTweaks"
+    ],
+    "client": [
+      "dev.zymekoh.kohscrystaltweaks.KoHsCrystalTweaksClient"
+    ],
+    "modmenu": [
+      "dev.zymekoh.kohscrystaltweaks.util.ModMenuIntegration"
+    ]
+  },
+  "icon": "assets/kohs_crystal_tweaks/icon.png",
+  "mixins": [
+    "kohs_crystal_tweaks.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.17.0",
+    "minecraft": ">=1.21.10 <1.21.12",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "modmenu": "*"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "kohs_crystal_tweaks",
+  "version": "${version}",
+  "name": "KoHs Crystal Tweaks",
+  "description": "Enhances End Crystal visuals and mechanics with smooth animations, custom tints, and local prediction.",
+  "authors": [
+    "zymekoh"
+  ],
+  "license": "All-Rights-Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "main": [
+      "dev.zymekoh.kohscrystaltweaks.KoHsCrystalTweaks"
+    ],
+    "client": [
+      "dev.zymekoh.kohscrystaltweaks.KoHsCrystalTweaksClient"
+    ],
+    "modmenu": [
+      "dev.zymekoh.kohscrystaltweaks.util.ModMenuIntegration"
+    ]
+  },
+  "icon": "assets/kohs_crystal_tweaks/icon.png",
+  "mixins": [
+    "kohs_crystal_tweaks.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.17.0",
+    "minecraft": ">=1.21.6 <1.21.9",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "modmenu": "*"
+  }
+}
+
+
