@@ -2,13 +2,13 @@
 
 ## Build matrix
 
-- Mod version: `1.1.0-beta.6+mc1.21.11`
+- Mod version: `1.1.0-beta.7+mc1.21.11`
 - Minecraft: `>=1.21.11`
 - Java: 21
 - Yarn mappings: `1.21.11+build.5`
 - Fabric Loader: `0.17.2`
 - Fabric API: `0.140.0+1.21.11`
-- Artifact: `kohs-crystal-tweaks-1.1.0-beta.6+mc1.21.11.jar`
+- Artifact: `kohs-crystal-tweaks-1.1.0-beta.7+mc1.21.11.jar`
 - Distribution status: GitHub beta/pre-release
 
 ## Beta implementation

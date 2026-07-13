@@ -16,7 +16,7 @@ KoHs Crystal Tweaks is a client-side Fabric mod for legitimate Crystal PvP quali
 | 1.21.6–1.21.8 | 21 | `1.0.0+mc1.21.6` | `kohs-crystal-tweaks-1.0.0+mc1.21.6.jar` |
 | 1.21.9 | 21 | `1.0.0+mc1.21.9` | `kohs-crystal-tweaks-1.0.0+mc1.21.9.jar` |
 | 1.21.10 | 21 | `1.1.0-beta.2+mc1.21.10` | `kohs-crystal-tweaks-1.1.0-beta.2+mc1.21.10.jar` |
-| 1.21.11 | 21 | `1.1.0-beta.6+mc1.21.11` | `kohs-crystal-tweaks-1.1.0-beta.6+mc1.21.11.jar` |
+| 1.21.11 | 21 | `1.1.0-beta.7+mc1.21.11` | `kohs-crystal-tweaks-1.1.0-beta.7+mc1.21.11.jar` |
 | 26.1.2 | 25 | `1.1.0-beta.2+mc26.1.2` | `kohs-crystal-tweaks-1.1.0-beta.2+mc26.1.2.jar` |
 
 The 1.0.0 artifacts keep their original internal version and are distributed as GitHub pre-releases. Placement Fix starts with the 1.21.10 build.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0-beta.7 — 2026-07-13
+
+### Minecraft 1.21.11
+
+- Moved the incompatibility-screen title into a dedicated header gap below the top frame line.
+- Derived the report's top edge from the actual title position and font height so GUI scaling cannot make the border cross the heading.
+- No incompatibility detection, warning content, controls, or gameplay behavior changed.
+
 ## 1.1.0-beta.6 — 2026-07-13
 
 ### Minecraft 1.21.11
