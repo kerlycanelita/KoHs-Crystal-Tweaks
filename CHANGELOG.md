@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0-beta.5 — 2026-07-13
+
+### Minecraft 1.21.11
+
+- Fixed keyboard-place and mixed mouse/keyboard crystal cycles losing their physical input order inside one client tick.
+- Records only real vanilla attack/use press events and consumes each ordered entry against its corresponding `KeyBinding.wasPressed()` count.
+- Immediately targets an accepted local crystal placement so the next physical attack in the same tick can reach the prediction.
+- Preserved server authority and the one-input/one-action boundary: no removed cooldown, synthesized click, guessed entity ID, or additional packet.
+- Removed disable confirmations from Visual and Sound.
+- Removed disable confirmations from `Static Crystal` and `Crystal Flotation`; warnings remain for the four timing-critical optimization/fix toggles.
+
 ## 1.1.0-beta.4 — 2026-07-13
 
 ### Minecraft 1.21.11

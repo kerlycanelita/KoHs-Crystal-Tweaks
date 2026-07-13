@@ -2,18 +2,21 @@
 
 ## Build matrix
 
-- Mod version: `1.1.0-beta.4+mc1.21.11`
+- Mod version: `1.1.0-beta.5+mc1.21.11`
 - Minecraft: `>=1.21.11`
 - Java: 21
 - Yarn mappings: `1.21.11+build.5`
 - Fabric Loader: `0.17.2`
 - Fabric API: `0.140.0+1.21.11`
-- Artifact: `kohs-crystal-tweaks-1.1.0-beta.4+mc1.21.11.jar`
+- Artifact: `kohs-crystal-tweaks-1.1.0-beta.5+mc1.21.11.jar`
 - Distribution status: GitHub beta/pre-release
 
 ## Beta implementation
 
 - `Rapid Attack Fix` is enabled by default in `Tweaks` and preserves one validated attack if the local prediction is clicked before the server crystal loads.
+- Placement Fix preserves the physical order of vanilla attack/use presses during crystal cycles, including Use Item bound to a keyboard key.
+- Each ordered entry must consume one existing vanilla `KeyBinding.wasPressed()` count; the implementation does not create input or remove the use cooldown.
+- An accepted predicted crystal becomes the immediate target for a following physical attack in the same client tick.
 - Pending attacks are deduplicated, require the real server entity ID, and expire with the prediction timeout.
 - Real-crystal cleanup resolves the outgoing packet ID and immediately retraces the crosshair through prediction-aware raycasting.
 - Placement Fix is integrated into `ClientPlayerInteractionManager.interactBlock` and enabled by default.
@@ -24,7 +27,8 @@
 - Outer/core tint is selected by `ModelPart` identity during actual queued rendering.
 - The screen layout is bounded by the current logical dimensions.
 - Feature explanations are hover tooltips; fixed description blocks have been removed.
-- Every toggle uses an English-first, Spanish-second `Accept` / `Restore` warning before it can be disabled.
+- `Local Crystal`, `Seamless Mode`, `Placement Fix`, and `Rapid Attack Fix` retain English-first, Spanish-second `Accept` / `Restore` warnings.
+- Visual, Sound, Static Crystal, and Crystal Flotation controls switch directly without a confirmation dialog.
 
 Placement Fix changes only the current interaction's `BlockHitResult`. Rapid Attack Fix preserves at most one attack that already passed vanilla validation. Neither feature guesses IDs, repeats clicks, or selects remote targets.
 

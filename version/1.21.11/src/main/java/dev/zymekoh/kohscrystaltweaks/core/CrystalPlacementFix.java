@@ -43,6 +43,7 @@ public final class CrystalPlacementFix {
     public static void reset() {
         pendingObsidian = null;
         clientTick = 0;
+        OrderedCrystalInput.clear();
     }
 
     public static void recordObsidianPlacement(ClientPlayerEntity player, BlockHitResult hit) {

@@ -240,23 +240,26 @@ public final class CrystalPredictor {
         Local existing = LOCAL.get(crystalKey);
         if (existing != null) {
             if (existing.pendingAttack) {
+                targetLocalCrystal(existing.entity);
                 return;
             }
             if (existing.pairedRealId != -1) {
+                targetLocalCrystal(existing.entity);
                 return;
             }
 
             // Replacing stale unmatched predictions keeps manual repeat-places feeling snappy
             // without changing packet timing or automating any interaction.
             if (tick - existing.createdTick >= 2) {
-                spawnLocal(crystalPos);
+                targetLocalCrystal(spawnLocal(crystalPos));
             } else {
                 existing.expiresTick = Math.min(existing.expiresTick, tick + 2);
+                targetLocalCrystal(existing.entity);
             }
             return;
         }
 
-        spawnLocal(crystalPos);
+        targetLocalCrystal(spawnLocal(crystalPos));
     }
 
     public static void onEntityLoaded(Entity entity) {
@@ -399,10 +402,10 @@ public final class CrystalPredictor {
         return isValidBase(base) ? base : null;
     }
 
-    private static void spawnLocal(BlockPos pos) {
+    private static EndCrystalEntity spawnLocal(BlockPos pos) {
         ClientWorld world = MC.world;
         if (world == null) {
-            return;
+            return null;
         }
 
         Local old = LOCAL.remove(pos.asLong());
@@ -426,6 +429,19 @@ public final class CrystalPredictor {
 
         int ttl = resolvePredictionTimeoutTicks();
         LOCAL.put(pos.asLong(), new Local(localCrystal, tick, tick + ttl));
+        return localCrystal;
+    }
+
+    private static void targetLocalCrystal(EndCrystalEntity localCrystal) {
+        if (localCrystal == null || !localCrystal.isAlive()) {
+            return;
+        }
+
+        // The use was already accepted against this crystal's base. Updating the
+        // target immediately lets the next physical attack in the same client tick
+        // hit the prediction instead of the now-stale block hit result.
+        MC.targetedEntity = localCrystal;
+        MC.crosshairTarget = new EntityHitResult(localCrystal);
     }
 
     private static boolean hasAnyRealCrystal(BlockPos pos) {

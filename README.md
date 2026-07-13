@@ -16,7 +16,7 @@ KoHs Crystal Tweaks is a client-side Fabric mod for legitimate Crystal PvP quali
 | 1.21.6–1.21.8 | 21 | `1.0.0+mc1.21.6` | `kohs-crystal-tweaks-1.0.0+mc1.21.6.jar` |
 | 1.21.9 | 21 | `1.0.0+mc1.21.9` | `kohs-crystal-tweaks-1.0.0+mc1.21.9.jar` |
 | 1.21.10 | 21 | `1.1.0-beta.2+mc1.21.10` | `kohs-crystal-tweaks-1.1.0-beta.2+mc1.21.10.jar` |
-| 1.21.11 | 21 | `1.1.0-beta.4+mc1.21.11` | `kohs-crystal-tweaks-1.1.0-beta.4+mc1.21.11.jar` |
+| 1.21.11 | 21 | `1.1.0-beta.5+mc1.21.11` | `kohs-crystal-tweaks-1.1.0-beta.5+mc1.21.11.jar` |
 | 26.1.2 | 25 | `1.1.0-beta.2+mc26.1.2` | `kohs-crystal-tweaks-1.1.0-beta.2+mc26.1.2.jar` |
 
 The 1.0.0 artifacts keep their original internal version and are distributed as GitHub pre-releases. Placement Fix starts with the 1.21.10 build.
@@ -30,6 +30,7 @@ The 1.0.0 artifacts keep their original internal version and are distributed as 
 - **Custom Sound** imports WAV, OGG, and MP3 explosion replacements on supported branches.
 - **Safe Crystal** prevents accidental block breaking while holding an End Crystal.
 - **Placement Fix** on 1.21.10+ retargets only the current vanilla use to freshly predicted obsidian when the original crystal target is stale.
+- **Ordered Crystal Input** on 1.21.11 preserves the physical order of attack/use presses from either keyboard or mouse during a crystal cycle.
 - **Rapid Attack Fix** on 1.21.11 preserves one validated attack when a predicted crystal is clicked before its server entity arrives.
 
 ## Placement Fix (1.21.10+)
@@ -57,6 +58,8 @@ sequenceDiagram
 
 Placement Fix does not create packets, repeat interactions, switch items, or select remote targets. If the original hit already points to a valid base, it remains unchanged.
 
+On 1.21.11, the same toggle also fixes keyboard-place sequencing. Vanilla stores attack and use presses in separate counters and drains all attacks before all uses, which can reorder a rapid physical sequence inside one client tick. KoHs records the arrival order, then consumes each entry only if the corresponding vanilla `wasPressed()` counter contains that real press. Keyboard repeat and mouse input follow the same guarded path; no cooldown is removed and no action is synthesized.
+
 ## Rapid Attack Fix (1.21.11)
 
 Rapid Attack Fix is enabled by default in the `Tweaks` tab. It addresses the lost attack that can occur when left/right butterfly clicks overlap the prediction-to-server handoff:
@@ -66,10 +69,11 @@ Rapid Attack Fix is enabled by default in the `Tweaks` tab. It addresses the los
 - The attack is sent only after the matching real End Crystal and its server-assigned entity ID are available.
 - The pending intent expires with the local prediction; the mod never guesses entity IDs or repeats attack packets.
 - Outgoing real-crystal attacks are resolved by their packet entity ID, cleaned up immediately, and followed by a crosshair retrace that ignores removed and locally predicted crystals.
+- An accepted local placement becomes the immediate crosshair target, so the next physical attack in the same client tick reaches the prediction instead of a stale block hit.
 
 All option descriptions are shown as hover tooltips instead of fixed description blocks, keeping the configuration panel compact at high GUI scales.
 
-Disabling any toggle opens an `Accept` / `Restore` confirmation. Consequences are shown first in English and then in Spanish; `Accept` disables the feature and `Restore` leaves it enabled.
+Only the four timing-critical optimization toggles use an `Accept` / `Restore` confirmation: `Local Crystal`, `Seamless Mode`, `Placement Fix`, and `Rapid Attack Fix`. Consequences are shown first in English and then in Spanish. Visual, Sound, Static Crystal, and Crystal Flotation controls switch immediately.
 
 ## Prediction and rendering corrections in 1.1.0-beta.2
 

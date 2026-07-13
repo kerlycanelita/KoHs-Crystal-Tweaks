@@ -237,7 +237,7 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
 
         addContent(withTooltip(ButtonWidget.builder(placementFixLabel(), b -> requestPlacementFixToggle())
                 .dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build(),
-                "Retargets only the current crystal use to freshly predicted obsidian. Sends no extra use packets."));
+                "Preserves physical attack/use order and retargets the current crystal use to freshly predicted obsidian. Sends no extra packets."));
 
         addContent(withTooltip(ButtonWidget.builder(rapidAttackFixLabel(), b -> requestRapidAttackFixToggle())
                 .dimensions(cx() - buttonW / 2, y + rowSpacing, buttonW, BTN_H).build(),
@@ -267,8 +267,8 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
 
         confirmDisable(
                 "Placement Fix",
-                "Immediate End Crystal use after obsidian may keep a stale target, causing placement delay or failure.",
-                "El uso inmediato de un End Crystal después de colocar obsidiana puede conservar un objetivo obsoleto y causar retrasos o fallos de colocación.",
+                "Immediate crystal use after obsidian may keep a stale target, and mixed keyboard/mouse presses may be reordered, causing delay or failure.",
+                "El uso inmediato de cristales después de colocar obsidiana puede conservar un objetivo obsoleto, y las pulsaciones combinadas de teclado y ratón pueden reordenarse, causando retrasos o fallos.",
                 () -> placementFixEnabled = false);
     }
 
@@ -342,17 +342,8 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
     }
 
     private void requestCrystalTintToggle() {
-        if (!crystalTintEnabled) {
-            crystalTintEnabled = true;
-            rebuildTab();
-            return;
-        }
-
-        confirmDisable(
-                "Crystal Tint",
-                "Custom frame and core colors will no longer render; crystals will return to their normal colors.",
-                "Los colores personalizados del marco y del núcleo dejarán de mostrarse; los cristales volverán a sus colores normales.",
-                () -> crystalTintEnabled = false);
+        crystalTintEnabled = !crystalTintEnabled;
+        rebuildTab();
     }
 
     private void requestRapidAttackFixToggle() {
@@ -370,45 +361,18 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
     }
 
     private void requestStaticCrystalToggle() {
-        if (!staticCrystalEnabled) {
-            staticCrystalEnabled = true;
-            rebuildTab();
-            return;
-        }
-
-        confirmDisable(
-                "Static Crystal",
-                "Crystals will resume the configured spin and flotation animations.",
-                "Los cristales volverán a usar las animaciones configuradas de giro y flotación.",
-                () -> staticCrystalEnabled = false);
+        staticCrystalEnabled = !staticCrystalEnabled;
+        rebuildTab();
     }
 
     private void requestCrystalFlotationToggle() {
-        if (!crystalFlotationEnabled) {
-            crystalFlotationEnabled = true;
-            rebuildTab();
-            return;
-        }
-
-        confirmDisable(
-                "Crystal Flotation",
-                "The vertical floating animation will stop; the configured spin can still remain active.",
-                "La animación de flotación vertical se detendrá; el giro configurado todavía puede permanecer activo.",
-                () -> crystalFlotationEnabled = false);
+        crystalFlotationEnabled = !crystalFlotationEnabled;
+        rebuildTab();
     }
 
     private void requestCustomSoundToggle() {
-        if (!customSoundEnabled) {
-            customSoundEnabled = true;
-            rebuildTab();
-            return;
-        }
-
-        confirmDisable(
-                "Custom Sound",
-                "Vanilla explosion audio will return and the selected file, volume, and speed settings will not be used.",
-                "Volverá el sonido de explosión de Minecraft y no se usarán el archivo, el volumen ni la velocidad seleccionados.",
-                () -> customSoundEnabled = false);
+        customSoundEnabled = !customSoundEnabled;
+        rebuildTab();
     }
 
     private void confirmDisable(String optionName, String english, String spanish, Runnable disableAction) {
