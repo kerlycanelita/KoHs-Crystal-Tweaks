@@ -2,16 +2,16 @@
 
 ## Build matrix
 
-- Mod version: `2.0.0-beta.4+mc1.21.11`
+- Mod version: `2.0.0+mc1.21.11`
 - Minecraft: `>=1.21.11`
 - Java: 21
 - Yarn mappings: `1.21.11+build.5`
 - Fabric Loader: `0.17.2`
 - Fabric API: `0.140.0+1.21.11`
-- Artifact: `kohs-crystal-tweaks-2.0.0-beta.4+mc1.21.11.jar`
-- Distribution status: GitHub beta/pre-release
+- Artifact: `kohs-crystal-tweaks-2.0.0+mc1.21.11.jar`
+- Distribution status: Stable release
 
-## Beta implementation
+## Release 2 implementation
 
 - Fresh installations default `Local Crystal` and `Seamless Mode` to OFF; existing explicit JSON values remain unchanged.
 - Placement Fix records physical hotbar changes from number keys and the mouse wheel together with attack/use inputs.

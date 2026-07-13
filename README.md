@@ -2,9 +2,9 @@
 
 KoHs Crystal Tweaks is a client-side Fabric mod for legitimate Crystal PvP quality-of-life improvements. It provides local visual prediction, seamless server reconciliation, crystal rendering controls, safety options, and version-specific compatibility from Minecraft 1.21 through 26.1.2.
 
-[Modrinth project page](https://modrinth.com/mod/kohs-crystal-tweaks) · [GitHub beta releases](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/releases)
+[Modrinth project page](https://modrinth.com/mod/kohs-crystal-tweaks) · [GitHub releases](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/releases)
 
-> Release status: all downloadable builds are published through the GitHub **pre-release/beta** channel. The mod does not automate clicks, attacks, or placements.
+> Release status: Minecraft 1.21.11 is available as the stable 2.0.0 release. Other compatibility artifacts retain their existing pre-release/beta status. The mod does not automate clicks, attacks, or placements.
 
 ## Available builds
 
@@ -16,7 +16,7 @@ KoHs Crystal Tweaks is a client-side Fabric mod for legitimate Crystal PvP quali
 | 1.21.6–1.21.8 | 21 | `1.0.0+mc1.21.6` | `kohs-crystal-tweaks-1.0.0+mc1.21.6.jar` |
 | 1.21.9 | 21 | `1.0.0+mc1.21.9` | `kohs-crystal-tweaks-1.0.0+mc1.21.9.jar` |
 | 1.21.10 | 21 | `1.1.0-beta.2+mc1.21.10` | `kohs-crystal-tweaks-1.1.0-beta.2+mc1.21.10.jar` |
-| 1.21.11 | 21 | `2.0.0-beta.4+mc1.21.11` | `kohs-crystal-tweaks-2.0.0-beta.4+mc1.21.11.jar` |
+| 1.21.11 | 21 | `2.0.0+mc1.21.11` | `kohs-crystal-tweaks-2.0.0+mc1.21.11.jar` |
 | 26.1.2 | 25 | `1.1.0-beta.2+mc26.1.2` | `kohs-crystal-tweaks-1.1.0-beta.2+mc26.1.2.jar` |
 
 The 1.0.0 artifacts keep their original internal version and are distributed as GitHub pre-releases. Placement Fix starts with the 1.21.10 build.
