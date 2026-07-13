@@ -1,33 +1,41 @@
-# Investigación y decisiones técnicas
+# Technical investigation and decisions
 
-## Señales externas
+## External signals
 
-Los reportes públicos sobre hit-crystalling describen el mismo patrón: tras colocar obsidiana rápidamente, el siguiente uso del cristal puede mantener el objetivo anterior y no colocar. También existen optimizadores client-side que reducen la espera visual creando una entidad local hasta que llega la entidad real del servidor.
+Public hit-crystal reports describe the same pattern: after quickly placing obsidian, the following End Crystal use can retain the previous target and fail to place. Client-side prediction mods also reduce perceived latency by rendering a local entity until the real server entity arrives.
 
-Referencias consultadas:
+Sources reviewed:
 
-- [Reporte comunitario: el cristal no se coloca al spamear tras la obsidiana](https://www.reddit.com/r/MinecraftPVP/comments/1kwove8/weird_bug_or_glitch_when_practicing_hit_crystal/)
-- [Discusión comunitaria sobre consistencia y delay en hit-crystalling](https://www.reddit.com/r/CompetitiveMinecraft/comments/1jbmyhx/what_am_i_doing_wrong_in_hitcrystalling/)
-- [Fabric 1.21.9/1.21.10: migración de entidades al renderer por cola](https://fabricmc.net/2025/09/23/1219.html)
-- [Página pública de KoHs Crystal Tweaks](https://modrinth.com/mod/kohs-crystal-tweaks)
+- [Community report: crystal fails to place when spamming after obsidian](https://www.reddit.com/r/MinecraftPVP/comments/1kwove8/weird_bug_or_glitch_when_practicing_hit_crystal/)
+- [Community discussion about hit-crystal consistency and delay](https://www.reddit.com/r/CompetitiveMinecraft/comments/1jbmyhx/what_am_i_doing_wrong_in_hitcrystalling/)
+- [Fabric 1.21.9/1.21.10 entity rendering migration](https://fabricmc.net/2025/09/23/1219.html)
+- [Public KoHs Crystal Tweaks project page](https://modrinth.com/mod/kohs-crystal-tweaks)
 
-## Hallazgos en el código
+## Code findings
 
-1. En 1.21.10/1.21.11 la predicción se disparaba desde `UseBlockCallback`, antes de conocer el resultado final de la interacción.
-2. El timeout adaptativo arrancaba en 4 ticks aunque la configuración declaraba 12. Con latencia superior a unos 200 ms, la predicción podía expirar antes de emparejarse y nunca aprender esa latencia.
-3. La validación 1.21.x aceptaba crying obsidian, aunque `EndCrystalItem` vanilla sólo acepta obsidiana o bedrock.
-4. El tint 1.21.x encolaba varias piezas y cambiaba temporalmente `ModelPart.visible`. Como el dibujo ocurre después, restaurar la visibilidad antes de consumir la cola podía duplicar subárboles o mezclar colores.
-5. En 26.1.2 la UI persistía tint/spin/flotation/static, pero faltaban los hooks que consumían esos valores en el modelo.
+1. In 1.21.10/1.21.11, prediction ran from `UseBlockCallback` before the final interaction result was known.
+2. The adaptive timeout started at 4 ticks even though configuration declared 12. At latency above roughly 200 ms, prediction could expire before pairing and never learn that latency.
+3. The 1.21.x validation accepted crying obsidian even though vanilla `EndCrystalItem` accepts only obsidian or bedrock.
+4. The 1.21.x tint implementation queued several parts while temporarily changing `ModelPart.visible`. Rendering happened later, so restoring visibility before queue consumption could duplicate subtrees or mix colors.
+5. In 26.1.2, the UI persisted tint/spin/flotation/static values but renderer hooks did not consume them.
 
-## Solución
+## Implemented solution
 
-- Capturar el ítem usado en `interactBlock` / `useItemOn` y actuar sólo si el resultado es aceptado.
-- Conservar la posición de la obsidiana predicha durante un máximo de 4 ticks.
-- Retargetear únicamente si el clic de cristal original no es ya válido y está en la misma colocación rápida.
-- Reutilizar la ruta de paquete vanilla; no llamar manualmente al networking.
-- Registrar las piezas del modelo por identidad y cambiar el color en `ModelPart.render`, cuando la cola realmente se consume.
+- Capture the used item in `interactBlock` / `useItemOn` and act only on accepted results.
+- Keep the freshly predicted obsidian position for no more than 4 ticks.
+- Retarget only if the original crystal hit is invalid and belongs to the same rapid placement sequence.
+- Reuse the vanilla packet path; never invoke networking manually.
+- Register crystal model parts by identity and select their color in `ModelPart.render`, when queued geometry is actually consumed.
+- Bound the configuration UI to current logical dimensions for high GUI scales and compact windows.
 
-## Límites de la verificación
+## Verification boundaries
 
-Las tres variantes se compilan y sus JAR se inspeccionan estáticamente. Por instrucción del propietario no se inició Minecraft; la validación in-game de timing, compatibilidad con servidores y combinación de resource packs queda para la prueba manual de la beta.
+- All eight published JARs contain readable Fabric metadata matching their documented Minecraft and Java ranges.
+- The 1.21.10, 1.21.11, and 26.1.2 projects completed clean Gradle builds for the placement/rendering integration.
+- No Minecraft instance was launched. Runtime multiplayer and optional-mod compatibility remain beta testing responsibilities.
+- The 26.1.2 custom sound runtime replacement remains incomplete; the port analysis documents the required modern audio path.
+
+## Legitimacy constraints
+
+Placement Fix changes only the `BlockHitResult` consumed by the player's current vanilla interaction. It sends no additional use or attack packets, repeats no input, and performs no remote targeting. The optimizer reacts only to an attack the player already issued and performs client-side visual cleanup.
 

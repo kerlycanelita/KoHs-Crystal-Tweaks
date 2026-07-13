@@ -1,43 +1,40 @@
 # KoHs Crystal Tweaks
 
-KoHs Crystal Tweaks es un mod cliente para Fabric enfocado en crystals PvP. Mantiene los cristales locales, suaviza la transicion al crystal real del servidor, permite tint personalizado y deja importar un sonido custom para la explosion.
+KoHs Crystal Tweaks is a client-side Fabric mod focused on legitimate Crystal PvP quality-of-life improvements. It provides immediate local crystal feedback, smoother reconciliation with the server entity, custom crystal colors, safety controls, and optional explosion sound replacement.
 
-## Caracteristicas
-- Placement Fix integrado para retargetear el clic actual a la obsidiana recién predicha, sin paquetes extra ni automatización.
-- Local Crystal para que la colocacion se vea instantanea en cliente.
-- Seamless Mode para suavizar el cambio entre crystal local y crystal del servidor.
-- Crystal Optimizer legit inspirado en Marlow: el crystal se limpia del lado del cliente al pegarlo para reducir el delay visual, sin automatizar golpes.
-- Crystal Tint para recolorear outer/core del End Crystal.
-- Custom Sound con importacion `WAV`, `OGG` y `MP3`.
-- El sonido custom reemplaza `minecraft:entity.generic.explode` desde la tuberia vanilla de Minecraft, asi que se comporta como un resource pack runtime y evita el delay del sistema manual.
-- La pantalla de configuracion del mod usa su propio fondo y no deja que el blur vanilla invada el menu.
+## Features
 
-## Versiones soportadas en este repositorio
-- `1.21 - 1.21.1`
-- `1.21.2 - 1.21.4`
+- Placement Fix on 1.21.10+ retargets the current vanilla use to freshly predicted obsidian without extra packets or automation.
+- Local Crystal makes accepted placements appear immediately on the client.
+- Seamless Mode smooths the transition between the local crystal and the real server crystal.
+- The legitimate Crystal Optimizer performs visual client-side cleanup after the player's vanilla attack without automating combat.
+- Crystal Tint recolors the End Crystal frame and core independently.
+- Custom Sound imports WAV, OGG, and MP3 files on supported branches.
+- Safe Crystal prevents accidental block breaking while holding an End Crystal.
+- The custom configuration screen preserves its own background instead of inheriting unwanted vanilla blur.
+
+## Supported versions
+
+- `1.21–1.21.1`
+- `1.21.2–1.21.4`
 - `1.21.5`
-- `1.21.6 - 1.21.8`
+- `1.21.6–1.21.8`
 - `1.21.9`
 - `1.21.10`
 - `1.21.11`
 - `26.1.2`
 
-## Notas
-- Mod cliente para Fabric.
-- Las builds modernas `1.21.9+` incluyen compatibilidad con el protocolo moderno de `Marlow's Crystal Optimizer` (`version`, `opt_out`, `opt_out_ack`) para que un servidor pueda desactivar el optimizador de forma limpia si asi lo requiere.
-- El ajuste `Anchor Charge` fue retirado; el sistema de sonido custom ahora se centra solo en el reemplazo de explosiones vanilla.
-- Los bloques intermedios se dividieron para respetar cambios reales de API entre subversiones y evitar crashes por compatibilidad binaria falsa.
-- Cada carpeta de `version/` compila de forma independiente.
+## Notes
 
-## Configuracion
-- Abre la pantalla del mod.
-- Activa `Custom Sound`.
-- Importa un archivo compatible.
-- Ajusta volumen y velocidad.
+- Client-side Fabric mod.
+- All GitHub downloads are currently marked as beta/pre-release builds.
+- Modern 1.21.9+ branches include the modern Marlow protocol identifiers (`version`, `opt_out`, and `opt_out_ack`) so a server can request that the optimizer be disabled.
+- `Anchor Charge` was removed; the custom sound system focuses on replacing vanilla explosion audio.
+- Version groups are split at real internal API boundaries to avoid false binary compatibility.
+- Every directory under `version/` builds independently.
 
 ## Build
-Cada version se compila dentro de su propia carpeta con:
 
-```bash
-./gradlew.bat clean build
+```powershell
+.\gradlew.bat clean build --no-daemon
 ```

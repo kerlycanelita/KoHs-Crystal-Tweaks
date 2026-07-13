@@ -1,33 +1,34 @@
 # KoHs Crystal Tweaks — Minecraft 26.1.2
 
-## Matriz
+## Build matrix
 
-- Mod: `1.1.0-beta.1`
+- Mod version: `1.1.0-beta.1+mc26.1.2`
 - Minecraft: `~26.1.2`
 - Java: 25
-- Mappings: nombres oficiales de Mojang
+- Mappings: official Mojang names
 - Fabric Loader: `0.19.3`
 - Fabric API: `0.153.0+26.1.2`
-- Artefacto: `kohs-crystal-tweaks-1.1.0-beta.1+mc26.1.2.jar`
+- Artifact: `kohs-crystal-tweaks-1.1.0-beta.1+mc26.1.2.jar`
+- Distribution status: GitHub beta/pre-release
 
-## Implementación de esta beta
+## Beta implementation
 
-- Placement Fix integrado en `MultiPlayerGameMode.useItemOn` y activado por defecto.
-- Confirmación en `Tweaks`: `Aceptar` desactiva y `Restablecer` conserva la función.
-- Predicción local sólo tras `InteractionResult.Success`.
-- Timeout visual inicial de 12 ticks con adaptación posterior.
-- Tintes frame/core aplicados por pieza durante el consumo real de la cola de render.
-- `Spin Speed`, `Crystal Flotation` y `Static Crystal` conectados al modelo y al beam.
-- Pantalla responsiva con panel, tabs, botones y picker dentro de los límites lógicos.
+- Placement Fix is integrated into `MultiPlayerGameMode.useItemOn` and enabled by default.
+- The `Tweaks` confirmation uses `Aceptar` (Accept) to disable and `Restablecer` (Restore) to keep the feature enabled.
+- Local prediction runs only after `InteractionResult.Success`.
+- The visual timeout starts at 12 ticks and adapts after successful pairing.
+- Frame/core tint is selected per part during actual queued rendering.
+- `Spin Speed`, `Crystal Flotation`, and `Static Crystal` are connected to both the model and beam.
+- The responsive panel, tabs, buttons, and picker remain inside logical screen bounds.
 
-Placement Fix modifica sólo el `BlockHitResult` de la interacción actual. No envía paquetes extra, no repite clics y no automatiza combate.
+Placement Fix changes only the current interaction's `BlockHitResult`. It sends no extra packets, repeats no clicks, and automates no combat action.
 
-## Build verificado
+## Verified build
 
 ```powershell
 $env:JAVA_HOME='C:\Program Files\Java\jdk-25.0.2'
 .\gradlew.bat clean build --no-daemon
 ```
 
-Estado: compilación exitosa el 2026-07-12. Minecraft no fue ejecutado.
+Build completed successfully on 2026-07-12. Minecraft was not launched. Runtime custom sound replacement remains incomplete on this branch; see `PORTING_ANALYSIS.md`.
 

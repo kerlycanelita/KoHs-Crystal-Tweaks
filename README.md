@@ -1,64 +1,78 @@
 # KoHs Crystal Tweaks
 
-Mod client-side para Fabric orientado a Crystal PvP legítimo. Esta beta unifica **KoHs Crystal Placement Fix** como una función de KoHs Crystal Tweaks y corrige problemas de colocación rápida, predicción visual y tintes del cristal.
+KoHs Crystal Tweaks is a client-side Fabric mod for legitimate Crystal PvP quality-of-life improvements. It provides local visual prediction, seamless server reconciliation, crystal rendering controls, safety options, and version-specific compatibility from Minecraft 1.21 through 26.1.2.
 
-> Estado: `1.1.0-beta.1`. Las builds están pensadas para pruebas; no automatizan clics, ataques ni colocaciones.
+> Release status: all downloadable builds are published through the GitHub **pre-release/beta** channel. The mod does not automate clicks, attacks, or placements.
 
-## Versiones de esta beta
+## Available builds
 
-| Minecraft | Java | Mappings / toolchain | Carpeta canónica | Artefacto |
-|---|---:|---|---|---|
-| 1.21.10 | 21 | Yarn `1.21.10+build.3`, Loom 1.11 | `version/1.21.10` | `kohs-crystal-tweaks-1.1.0-beta.1+mc1.21.10.jar` |
-| 1.21.11 | 21 | Yarn `1.21.11+build.5`, Loom 1.13 | `version/1.21.11` | `kohs-crystal-tweaks-1.1.0-beta.1+mc1.21.11.jar` |
-| 26.1.2 | 25 | Mojang official mappings, Loom 1.17 | `version/26.1.2` | `kohs-crystal-tweaks-1.1.0-beta.1+mc26.1.2.jar` |
+| Minecraft | Java | Internal mod version | Artifact |
+|---|---:|---|---|
+| 1.21–1.21.1 | 21 | `1.0.0+mc1.21` | `kohs-crystal-tweaks-1.0.0+mc1.21.jar` |
+| 1.21.2–1.21.4 | 21 | `1.0.0+mc1.21.2` | `kohs-crystal-tweaks-1.0.0+mc1.21.2.jar` |
+| 1.21.5 | 21 | `1.0.0+mc1.21.5` | `kohs-crystal-tweaks-1.0.0+mc1.21.5.jar` |
+| 1.21.6–1.21.8 | 21 | `1.0.0+mc1.21.6` | `kohs-crystal-tweaks-1.0.0+mc1.21.6.jar` |
+| 1.21.9 | 21 | `1.0.0+mc1.21.9` | `kohs-crystal-tweaks-1.0.0+mc1.21.9.jar` |
+| 1.21.10 | 21 | `1.1.0-beta.1+mc1.21.10` | `kohs-crystal-tweaks-1.1.0-beta.1+mc1.21.10.jar` |
+| 1.21.11 | 21 | `1.1.0-beta.1+mc1.21.11` | `kohs-crystal-tweaks-1.1.0-beta.1+mc1.21.11.jar` |
+| 26.1.2 | 25 | `1.1.0-beta.1+mc26.1.2` | `kohs-crystal-tweaks-1.1.0-beta.1+mc26.1.2.jar` |
 
-Las carpetas anteriores a 1.21.10 se conservan como historial de compatibilidad, pero no forman parte de esta beta.
+The 1.0.0 artifacts keep their original internal version and are distributed as GitHub pre-releases. Placement Fix starts with the 1.21.10 build.
 
-## Cambios principales
+## Main features
 
-- **Placement Fix** aparece en la pestaña `Tweaks`, está activado por defecto y sólo retargetea el clic vanilla actual a la obsidiana que el cliente acaba de predecir.
-- Al intentar apagar Placement Fix aparece un diálogo con `Aceptar` y `Restablecer`. `Aceptar` lo apaga; `Restablecer` lo mantiene encendido.
-- La predicción local del cristal se crea únicamente después de que Minecraft acepte la interacción. Esto evita cristales fantasma por clics fallidos.
-- El timeout visual adaptativo comienza en el valor configurado (12 ticks por defecto), evitando que el cristal local desaparezca antes de recibir el cristal real en conexiones con latencia.
-- La validación vuelve a coincidir con vanilla: sólo obsidiana y bedrock son bases válidas; crying obsidian ya no produce una predicción falsa.
-- Los tintes `Outer` y `Inner` se aplican durante el render real de cada `ModelPart`. Esto elimina las duplicaciones y colores incorrectos producidos al mutar visibilidad mientras el renderer por cola aún no había dibujado.
-- En 26.1.2 se portaron también los hooks de tint, spin, flotation y static crystal que la pantalla guardaba pero el renderer todavía no consumía.
-- La pantalla 1.21.10/1.21.11 ahora limita panel, botones, tabs y picker al tamaño lógico disponible para escalas GUI altas.
+- **Local Crystal** renders accepted placements immediately on the client.
+- **Seamless Mode** smooths the handoff from a predicted crystal to the real server entity.
+- **Legitimate Crystal Optimizer** performs client-side visual cleanup after the player's normal vanilla attack; it never injects attacks.
+- **Crystal Tint** provides separate frame and core colors.
+- **Custom Sound** imports WAV, OGG, and MP3 explosion replacements on supported branches.
+- **Safe Crystal** prevents accidental block breaking while holding an End Crystal.
+- **Placement Fix** on 1.21.10+ retargets only the current vanilla use to freshly predicted obsidian when the original crystal target is stale.
 
-## Cómo funciona Placement Fix
+## Placement Fix (1.21.10+)
+
+Placement Fix is enabled by default in the `Tweaks` tab. Disabling it opens a warning dialog:
+
+- `Aceptar` (Accept) disables the feature.
+- `Restablecer` (Restore) keeps the feature enabled.
 
 ```mermaid
 sequenceDiagram
-    participant U as Usuario
-    participant V as Interacción vanilla
+    participant U as User
+    participant V as Vanilla interaction
     participant F as Placement Fix
-    participant S as Servidor
+    participant S as Server
 
-    U->>V: Coloca obsidiana
-    V->>S: Paquete vanilla de uso
-    V->>F: Resultado aceptado + posición predicha
-    U->>V: Usa End Crystal inmediatamente
-    F->>F: Valida base, aire, entidades y cercanía
-    F->>V: Sustituye sólo el BlockHitResult actual
-    V->>S: Un único paquete vanilla de uso
+    U->>V: Place obsidian
+    V->>S: Vanilla use packet
+    V->>F: Accepted result and predicted position
+    U->>V: Immediately use End Crystal
+    F->>F: Validate base, air, entities, range, and age
+    F->>V: Replace only the current BlockHitResult
+    V->>S: One vanilla use packet
 ```
 
-Placement Fix no construye paquetes, no repite la interacción y no selecciona objetivos a distancia. Si el clic ya apunta a una base válida, queda intacto.
+Placement Fix does not create packets, repeat interactions, switch items, or select remote targets. If the original hit already points to a valid base, it remains unchanged.
 
-## Render de color
+## Prediction and rendering corrections in 1.1.0-beta.1
 
-El modelo del End Crystal es jerárquico. La beta registra por identidad las partes `outerGlass`, `innerGlass` y `cube`; cuando Minecraft finalmente consume la cola de render, aplica el ARGB de `Outer` a los dos marcos y el de `Inner` al núcleo. La base conserva el color vanilla.
+- Local prediction is created only after Minecraft accepts the interaction.
+- The adaptive visual timeout starts at the configured 12 ticks instead of expiring early.
+- Valid bases match vanilla: obsidian and bedrock; crying obsidian no longer creates a false prediction.
+- Frame/core tint is selected when each registered `ModelPart` is actually rendered, avoiding queued-geometry duplication and mixed colors.
+- The 26.1.2 port connects tint, spin speed, flotation, static crystal, and beam behavior to the new submit-based renderer.
+- Configuration panels, tabs, buttons, and the color picker stay inside the logical screen bounds at high GUI scales.
 
-## Compilar
+## Building
 
-Cada versión es un proyecto Gradle independiente:
+Each folder under `version/` is an independent Gradle project. For Java 21 branches:
 
 ```powershell
 cd "version\1.21.10"
 .\gradlew.bat clean build --no-daemon
 ```
 
-Para 26.1.2:
+Minecraft 26.1.2 requires Java 25:
 
 ```powershell
 $env:JAVA_HOME='C:\Program Files\Java\jdk-25.0.2'
@@ -66,13 +80,13 @@ cd "version\26.1.2"
 .\gradlew.bat clean build --no-daemon
 ```
 
-Los JAR remapeados aparecen en `build/libs/`. El código se compiló sin ejecutar clientes de Minecraft.
+Remapped JARs are written to `build/libs/`. Published artifacts were verified without launching a Minecraft client.
 
-## Documentación
+## Documentation
 
-- [Investigación y decisiones técnicas](docs/INVESTIGATION.md)
-- [Historial de cambios](CHANGELOG.md)
-- [Notas de release por versión](release-notes)
+- [Technical investigation and decisions](docs/INVESTIGATION.md)
+- [Changelog](CHANGELOG.md)
+- [Per-version release notes](release-notes)
+- [SHA-256 checksums](CHECKSUMS.sha256)
 
-Licencia declarada por el mod: All Rights Reserved.
-
+Declared license: All Rights Reserved.
