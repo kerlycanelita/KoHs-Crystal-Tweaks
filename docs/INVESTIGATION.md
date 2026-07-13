@@ -34,6 +34,7 @@ Sources reviewed:
 10. A successful local placement is added after `interactBlock` returns, but the crosshair is normally refreshed later. Without an immediate target update, a following attack in the same input pass still sees the earlier block hit.
 11. A confirmed 1.21.11 beta.5 startup log with `marlowcrystal` failed in `PayloadTypeRegistryImpl.register`: both entrypoints registered `marlowcrystal:opt_out`, and Fabric raised `Packet type ... is already registered` before the title screen.
 12. A Fabric dependency-level `breaks` declaration cannot provide the requested in-game explanation because Loader would stop before Minecraft creates a screen.
+13. `SafeCrystalMixin` targets only `ClientPlayerInteractionManager.attackBlock` and `updateBlockBreakingProgress`. It does not inject into the crystal placement path (`interactBlock`) or crystal entity attacks (`attackEntity`), although disabling it is useful for isolating rapid cycles where the crosshair still points at the base.
 
 ## Implemented solution
 
@@ -54,6 +55,8 @@ Sources reviewed:
 - For unknown mods, parse Fabric mixin metadata and ASM annotations without loading candidate classes. Block only direct KoHs targets or crystal-related exact target-class/method overlaps with KoHs critical hooks.
 - Fail open if generic metadata inspection is malformed, while retaining explicit known-mod detection. This prevents damaged third-party metadata from becoming an unsupported global deny list.
 - Replace the config screen with a bounded, scrollable bilingual report; reassert it at client tick end, disable Escape, and expose only `MinecraftClient.scheduleStop()`.
+- Expose Safe Crystal as a default-on direct toggle. When disabled, return before player/world/block inspection and do not cancel either vanilla block-breaking method.
+- Reflow the six Tweaks controls into two columns on compact logical screens instead of compressing them into the Close-button area.
 
 ## Verification boundaries
 

@@ -81,6 +81,7 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
     private boolean staticCrystalEnabled;
     private boolean placementFixEnabled;
     private boolean rapidAttackFixEnabled;
+    private boolean safeCrystalEnabled;
 
     // Sound tab state
     private boolean customSoundEnabled;
@@ -133,6 +134,7 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
             staticCrystalEnabled = cfg.staticCrystalEnabled;
             placementFixEnabled = cfg.placementFixEnabled;
             rapidAttackFixEnabled = cfg.rapidAttackFixEnabled;
+            safeCrystalEnabled = cfg.safeCrystalEnabled;
             customSoundEnabled = cfg.customSoundEnabled;
             soundVolume = cfg.soundVolume;
             soundSpeed = cfg.soundSpeed;
@@ -236,26 +238,50 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
         int y = contentY();
 
         addContent(withTooltip(ButtonWidget.builder(placementFixLabel(), b -> requestPlacementFixToggle())
-                .dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build(),
+                .dimensions(tweaksX(0), tweaksY(y, 0), tweaksControlW(), BTN_H).build(),
                 "Preserves physical attack/use order and retargets the current crystal use to freshly predicted obsidian. Sends no extra packets."));
 
         addContent(withTooltip(ButtonWidget.builder(rapidAttackFixLabel(), b -> requestRapidAttackFixToggle())
-                .dimensions(cx() - buttonW / 2, y + rowSpacing, buttonW, BTN_H).build(),
+                .dimensions(tweaksX(1), tweaksY(y, 1), tweaksControlW(), BTN_H).build(),
                 "Queues one validated attack when a predicted crystal is clicked before the server entity arrives. Never repeats attacks."));
 
+        addContent(withTooltip(ButtonWidget.builder(safeCrystalLabel(), b -> requestSafeCrystalToggle())
+                .dimensions(tweaksX(2), tweaksY(y, 2), tweaksControlW(), BTN_H).build(),
+                "Prevents block-breaking input from damaging obsidian or crying obsidian while an End Crystal is held."));
+
         addContent(withTooltip(ButtonWidget.builder(staticCrystalLabel(), b -> requestStaticCrystalToggle())
-                .dimensions(cx() - buttonW / 2, y + rowSpacing * 2, buttonW, BTN_H).build(),
+                .dimensions(tweaksX(3), tweaksY(y, 3), tweaksControlW(), BTN_H).build(),
                 "Keeps crystals completely still with no spin or floating animation."));
 
         if (staticCrystalEnabled) return;
 
         addContent(withTooltip(ButtonWidget.builder(crystalFlotationLabel(), b -> requestCrystalFlotationToggle())
-                .dimensions(cx() - buttonW / 2, y + rowSpacing * 3, buttonW, BTN_H).build(),
+                .dimensions(tweaksX(4), tweaksY(y, 4), tweaksControlW(), BTN_H).build(),
                 "Enables or disables the crystal floating animation."));
 
-        addContent(withTooltip(new PercentSlider(cx() - buttonW / 2, y + rowSpacing * 4, buttonW, BTN_H,
+        addContent(withTooltip(new PercentSlider(tweaksX(5), tweaksY(y, 5), tweaksControlW(), BTN_H,
                 "Spin Speed", 0.0, 3.0, crystalSpinSpeed, v -> crystalSpinSpeed = v.floatValue()),
                 "Controls crystal rotation speed from stopped to 300%."));
+    }
+
+    private boolean tweaksUseTwoColumns() {
+        return compact && contentW() >= 220;
+    }
+
+    private int tweaksControlW() {
+        return tweaksUseTwoColumns() ? Math.max(1, (contentW() - 4) / 2) : buttonW;
+    }
+
+    private int tweaksX(int index) {
+        if (!tweaksUseTwoColumns()) {
+            return cx() - buttonW / 2;
+        }
+        return contentX() + (index % 2) * (tweaksControlW() + 4);
+    }
+
+    private int tweaksY(int startY, int index) {
+        int row = tweaksUseTwoColumns() ? index / 2 : index;
+        return startY + rowSpacing * row;
     }
 
     private void requestPlacementFixToggle() {
@@ -362,6 +388,13 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
 
     private void requestStaticCrystalToggle() {
         staticCrystalEnabled = !staticCrystalEnabled;
+        rebuildTab();
+    }
+
+    private void requestSafeCrystalToggle() {
+        safeCrystalEnabled = !safeCrystalEnabled;
+        KoHsCrystalTweaksConfig.get().safeCrystalEnabled = safeCrystalEnabled;
+        KoHsCrystalTweaksConfig.save();
         rebuildTab();
     }
 
@@ -678,6 +711,7 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
                 crystalSpinSpeed, crystalFlotationEnabled, staticCrystalEnabled);
         KoHsCrystalTweaksConfig.get().placementFixEnabled = placementFixEnabled;
         KoHsCrystalTweaksConfig.get().rapidAttackFixEnabled = rapidAttackFixEnabled;
+        KoHsCrystalTweaksConfig.get().safeCrystalEnabled = safeCrystalEnabled;
         KoHsCrystalTweaksConfig.save();
 
         // Save sound
@@ -720,6 +754,12 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
 
     private Text rapidAttackFixLabel() {
         return Text.literal("Rapid Attack Fix: ").append(rapidAttackFixEnabled
+                ? Text.literal("ON").formatted(Formatting.GREEN)
+                : Text.literal("OFF").formatted(Formatting.RED));
+    }
+
+    private Text safeCrystalLabel() {
+        return Text.literal("Safe Crystal: ").append(safeCrystalEnabled
                 ? Text.literal("ON").formatted(Formatting.GREEN)
                 : Text.literal("OFF").formatted(Formatting.RED));
     }

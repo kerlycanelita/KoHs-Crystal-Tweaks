@@ -16,7 +16,7 @@ KoHs Crystal Tweaks is a client-side Fabric mod for legitimate Crystal PvP quali
 | 1.21.6–1.21.8 | 21 | `1.0.0+mc1.21.6` | `kohs-crystal-tweaks-1.0.0+mc1.21.6.jar` |
 | 1.21.9 | 21 | `1.0.0+mc1.21.9` | `kohs-crystal-tweaks-1.0.0+mc1.21.9.jar` |
 | 1.21.10 | 21 | `1.1.0-beta.2+mc1.21.10` | `kohs-crystal-tweaks-1.1.0-beta.2+mc1.21.10.jar` |
-| 1.21.11 | 21 | `1.1.0-beta.7+mc1.21.11` | `kohs-crystal-tweaks-1.1.0-beta.7+mc1.21.11.jar` |
+| 1.21.11 | 21 | `2.0.0-beta.1+mc1.21.11` | `kohs-crystal-tweaks-2.0.0-beta.1+mc1.21.11.jar` |
 | 26.1.2 | 25 | `1.1.0-beta.2+mc26.1.2` | `kohs-crystal-tweaks-1.1.0-beta.2+mc26.1.2.jar` |
 
 The 1.0.0 artifacts keep their original internal version and are distributed as GitHub pre-releases. Placement Fix starts with the 1.21.10 build.
@@ -28,7 +28,7 @@ The 1.0.0 artifacts keep their original internal version and are distributed as 
 - **Legitimate Crystal Optimizer** performs client-side visual cleanup after the player's normal vanilla attack; it never injects attacks.
 - **Crystal Tint** provides separate frame and core colors.
 - **Custom Sound** imports WAV, OGG, and MP3 explosion replacements on supported branches.
-- **Safe Crystal** prevents accidental block breaking while holding an End Crystal.
+- **Safe Crystal** prevents accidental obsidian breaking while holding an End Crystal and can be switched off directly from `Tweaks`.
 - **Placement Fix** on 1.21.10+ retargets only the current vanilla use to freshly predicted obsidian when the original crystal target is stale.
 - **Ordered Crystal Input** on 1.21.11 preserves the physical order of attack/use presses from either keyboard or mouse during a crystal cycle.
 - **Rapid Attack Fix** on 1.21.11 preserves one validated attack when a predicted crystal is clicked before its server entity arrives.
@@ -73,7 +73,13 @@ Rapid Attack Fix is enabled by default in the `Tweaks` tab. It addresses the los
 
 All option descriptions are shown as hover tooltips instead of fixed description blocks, keeping the configuration panel compact at high GUI scales.
 
-Only the four timing-critical optimization toggles use an `Accept` / `Restore` confirmation: `Local Crystal`, `Seamless Mode`, `Placement Fix`, and `Rapid Attack Fix`. Consequences are shown first in English and then in Spanish. Visual, Sound, Static Crystal, and Crystal Flotation controls switch immediately.
+Only the four timing-critical optimization toggles use an `Accept` / `Restore` confirmation: `Local Crystal`, `Seamless Mode`, `Placement Fix`, and `Rapid Attack Fix`. Consequences are shown first in English and then in Spanish. Visual, Sound, Safe Crystal, Static Crystal, and Crystal Flotation controls switch immediately.
+
+## Safe Crystal switch (2.0.0-beta.1, Minecraft 1.21.11)
+
+`Safe Crystal` is enabled by default in `Tweaks`. It cancels vanilla block attack and breaking-progress calls only when the player is holding an End Crystal and the targeted block is obsidian or crying obsidian.
+
+The switch has no confirmation dialog. When disabled, both mixin callbacks return after the cached configuration check, before reading the player, world, held item, or block state. This restores vanilla block-breaking behavior for testing without changing crystal placement (`interactBlock`) or entity attacks (`attackEntity`). Compact configuration screens arrange the six Tweaks controls in two columns to keep them above the Close button.
 
 ## Intelligent incompatibility guard (1.21.11 beta.6)
 

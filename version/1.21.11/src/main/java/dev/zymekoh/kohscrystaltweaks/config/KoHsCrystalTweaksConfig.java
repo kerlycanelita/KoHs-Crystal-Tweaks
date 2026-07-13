@@ -32,6 +32,7 @@ public final class KoHsCrystalTweaksConfig {
     public boolean staticCrystalEnabled = false;
     public boolean placementFixEnabled = true;
     public boolean rapidAttackFixEnabled = true;
+    public boolean safeCrystalEnabled = true;
 
     // ── Sound Crystal ──
     public boolean customSoundEnabled = true;
@@ -153,6 +154,7 @@ public final class KoHsCrystalTweaksConfig {
                 config.staticCrystalEnabled = loaded.staticCrystalEnabled;
                 config.placementFixEnabled = loaded.placementFixEnabled;
                 config.rapidAttackFixEnabled = loaded.rapidAttackFixEnabled;
+                config.safeCrystalEnabled = loaded.safeCrystalEnabled;
                 config.customSoundEnabled = loaded.customSoundEnabled;
                 config.customSoundFileName = loaded.customSoundFileName != null ? loaded.customSoundFileName : "";
                 config.soundVolume = Math.max(0f, Math.min(2f, loaded.soundVolume));

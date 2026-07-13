@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.0.0-beta.1 — 2026-07-13
+
+### Minecraft 1.21.11
+
+- Started the release 2 beta line.
+- Added a persistent `Safe Crystal` ON/OFF switch to the `Tweaks` tab, enabled by default.
+- Disabling it is immediate and never opens an `Accept` / `Restore` warning.
+- The disabled mixin path returns before reading player, world, held-item, or block-state data and never cancels vanilla `attackBlock` or `updateBlockBreakingProgress`.
+- Preserved the exact scope of Safe Crystal when enabled: it protects obsidian and crying obsidian only while an End Crystal is held.
+- Added automatic migration for existing configuration files that do not contain `safeCrystalEnabled`; they retain the previous enabled behavior.
+- Arranged the six Tweaks controls into two columns on compact logical screens to prevent overlap with the Close button.
+- Added a configuration migration test; the existing five incompatibility-scanner tests remain active.
+
 ## 1.1.0-beta.7 — 2026-07-13
 
 ### Minecraft 1.21.11
