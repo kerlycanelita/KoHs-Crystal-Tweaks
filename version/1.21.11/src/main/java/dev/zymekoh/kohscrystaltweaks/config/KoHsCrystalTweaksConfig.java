@@ -32,7 +32,7 @@ public final class KoHsCrystalTweaksConfig {
     public boolean staticCrystalEnabled = false;
     public boolean placementFixEnabled = true;
     public boolean rapidAttackFixEnabled = true;
-    public boolean safeCrystalEnabled = true;
+    public boolean safeCrystalEnabled = false;
 
     // ── Sound Crystal ──
     public boolean customSoundEnabled = true;

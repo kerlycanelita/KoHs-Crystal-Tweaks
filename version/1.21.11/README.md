@@ -2,13 +2,13 @@
 
 ## Build matrix
 
-- Mod version: `2.0.0-beta.1+mc1.21.11`
+- Mod version: `2.0.0-beta.2+mc1.21.11`
 - Minecraft: `>=1.21.11`
 - Java: 21
 - Yarn mappings: `1.21.11+build.5`
 - Fabric Loader: `0.17.2`
 - Fabric API: `0.140.0+1.21.11`
-- Artifact: `kohs-crystal-tweaks-2.0.0-beta.1+mc1.21.11.jar`
+- Artifact: `kohs-crystal-tweaks-2.0.0-beta.2+mc1.21.11.jar`
 - Distribution status: GitHub beta/pre-release
 
 ## Beta implementation
@@ -18,9 +18,9 @@
 - Unknown mods are blocked only for a direct KoHs-class target or an exact critical target-class/method overlap from a crystal-related mixin.
 - The blocked path registers no KoHs prediction, sound, gameplay event, or compatibility-network services.
 - The mandatory bilingual screen replaces Mod Menu, restores itself if another screen is opened, ignores Escape, and exposes only a clean-shutdown button.
-- `Safe Crystal` is enabled by default and has a direct ON/OFF control in `Tweaks` without a confirmation dialog.
+- `Safe Crystal` is disabled by default and has a direct ON/OFF control in `Tweaks` without a confirmation dialog.
 - When Safe Crystal is disabled, its two callbacks return before any player/world/block lookup and do not cancel vanilla block attacks or breaking progress.
-- Existing configs without the new field migrate to `safeCrystalEnabled=true`, preserving the earlier default behavior.
+- Existing configs without the new field migrate to `safeCrystalEnabled=false`; explicit saved user selections are preserved.
 - Compact screens use a two-column Tweaks layout so all six controls stay inside the panel.
 - `Rapid Attack Fix` is enabled by default in `Tweaks` and preserves one validated attack if the local prediction is clicked before the server crystal loads.
 - Placement Fix preserves the physical order of vanilla attack/use presses during crystal cycles, including Use Item bound to a keyboard key.

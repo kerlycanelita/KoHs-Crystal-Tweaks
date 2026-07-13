@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.0.0-beta.2 — 2026-07-13
+
+### Minecraft 1.21.11
+
+- Changed `Safe Crystal` to OFF by default as requested.
+- Existing pre-2.0 configuration files without `safeCrystalEnabled` now migrate to OFF.
+- Preserves an explicit user selection after the switch is changed and saved.
+- Keeps the direct no-warning toggle and vanilla pass-through behavior from beta.1.
+
 ## 2.0.0-beta.1 — 2026-07-13
 
 ### Minecraft 1.21.11
