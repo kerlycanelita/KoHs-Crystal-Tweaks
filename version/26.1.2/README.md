@@ -2,19 +2,19 @@
 
 ## Build matrix
 
-- Mod version: `1.1.0-beta.1+mc26.1.2`
+- Mod version: `1.1.0-beta.2+mc26.1.2`
 - Minecraft: `~26.1.2`
 - Java: 25
 - Mappings: official Mojang names
 - Fabric Loader: `0.19.3`
 - Fabric API: `0.153.0+26.1.2`
-- Artifact: `kohs-crystal-tweaks-1.1.0-beta.1+mc26.1.2.jar`
+- Artifact: `kohs-crystal-tweaks-1.1.0-beta.2+mc26.1.2.jar`
 - Distribution status: GitHub beta/pre-release
 
 ## Beta implementation
 
 - Placement Fix is integrated into `MultiPlayerGameMode.useItemOn` and enabled by default.
-- The `Tweaks` confirmation uses `Aceptar` (Accept) to disable and `Restablecer` (Restore) to keep the feature enabled.
+- The `Tweaks` confirmation uses `Accept` to disable and `Restore` to keep the feature enabled.
 - Local prediction runs only after `InteractionResult.Success`.
 - The visual timeout starts at 12 ticks and adapts after successful pairing.
 - Frame/core tint is selected per part during actual queued rendering.
@@ -30,5 +30,4 @@ $env:JAVA_HOME='C:\Program Files\Java\jdk-25.0.2'
 .\gradlew.bat clean build --no-daemon
 ```
 
-Build completed successfully on 2026-07-12. Minecraft was not launched. Runtime custom sound replacement remains incomplete on this branch; see `PORTING_ANALYSIS.md`.
-
+Build completed successfully on 2026-07-13. Minecraft was not launched. Runtime custom sound replacement remains incomplete on this branch; see `PORTING_ANALYSIS.md`.

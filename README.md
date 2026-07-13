@@ -15,9 +15,9 @@ KoHs Crystal Tweaks is a client-side Fabric mod for legitimate Crystal PvP quali
 | 1.21.5 | 21 | `1.0.0+mc1.21.5` | `kohs-crystal-tweaks-1.0.0+mc1.21.5.jar` |
 | 1.21.6–1.21.8 | 21 | `1.0.0+mc1.21.6` | `kohs-crystal-tweaks-1.0.0+mc1.21.6.jar` |
 | 1.21.9 | 21 | `1.0.0+mc1.21.9` | `kohs-crystal-tweaks-1.0.0+mc1.21.9.jar` |
-| 1.21.10 | 21 | `1.1.0-beta.1+mc1.21.10` | `kohs-crystal-tweaks-1.1.0-beta.1+mc1.21.10.jar` |
-| 1.21.11 | 21 | `1.1.0-beta.1+mc1.21.11` | `kohs-crystal-tweaks-1.1.0-beta.1+mc1.21.11.jar` |
-| 26.1.2 | 25 | `1.1.0-beta.1+mc26.1.2` | `kohs-crystal-tweaks-1.1.0-beta.1+mc26.1.2.jar` |
+| 1.21.10 | 21 | `1.1.0-beta.2+mc1.21.10` | `kohs-crystal-tweaks-1.1.0-beta.2+mc1.21.10.jar` |
+| 1.21.11 | 21 | `1.1.0-beta.2+mc1.21.11` | `kohs-crystal-tweaks-1.1.0-beta.2+mc1.21.11.jar` |
+| 26.1.2 | 25 | `1.1.0-beta.2+mc26.1.2` | `kohs-crystal-tweaks-1.1.0-beta.2+mc26.1.2.jar` |
 
 The 1.0.0 artifacts keep their original internal version and are distributed as GitHub pre-releases. Placement Fix starts with the 1.21.10 build.
 
@@ -35,8 +35,8 @@ The 1.0.0 artifacts keep their original internal version and are distributed as 
 
 Placement Fix is enabled by default in the `Tweaks` tab. Disabling it opens a warning dialog:
 
-- `Aceptar` (Accept) disables the feature.
-- `Restablecer` (Restore) keeps the feature enabled.
+- `Accept` disables the feature.
+- `Restore` keeps the feature enabled.
 
 ```mermaid
 sequenceDiagram
@@ -56,7 +56,7 @@ sequenceDiagram
 
 Placement Fix does not create packets, repeat interactions, switch items, or select remote targets. If the original hit already points to a valid base, it remains unchanged.
 
-## Prediction and rendering corrections in 1.1.0-beta.1
+## Prediction and rendering corrections in 1.1.0-beta.2
 
 - Local prediction is created only after Minecraft accepts the interaction.
 - The adaptive visual timeout starts at the configured 12 ticks instead of expiring early.

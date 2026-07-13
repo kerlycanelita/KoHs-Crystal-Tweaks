@@ -1,19 +1,16 @@
-# Changelog - 1.21.9
+# Changelog — 1.21.9
 
 ## 2026-04-24
-- Split del rango antiguo: `1.21.9` sale del merge amplio y queda aislado en su propia carpeta.
-- Motivo: `1.21.9` ya usa el renderer moderno y la UI moderna, asi que no comparte la misma base fuente que `1.21.5 - 1.21.8`.
-- Como se corrigio: se tomo como base la implementacion moderna ya validada en `1.21.10` y se ajustaron los metadatos para `1.21.9`.
-- Mejora del optimizador legit: se fusiona la capa util de `Marlow's Crystal Optimizer` con handshake moderno `marlowcrystal:version`, `marlowcrystal:opt_out` y `marlowcrystal:opt_out_ack`.
-- Como se corrigio: se reemplazo el canal legacy `minecraft:mco` por el protocolo moderno de Marlow, se agrego cache por servidor para respetar opt-out persistente y se mostro un aviso local cuando un servidor desactiva el optimizador.
-- Mejora del handler cliente: el rompido local del crystal ahora reutiliza la logica de dano de Marlow para manejar mejor casos con `Weakness`, sin mandar paquetes extra ni automatizar combate.
-- Ajuste legit: se restaura el `OptOutPacket` como una señal de compatibilidad pasiva en join, sin automatizar combate ni enviar acciones extras del crystal.
-- Endurecimiento adicional: `SafeCrystalMixin` ya no depende de `player.getEntityWorld()`, evitando otra llamada binariamente fragil en cliente.
-- Error corregido: el `@Inject` del renderer moderno usaba `Object` para `CameraRenderState`, lo que podia romper la aplicacion del mixin al iniciar con `InvalidInjectionException`.
-- Como se corrigio: `kct$cancelHiddenCrystalRender` ahora declara el cuarto parametro con el tipo exacto `CameraRenderState`.
-- Error corregido: el `@Redirect` del renderer moderno usaba `Object` para el parametro `Model`, lo que rompia la firma del hook de `submitModel`.
-- Como se corrigio: `kct$submitTintedCrystalModel` ahora recibe `Model` como tipo exacto y mantiene el `render state` como `Object`, que es lo que la llamada vanilla espera.
-- Error corregido: el crystal podia deformarse visualmente al colocarse o al activar `Crystal Flotation`, porque la animacion moderna estaba moviendo `innerGlass` y `cube` como si no fueran hijas de `outerGlass`.
-- Como se corrigio: la flotacion vuelve a aplicar el offset vanilla solo sobre `outerGlass`, dejando que la jerarquia del modelo arrastre las partes internas sin desalinearlas.
-- Se actualizo `fabric.mod.json` para declarar `>=1.21.9 <1.21.10`.
-- Verificacion completada: `./gradlew.bat clean build` compila limpio.
+
+- Split 1.21.9 from the wider compatibility group because it uses the modern renderer and UI APIs.
+- Based the port on the validated modern 1.21.10 implementation and adjusted metadata for 1.21.9.
+- Integrated the useful, legitimate portion of Marlow's Crystal Optimizer with modern `marlowcrystal:version`, `marlowcrystal:opt_out`, and `marlowcrystal:opt_out_ack` identifiers.
+- Replaced the legacy `minecraft:mco` channel, added per-server state for persistent opt-out handling, and displayed a local English notice when a server disables the optimizer.
+- Reused Marlow's local damage checks to handle Weakness more accurately without sending additional packets or automating combat.
+- Restored `OptOutPacket` as a passive join-time compatibility signal.
+- Removed the binary-fragile `player.getEntityWorld()` dependency from `SafeCrystalMixin`.
+- Fixed the modern renderer `@Inject` by declaring the exact `CameraRenderState` parameter instead of `Object`.
+- Fixed the `submitModel` redirect by using the exact `Model` parameter type while keeping the vanilla render-state argument as `Object`.
+- Fixed crystal deformation during placement and `Crystal Flotation` by applying the vanilla offset only to `outerGlass`; the hierarchy now moves `innerGlass` and `cube` correctly.
+- Updated `fabric.mod.json` to declare `>=1.21.9 <1.21.10`.
+- Confirmed a clean `gradlew.bat clean build`.

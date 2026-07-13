@@ -273,10 +273,10 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
                     placementFixEnabled = !accepted;
                     client.setScreen(this);
                 },
-                Text.literal("¿Desactivar Placement Fix?"),
-                Text.literal("Desactivarlo puede reintroducir delay al colocar cristales rápidamente tras la obsidiana."),
-                Text.literal("Aceptar"),
-                Text.literal("Restablecer")));
+                Text.literal("Disable Placement Fix?"),
+                Text.literal("Disabling it may reintroduce a delay when placing End Crystals immediately after obsidian."),
+                Text.literal("Accept"),
+                Text.literal("Restore")));
     }
 
     private void initSoundTab() {
