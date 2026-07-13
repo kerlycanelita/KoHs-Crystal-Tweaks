@@ -35,6 +35,8 @@ Sources reviewed:
 11. A confirmed 1.21.11 beta.5 startup log with `marlowcrystal` failed in `PayloadTypeRegistryImpl.register`: both entrypoints registered `marlowcrystal:opt_out`, and Fabric raised `Packet type ... is already registered` before the title screen.
 12. A Fabric dependency-level `breaks` declaration cannot provide the requested in-game explanation because Loader would stop before Minecraft creates a screen.
 13. `SafeCrystalMixin` targets only `ClientPlayerInteractionManager.attackBlock` and `updateBlockBreakingProgress`. It does not inject into the crystal placement path (`interactBlock`) or crystal entity attacks (`attackEntity`), although disabling it is useful for isolating rapid cycles where the crosshair still points at the base.
+14. Vanilla consumes hotbar key counters before the attack/use loops. The earlier ordered-input implementation preserved attack/use order but not slot order, so several actions received in one tick could all execute with the final selected item.
+15. The earlier retarget path performed a pending-base collision query before determining that the vanilla hit was already valid or unrelated, and its one-block neighborhood fallback could associate an adjacent aim change with the recorded placement.
 
 ## Implemented solution
 
@@ -57,6 +59,10 @@ Sources reviewed:
 - Replace the config screen with a bounded, scrollable bilingual report; reassert it at client tick end, disable Escape, and expose only `MinecraftClient.scheduleStop()`.
 - Expose Safe Crystal as a default-off direct toggle that protects normal obsidian only. Crying obsidian remains on the vanilla block-breaking path. When disabled, return before player/world/block inspection and do not cancel either method.
 - Reflow the six Tweaks controls into two columns on compact logical screens instead of compressing them into the Close-button area.
+- Record hotbar number keys and mouse-wheel selection changes in the same bounded queue as attack/use presses. Replay the initial slot and each physical slot transition before consuming the corresponding vanilla action count.
+- Ignore keyboard repeat events, which do not represent a new vanilla `wasPressed()` count.
+- Fast-path valid vanilla crystal bases, reject unrelated hits before collision lookup, and accept only the recorded base or exact placement offset.
+- Default Local Crystal and Seamless Mode to OFF for new/missing configuration fields; preserve explicit saved values.
 
 ## Verification boundaries
 
@@ -73,3 +79,5 @@ Placement Fix changes only the `BlockHitResult` consumed by the player's current
 Rapid Attack Fix does not synthesize clicks, guess entity IDs, or retry packets. It preserves at most one attack that already reached vanilla's normal attack call and sends that single attack only when the corresponding real entity is available.
 
 Ordered Crystal Input does not invoke an action from a held state, remove the four-tick vanilla use cooldown, or manufacture a key count. Every ordered action must consume one count already present in the matching vanilla `KeyBinding`; overflow falls back to untouched vanilla processing.
+
+Placement Fix does not defer a crystal use until obsidian exists. The base record is created only after the obsidian interaction returns an accepted result, so packet and method order remains obsidian first, crystal second. A server crystal cannot be legitimately attacked before its real entity ID arrives; Rapid Attack Fix waits for that ID rather than guessing it.

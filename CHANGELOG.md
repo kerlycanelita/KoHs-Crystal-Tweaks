@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.0.0-beta.4 — 2026-07-13
+
+### Minecraft 1.21.11
+
+- Fixed Placement Fix replaying several same-tick uses with only Minecraft's final selected hotbar item.
+- Added physical ordering for number-key and mouse-wheel slot changes alongside real attack/use presses.
+- Ignores keyboard repeat events and still requires every replayed attack/use to consume an existing vanilla `wasPressed()` count.
+- Records an obsidian base only after vanilla accepts the placement; a crystal input received first is never delayed, retried, or placed later.
+- Removed the broad adjacent-block fallback: retargeting now accepts only the recorded base or its exact placement offset.
+- Reordered validation so an already-valid vanilla hit or an unrelated hit avoids redundant pending-base entity scans.
+- Changed fresh-install defaults for `Local Crystal` and `Seamless Mode` to OFF.
+- Preserved existing saved choices and the strict legitimacy boundary: no guessed entity IDs, generated actions, cooldown removal, or additional packets.
+- Added ordered-slot and exact-retarget regression tests; the suite now contains nine tests.
+
 ## 2.0.0-beta.3 — 2026-07-13
 
 ### Minecraft 1.21.11

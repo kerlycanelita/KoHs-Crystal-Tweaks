@@ -20,7 +20,7 @@ public abstract class KeyboardOrderedCrystalInputMixin {
 
     @Inject(method = "onKey", at = @At("TAIL"))
     private void kct$recordOrderedKeyInput(long window, int action, KeyInput input, CallbackInfo ci) {
-        if (action == InputUtil.GLFW_RELEASE
+        if (action != InputUtil.GLFW_PRESS
                 || this.client.player == null
                 || this.client.world == null
                 || this.client.currentScreen != null
@@ -28,8 +28,17 @@ public abstract class KeyboardOrderedCrystalInputMixin {
             return;
         }
 
-        OrderedCrystalInput.record(
+        int selectedSlot = this.client.player.getInventory().getSelectedSlot();
+        for (int slot = 0; slot < this.client.options.hotbarKeys.length; slot++) {
+            if (this.client.options.hotbarKeys[slot].matchesKey(input)) {
+                OrderedCrystalInput.recordSlotChange(selectedSlot, slot);
+                selectedSlot = slot;
+            }
+        }
+
+        OrderedCrystalInput.recordInput(
                 this.client.options.attackKey.matchesKey(input),
-                this.client.options.useKey.matchesKey(input));
+                this.client.options.useKey.matchesKey(input),
+                selectedSlot);
     }
 }

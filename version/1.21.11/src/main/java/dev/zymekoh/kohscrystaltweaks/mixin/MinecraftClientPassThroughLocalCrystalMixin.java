@@ -11,6 +11,7 @@ import net.minecraft.client.option.GameOptions;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.decoration.EndCrystalEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.Items;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.EntityHitResult;
@@ -57,21 +58,36 @@ public abstract class MinecraftClientPassThroughLocalCrystalMixin {
                     ordinal = 0))
     private void kct$preserveCrystalInputOrder(CallbackInfo ci) {
         this.kct$orderedAttackHandled = false;
+        OrderedCrystalInput.Batch batch = OrderedCrystalInput.drain();
         if (!CrystalPlacementFix.isEnabled()
                 || this.player == null
                 || this.player.isUsingItem()
-                || !this.kct$isCrystalCycle()) {
-            OrderedCrystalInput.clear();
+                || batch.isEmpty()
+                || !this.kct$isCrystalCycle(batch)) {
             return;
         }
 
-        for (OrderedCrystalInput.Action action : OrderedCrystalInput.drain()) {
-            if (action == OrderedCrystalInput.Action.ATTACK) {
-                if (this.options.attackKey.wasPressed()) {
-                    this.kct$orderedAttackHandled |= this.doAttack();
+        if (PlayerInventory.isValidHotbarIndex(batch.initialSlot())) {
+            this.player.getInventory().setSelectedSlot(batch.initialSlot());
+        }
+
+        for (OrderedCrystalInput.Entry entry : batch.entries()) {
+            switch (entry.action()) {
+                case SELECT_SLOT -> {
+                    if (PlayerInventory.isValidHotbarIndex(entry.selectedSlot())) {
+                        this.player.getInventory().setSelectedSlot(entry.selectedSlot());
+                    }
                 }
-            } else if (this.options.useKey.wasPressed()) {
-                this.doItemUse();
+                case ATTACK -> {
+                    if (this.options.attackKey.wasPressed()) {
+                        this.kct$orderedAttackHandled |= this.doAttack();
+                    }
+                }
+                case USE -> {
+                    if (this.options.useKey.wasPressed()) {
+                        this.doItemUse();
+                    }
+                }
             }
         }
     }
@@ -87,7 +103,17 @@ public abstract class MinecraftClientPassThroughLocalCrystalMixin {
     }
 
     @Unique
-    private boolean kct$isCrystalCycle() {
+    private boolean kct$isCrystalCycle(OrderedCrystalInput.Batch batch) {
+        if (this.kct$isCrystalSlot(batch.initialSlot())) {
+            return true;
+        }
+        for (OrderedCrystalInput.Entry entry : batch.entries()) {
+            if (entry.action() == OrderedCrystalInput.Action.SELECT_SLOT
+                    && this.kct$isCrystalSlot(entry.selectedSlot())) {
+                return true;
+            }
+        }
+
         for (Hand hand : Hand.values()) {
             if (this.player.getStackInHand(hand).isOf(Items.END_CRYSTAL)
                     || this.player.getStackInHand(hand).isOf(Items.OBSIDIAN)) {
@@ -97,6 +123,15 @@ public abstract class MinecraftClientPassThroughLocalCrystalMixin {
 
         return this.crosshairTarget instanceof EntityHitResult entityHit
                 && entityHit.getEntity() instanceof EndCrystalEntity;
+    }
+
+    @Unique
+    private boolean kct$isCrystalSlot(int slot) {
+        if (!PlayerInventory.isValidHotbarIndex(slot)) {
+            return false;
+        }
+        return this.player.getInventory().getStack(slot).isOf(Items.END_CRYSTAL)
+                || this.player.getInventory().getStack(slot).isOf(Items.OBSIDIAN);
     }
 
     @Inject(method = "doAttack", at = @At("HEAD"))

@@ -19,8 +19,8 @@ public final class KoHsCrystalTweaksConfig {
     private static final String DEFAULT_CORE_TINT_HEX = "#FF4FD8";
 
     // ── Optimization ──
-    public boolean clientSideCrystalsEnabled = true;
-    public boolean seamlessEnabled = true;
+    public boolean clientSideCrystalsEnabled = false;
+    public boolean seamlessEnabled = false;
     public int predictionTimeoutTicks = 12;
 
     // ── Crystal Visuals ──

@@ -7,9 +7,11 @@ import org.junit.jupiter.api.Test;
 
 final class KoHsCrystalTweaksConfigTest {
     @Test
-    void safeCrystalDefaultsToDisabledForExistingConfigFilesWithoutTheNewField() {
+    void optionalPredictionAndSafetyFeaturesDefaultToDisabledWhenFieldsAreMissing() {
         KoHsCrystalTweaksConfig config = new Gson().fromJson("{}", KoHsCrystalTweaksConfig.class);
 
         assertFalse(config.safeCrystalEnabled);
+        assertFalse(config.clientSideCrystalsEnabled);
+        assertFalse(config.seamlessEnabled);
     }
 }

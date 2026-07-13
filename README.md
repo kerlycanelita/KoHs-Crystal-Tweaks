@@ -16,7 +16,7 @@ KoHs Crystal Tweaks is a client-side Fabric mod for legitimate Crystal PvP quali
 | 1.21.6–1.21.8 | 21 | `1.0.0+mc1.21.6` | `kohs-crystal-tweaks-1.0.0+mc1.21.6.jar` |
 | 1.21.9 | 21 | `1.0.0+mc1.21.9` | `kohs-crystal-tweaks-1.0.0+mc1.21.9.jar` |
 | 1.21.10 | 21 | `1.1.0-beta.2+mc1.21.10` | `kohs-crystal-tweaks-1.1.0-beta.2+mc1.21.10.jar` |
-| 1.21.11 | 21 | `2.0.0-beta.3+mc1.21.11` | `kohs-crystal-tweaks-2.0.0-beta.3+mc1.21.11.jar` |
+| 1.21.11 | 21 | `2.0.0-beta.4+mc1.21.11` | `kohs-crystal-tweaks-2.0.0-beta.4+mc1.21.11.jar` |
 | 26.1.2 | 25 | `1.1.0-beta.2+mc26.1.2` | `kohs-crystal-tweaks-1.1.0-beta.2+mc26.1.2.jar` |
 
 The 1.0.0 artifacts keep their original internal version and are distributed as GitHub pre-releases. Placement Fix starts with the 1.21.10 build.
@@ -58,7 +58,11 @@ sequenceDiagram
 
 Placement Fix does not create packets, repeat interactions, switch items, or select remote targets. If the original hit already points to a valid base, it remains unchanged.
 
-On 1.21.11, the same toggle also fixes keyboard-place sequencing. Vanilla stores attack and use presses in separate counters and drains all attacks before all uses, which can reorder a rapid physical sequence inside one client tick. KoHs records the arrival order, then consumes each entry only if the corresponding vanilla `wasPressed()` counter contains that real press. Keyboard repeat and mouse input follow the same guarded path; no cooldown is removed and no action is synthesized.
+On 1.21.11, the same toggle also fixes keyboard-place sequencing. Vanilla stores attack and use presses in separate counters, processes hotbar keys before both, and drains every attack before every use. This can make several physical actions received in one tick use only the final selected item. KoHs records number-key and mouse-wheel slot changes together with attack/use presses, then replays that exact sequence while consuming the corresponding vanilla `wasPressed()` counters. Key repeat is ignored; no cooldown is removed and no action is synthesized.
+
+The retarget is strictly causal. KoHs records a base only after vanilla returns an accepted obsidian placement. A crystal use that physically arrived first is never queued for later placement. If the original crystal hit already points to a valid base it stays untouched; otherwise only the recorded base or its exact placement offset can be substituted. Adjacent-block guessing was removed.
+
+For new 1.21.11 installations, `Local Crystal` and `Seamless Mode` are OFF by default. Enabling Local Crystal can display a prediction immediately, but a legitimate attack still has to wait until the server supplies the real crystal entity ID; KoHs never guesses that ID.
 
 ## Rapid Attack Fix (1.21.11)
 

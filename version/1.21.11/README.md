@@ -2,17 +2,23 @@
 
 ## Build matrix
 
-- Mod version: `2.0.0-beta.3+mc1.21.11`
+- Mod version: `2.0.0-beta.4+mc1.21.11`
 - Minecraft: `>=1.21.11`
 - Java: 21
 - Yarn mappings: `1.21.11+build.5`
 - Fabric Loader: `0.17.2`
 - Fabric API: `0.140.0+1.21.11`
-- Artifact: `kohs-crystal-tweaks-2.0.0-beta.3+mc1.21.11.jar`
+- Artifact: `kohs-crystal-tweaks-2.0.0-beta.4+mc1.21.11.jar`
 - Distribution status: GitHub beta/pre-release
 
 ## Beta implementation
 
+- Fresh installations default `Local Crystal` and `Seamless Mode` to OFF; existing explicit JSON values remain unchanged.
+- Placement Fix records physical hotbar changes from number keys and the mouse wheel together with attack/use inputs.
+- Same-tick replay restores the item selected at each physical input instead of executing every use with the final slot processed by vanilla.
+- A pending base exists only after an accepted obsidian interaction. Earlier crystal input is consumed normally and is never deferred or retried.
+- Retargeting is limited to the recorded base or its exact placement offset; the former one-block neighborhood fallback was removed.
+- Valid vanilla targets and unrelated hits skip redundant pending-base collision scans.
 - Startup incompatibility detection runs from the Mixin configuration plugin before KoHs gameplay mixins are applied.
 - `marlowcrystal` is explicitly blocked because both mods register the `marlowcrystal:opt_out` compatibility payload and modify the same client-side crystal cleanup/retargeting path.
 - Unknown mods are blocked only for a direct KoHs-class target or an exact critical target-class/method overlap from a crystal-related mixin.
