@@ -24,7 +24,7 @@ public abstract class ClientConnectionMixin {
             return;
         }
         if (packet instanceof PlayerInteractEntityC2SPacket interactionPacket) {
-            interactionPacket.handle(KCT$INTERACT_HANDLER);
+            KCT$INTERACT_HANDLER.handle(interactionPacket);
         }
     }
 }

@@ -11,6 +11,7 @@ Sources reviewed:
 - [Fabric 1.21.9/1.21.10 entity rendering migration](https://fabricmc.net/2025/09/23/1219.html)
 - [Fabric client entity lifecycle events](https://maven.fabricmc.net/docs/fabric-api-0.102.0%2B1.21/net/fabricmc/fabric/api/client/event/lifecycle/v1/ClientEntityEvents.html)
 - [Yarn 1.21.11 `ClientPlayerInteractionManager`](https://maven.fabricmc.net/docs/yarn-1.21.11%2Bbuild.1/net/minecraft/client/network/ClientPlayerInteractionManager.html)
+- [Marlow's Crystal Optimizer v1.1.0 source (MIT)](https://github.com/Bram1903/MarlowsCrystalOptimizer/tree/v1.1.0)
 - [Public KoHs Crystal Tweaks project page](https://modrinth.com/mod/kohs-crystal-tweaks)
 
 ## Code findings
@@ -21,6 +22,7 @@ Sources reviewed:
 4. The 1.21.x tint implementation queued several parts while temporarily changing `ModelPart.visible`. Rendering happened later, so restoring visibility before queue consumption could duplicate subtrees or mix colors.
 5. In 26.1.2, the UI persisted tint/spin/flotation/static values but renderer hooks did not consume them.
 6. In 1.21.11, attacking a predicted local crystal removed that prediction and raycast past it. When the matching server crystal had not loaded yet, vanilla had no real entity ID to attack, so the click was lost and the later server crystal remained alive.
+7. The earlier integrated optimizer detected the attacked crystal through `crosshairTarget`. After client-side removal it did not retrace the crosshair, so the next rapid use could still target the dead entity and break the place/attack cycle. Marlow instead resolves the crystal by the outgoing packet ID and retraces immediately after cleanup.
 
 ## Implemented solution
 
@@ -32,6 +34,8 @@ Sources reviewed:
 - Bound the configuration UI to current logical dimensions for high GUI scales and compact windows.
 - In 1.21.11, intercept only the vanilla `attackEntity` call after vanilla validation. Queue one boolean attack intent on the local prediction, consume it once when the matching server entity loads, and expire it with the prediction.
 - Replace fixed option descriptions with hover tooltips so explanatory text does not consume layout space.
+- Resolve real-crystal cleanup from the attack packet's entity ID, then clear `targetedEntity` and retrace through KoHs prediction-aware raycasting. This preserves the next physical use without producing another action.
+- Require an English-first, Spanish-second `Accept` / `Restore` confirmation before any toggle is disabled.
 
 ## Verification boundaries
 

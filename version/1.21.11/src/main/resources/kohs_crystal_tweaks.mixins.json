@@ -14,6 +14,7 @@
     "EntityAgeAccessor",
     "MinecraftClientPassThroughLocalCrystalMixin",
     "ModelPartCrystalTintMixin",
+    "PlayerInteractEntityC2SPacketAccessor",
     "SafeCrystalMixin",
     "SoundLoaderMixin",
     "SoundManagerAccessor",

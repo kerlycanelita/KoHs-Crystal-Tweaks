@@ -192,21 +192,13 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
         int y = contentY();
 
         // Local Crystal toggle
-        addContent(withTooltip(ButtonWidget.builder(localCrystalLabel(), b -> {
-            boolean next = !KoHsCrystalTweaksConfig.get().clientSideCrystalsEnabled;
-            KoHsCrystalTweaksConfig.setClientSideCrystalsEnabled(next);
-            CrystalPredictor.setEnabled(next);
-            b.setMessage(localCrystalLabel());
-        }).dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build(),
+        addContent(withTooltip(ButtonWidget.builder(localCrystalLabel(), b -> requestLocalCrystalToggle())
+                .dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build(),
                 "Renders accepted crystal placements immediately on the client."));
 
         // Seamless toggle
-        addContent(withTooltip(ButtonWidget.builder(seamlessLabel(), b -> {
-            KoHsCrystalTweaksConfig cfg = KoHsCrystalTweaksConfig.get();
-            cfg.seamlessEnabled = !cfg.seamlessEnabled;
-            KoHsCrystalTweaksConfig.save();
-            b.setMessage(seamlessLabel());
-        }).dimensions(cx() - buttonW / 2, y + rowSpacing, buttonW, BTN_H).build(),
+        addContent(withTooltip(ButtonWidget.builder(seamlessLabel(), b -> requestSeamlessToggle())
+                .dimensions(cx() - buttonW / 2, y + rowSpacing, buttonW, BTN_H).build(),
                 "Smooths the handoff from a predicted crystal to the server entity."));
     }
 
@@ -214,11 +206,8 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
         int y = contentY();
 
         // Tint toggle — rebuilds content on click
-        addContent(withTooltip(ButtonWidget.builder(tintLabel(), b -> {
-            crystalTintEnabled = !crystalTintEnabled;
-            b.setMessage(tintLabel());
-            rebuildTab(); // rebuild to show/hide color config
-        }).dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build(),
+        addContent(withTooltip(ButtonWidget.builder(tintLabel(), b -> requestCrystalTintToggle())
+                .dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build(),
                 "Applies separate custom colors to the crystal frame and core."));
 
         if (!crystalTintEnabled) return;
@@ -250,25 +239,18 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
                 .dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build(),
                 "Retargets only the current crystal use to freshly predicted obsidian. Sends no extra use packets."));
 
-        addContent(withTooltip(ButtonWidget.builder(rapidAttackFixLabel(), b -> {
-            rapidAttackFixEnabled = !rapidAttackFixEnabled;
-            b.setMessage(rapidAttackFixLabel());
-        }).dimensions(cx() - buttonW / 2, y + rowSpacing, buttonW, BTN_H).build(),
+        addContent(withTooltip(ButtonWidget.builder(rapidAttackFixLabel(), b -> requestRapidAttackFixToggle())
+                .dimensions(cx() - buttonW / 2, y + rowSpacing, buttonW, BTN_H).build(),
                 "Queues one validated attack when a predicted crystal is clicked before the server entity arrives. Never repeats attacks."));
 
-        addContent(withTooltip(ButtonWidget.builder(staticCrystalLabel(), b -> {
-            staticCrystalEnabled = !staticCrystalEnabled;
-            b.setMessage(staticCrystalLabel());
-            rebuildTab();
-        }).dimensions(cx() - buttonW / 2, y + rowSpacing * 2, buttonW, BTN_H).build(),
+        addContent(withTooltip(ButtonWidget.builder(staticCrystalLabel(), b -> requestStaticCrystalToggle())
+                .dimensions(cx() - buttonW / 2, y + rowSpacing * 2, buttonW, BTN_H).build(),
                 "Keeps crystals completely still with no spin or floating animation."));
 
         if (staticCrystalEnabled) return;
 
-        addContent(withTooltip(ButtonWidget.builder(crystalFlotationLabel(), b -> {
-            crystalFlotationEnabled = !crystalFlotationEnabled;
-            b.setMessage(crystalFlotationLabel());
-        }).dimensions(cx() - buttonW / 2, y + rowSpacing * 3, buttonW, BTN_H).build(),
+        addContent(withTooltip(ButtonWidget.builder(crystalFlotationLabel(), b -> requestCrystalFlotationToggle())
+                .dimensions(cx() - buttonW / 2, y + rowSpacing * 3, buttonW, BTN_H).build(),
                 "Enables or disables the crystal floating animation."));
 
         addContent(withTooltip(new PercentSlider(cx() - buttonW / 2, y + rowSpacing * 4, buttonW, BTN_H,
@@ -277,33 +259,25 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
     }
 
     private void requestPlacementFixToggle() {
-        MinecraftClient client = MinecraftClient.getInstance();
         if (!placementFixEnabled) {
             placementFixEnabled = true;
             rebuildTab();
             return;
         }
 
-        client.setScreen(new ConfirmScreen(
-                accepted -> {
-                    placementFixEnabled = !accepted;
-                    client.setScreen(this);
-                },
-                Text.literal("Disable Placement Fix?"),
-                Text.literal("Disabling it may reintroduce a delay when placing End Crystals immediately after obsidian."),
-                Text.literal("Accept"),
-                Text.literal("Restore")));
+        confirmDisable(
+                "Placement Fix",
+                "Immediate End Crystal use after obsidian may keep a stale target, causing placement delay or failure.",
+                "El uso inmediato de un End Crystal después de colocar obsidiana puede conservar un objetivo obsoleto y causar retrasos o fallos de colocación.",
+                () -> placementFixEnabled = false);
     }
 
     private void initSoundTab() {
         int y = contentY();
 
         // Custom Sound toggle — rebuilds content on click
-        addContent(withTooltip(ButtonWidget.builder(soundToggleLabel(), b -> {
-            customSoundEnabled = !customSoundEnabled;
-            b.setMessage(soundToggleLabel());
-            rebuildTab(); // rebuild to show/hide sound config
-        }).dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build(),
+        addContent(withTooltip(ButtonWidget.builder(soundToggleLabel(), b -> requestCustomSoundToggle())
+                .dimensions(cx() - buttonW / 2, y, buttonW, BTN_H).build(),
                 "Replaces the default crystal explosion sound through the vanilla sound pipeline."));
 
         if (!customSoundEnabled) return;
@@ -327,6 +301,130 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
     private <T extends ClickableWidget> T withTooltip(T widget, String description) {
         widget.setTooltip(Tooltip.of(Text.literal(description)));
         return widget;
+    }
+
+    private void requestLocalCrystalToggle() {
+        KoHsCrystalTweaksConfig cfg = KoHsCrystalTweaksConfig.get();
+        if (!cfg.clientSideCrystalsEnabled) {
+            KoHsCrystalTweaksConfig.setClientSideCrystalsEnabled(true);
+            CrystalPredictor.setEnabled(true);
+            rebuildTab();
+            return;
+        }
+
+        confirmDisable(
+                "Local Crystal",
+                "Client-side placement prediction and instant crystal cleanup will stop. High ping may delay or stall rapid place/attack cycles.",
+                "La predicción de colocación y la limpieza instantánea de cristales en el cliente se detendrán. Con ping alto, los ciclos rápidos de colocación y ataque pueden retrasarse o bloquearse.",
+                () -> {
+                    KoHsCrystalTweaksConfig.setClientSideCrystalsEnabled(false);
+                    CrystalPredictor.setEnabled(false);
+                });
+    }
+
+    private void requestSeamlessToggle() {
+        KoHsCrystalTweaksConfig cfg = KoHsCrystalTweaksConfig.get();
+        if (!cfg.seamlessEnabled) {
+            cfg.seamlessEnabled = true;
+            KoHsCrystalTweaksConfig.save();
+            rebuildTab();
+            return;
+        }
+
+        confirmDisable(
+                "Seamless Mode",
+                "Predicted crystals may pop, flicker, or visibly reset when the matching server entity arrives.",
+                "Los cristales predichos pueden aparecer de golpe, parpadear o reiniciarse visiblemente cuando llegue la entidad correspondiente del servidor.",
+                () -> {
+                    cfg.seamlessEnabled = false;
+                    KoHsCrystalTweaksConfig.save();
+                });
+    }
+
+    private void requestCrystalTintToggle() {
+        if (!crystalTintEnabled) {
+            crystalTintEnabled = true;
+            rebuildTab();
+            return;
+        }
+
+        confirmDisable(
+                "Crystal Tint",
+                "Custom frame and core colors will no longer render; crystals will return to their normal colors.",
+                "Los colores personalizados del marco y del núcleo dejarán de mostrarse; los cristales volverán a sus colores normales.",
+                () -> crystalTintEnabled = false);
+    }
+
+    private void requestRapidAttackFixToggle() {
+        if (!rapidAttackFixEnabled) {
+            rapidAttackFixEnabled = true;
+            rebuildTab();
+            return;
+        }
+
+        confirmDisable(
+                "Rapid Attack Fix",
+                "Attacks that reach a predicted crystal before its server entity loads may be lost and break the rapid click cycle.",
+                "Los ataques que alcancen un cristal predicho antes de que cargue su entidad del servidor pueden perderse y romper el ciclo de clics rápidos.",
+                () -> rapidAttackFixEnabled = false);
+    }
+
+    private void requestStaticCrystalToggle() {
+        if (!staticCrystalEnabled) {
+            staticCrystalEnabled = true;
+            rebuildTab();
+            return;
+        }
+
+        confirmDisable(
+                "Static Crystal",
+                "Crystals will resume the configured spin and flotation animations.",
+                "Los cristales volverán a usar las animaciones configuradas de giro y flotación.",
+                () -> staticCrystalEnabled = false);
+    }
+
+    private void requestCrystalFlotationToggle() {
+        if (!crystalFlotationEnabled) {
+            crystalFlotationEnabled = true;
+            rebuildTab();
+            return;
+        }
+
+        confirmDisable(
+                "Crystal Flotation",
+                "The vertical floating animation will stop; the configured spin can still remain active.",
+                "La animación de flotación vertical se detendrá; el giro configurado todavía puede permanecer activo.",
+                () -> crystalFlotationEnabled = false);
+    }
+
+    private void requestCustomSoundToggle() {
+        if (!customSoundEnabled) {
+            customSoundEnabled = true;
+            rebuildTab();
+            return;
+        }
+
+        confirmDisable(
+                "Custom Sound",
+                "Vanilla explosion audio will return and the selected file, volume, and speed settings will not be used.",
+                "Volverá el sonido de explosión de Minecraft y no se usarán el archivo, el volumen ni la velocidad seleccionados.",
+                () -> customSoundEnabled = false);
+    }
+
+    private void confirmDisable(String optionName, String english, String spanish, Runnable disableAction) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        client.setScreen(new ConfirmScreen(
+                accepted -> {
+                    if (accepted) {
+                        disableAction.run();
+                    }
+                    client.setScreen(this);
+                    rebuildTab();
+                },
+                Text.literal("Disable " + optionName + "?"),
+                Text.literal("English: " + english + "\n\nEspañol: " + spanish),
+                Text.literal("Accept"),
+                Text.literal("Restore")));
     }
 
     private void addContent(ClickableWidget widget) {

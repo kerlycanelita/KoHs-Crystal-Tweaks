@@ -1,5 +1,7 @@
 package dev.zymekoh.kohscrystaltweaks.marlow;
 
+import dev.zymekoh.kohscrystaltweaks.core.CrystalPredictor;
+import dev.zymekoh.kohscrystaltweaks.mixin.PlayerInteractEntityC2SPacketAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EquipmentSlot;
@@ -16,59 +18,70 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.event.GameEvent;
 
-public final class InteractHandler implements PlayerInteractEntityC2SPacket.Handler {
+public final class InteractHandler {
     private final MinecraftClient client;
 
     public InteractHandler(MinecraftClient client) {
         this.client = client;
     }
 
-    @Override
-    public void interact(Hand hand) {
-    }
-
-    @Override
-    public void interactAt(Hand hand, Vec3d pos) {
-    }
-
-    @Override
-    public void attack() {
-        HitResult hitResult = this.client.crosshairTarget;
-        if (!(hitResult instanceof EntityHitResult entityHitResult)) {
+    public void handle(PlayerInteractEntityC2SPacket packet) {
+        if (this.client.world == null) {
             return;
         }
-        if (!(entityHitResult.getEntity() instanceof EndCrystalEntity crystal)) {
+
+        int entityId = ((PlayerInteractEntityC2SPacketAccessor) packet).kct$getEntityId();
+        Entity target = this.client.world.getEntityById(entityId);
+        if (!(target instanceof EndCrystalEntity crystal)) {
             return;
         }
-        if (this.client.player == null) {
+
+        packet.handle(new PlayerInteractEntityC2SPacket.Handler() {
+            @Override
+            public void interact(Hand hand) {
+            }
+
+            @Override
+            public void interactAt(Hand hand, Vec3d pos) {
+            }
+
+            @Override
+            public void attack() {
+                handleAttack(crystal);
+            }
+        });
+    }
+
+    private void handleAttack(EndCrystalEntity crystal) {
+        if (this.client.player == null || !crystal.isAlive()) {
             return;
         }
 
         if (canDestroyCrystal()) {
             crystal.setRemoved(Entity.RemovalReason.KILLED);
-            if (this.client.world != null) {
-                crystal.onDamaged(this.client.world.getDamageSources().genericKill());
-            }
+            crystal.emitGameEvent(GameEvent.ENTITY_DIE);
+            retargetCrosshair(crystal);
         }
     }
 
+    private void retargetCrosshair(EndCrystalEntity crystal) {
+        HitResult hitResult = this.client.crosshairTarget;
+        boolean crosshairMatched = hitResult instanceof EntityHitResult entityHitResult
+                && entityHitResult.getEntity() == crystal;
+        boolean targetedMatched = this.client.targetedEntity == crystal;
+        if (!crosshairMatched && !targetedMatched) {
+            return;
+        }
+
+        // Marlow retraces after local cleanup. This variant also excludes KoHs local
+        // prediction entities, so the next physical use reaches the real block target.
+        this.client.targetedEntity = null;
+        this.client.crosshairTarget = CrystalPredictor.raycastIgnoringLocal(1.0f);
+    }
+
     private boolean canDestroyCrystal() {
-        if (this.client.player == null) {
-            return false;
-        }
-
-        StatusEffectInstance weakness = this.client.player.getStatusEffect(StatusEffects.WEAKNESS);
-        if (weakness == null) {
-            return true;
-        }
-
-        double baseDamage = this.client.player.getAttributeValue(EntityAttributes.ATTACK_DAMAGE);
-        double weaknessPenalty = 4.0 * (weakness.getAmplifier() + 1);
-        if (baseDamage > weaknessPenalty + 5.0) {
-            return true;
-        }
-
         return calculateTotalDamage() > 0.0;
     }
 
@@ -77,7 +90,7 @@ public final class InteractHandler implements PlayerInteractEntityC2SPacket.Hand
             return 0.0;
         }
 
-        double baseDamage = this.client.player.getAttributeValue(EntityAttributes.ATTACK_DAMAGE);
+        double baseDamage = this.client.player.getAttributeBaseValue(EntityAttributes.ATTACK_DAMAGE);
         double weaponDamage = getWeaponDamage(this.client.player.getMainHandStack());
         StatusEffectInstance strength = this.client.player.getStatusEffect(StatusEffects.STRENGTH);
         double strengthBonus = strength != null ? 3.0 * (strength.getAmplifier() + 1) : 0.0;

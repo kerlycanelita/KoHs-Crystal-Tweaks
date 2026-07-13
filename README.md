@@ -16,7 +16,7 @@ KoHs Crystal Tweaks is a client-side Fabric mod for legitimate Crystal PvP quali
 | 1.21.6–1.21.8 | 21 | `1.0.0+mc1.21.6` | `kohs-crystal-tweaks-1.0.0+mc1.21.6.jar` |
 | 1.21.9 | 21 | `1.0.0+mc1.21.9` | `kohs-crystal-tweaks-1.0.0+mc1.21.9.jar` |
 | 1.21.10 | 21 | `1.1.0-beta.2+mc1.21.10` | `kohs-crystal-tweaks-1.1.0-beta.2+mc1.21.10.jar` |
-| 1.21.11 | 21 | `1.1.0-beta.3+mc1.21.11` | `kohs-crystal-tweaks-1.1.0-beta.3+mc1.21.11.jar` |
+| 1.21.11 | 21 | `1.1.0-beta.4+mc1.21.11` | `kohs-crystal-tweaks-1.1.0-beta.4+mc1.21.11.jar` |
 | 26.1.2 | 25 | `1.1.0-beta.2+mc26.1.2` | `kohs-crystal-tweaks-1.1.0-beta.2+mc26.1.2.jar` |
 
 The 1.0.0 artifacts keep their original internal version and are distributed as GitHub pre-releases. Placement Fix starts with the 1.21.10 build.
@@ -65,8 +65,11 @@ Rapid Attack Fix is enabled by default in the `Tweaks` tab. It addresses the los
 - If the crosshair still references the local prediction, the mod records one pending attack and deduplicates further rapid clicks.
 - The attack is sent only after the matching real End Crystal and its server-assigned entity ID are available.
 - The pending intent expires with the local prediction; the mod never guesses entity IDs or repeats attack packets.
+- Outgoing real-crystal attacks are resolved by their packet entity ID, cleaned up immediately, and followed by a crosshair retrace that ignores removed and locally predicted crystals.
 
 All option descriptions are shown as hover tooltips instead of fixed description blocks, keeping the configuration panel compact at high GUI scales.
+
+Disabling any toggle opens an `Accept` / `Restore` confirmation. Consequences are shown first in English and then in Spanish; `Accept` disables the feature and `Restore` leaves it enabled.
 
 ## Prediction and rendering corrections in 1.1.0-beta.2
 
@@ -106,3 +109,5 @@ Remapped JARs are written to `build/libs/`. Published artifacts were verified wi
 ## License
 
 KoHs Crystal Tweaks is licensed under the [MIT License](LICENSE).
+
+Third-party MIT attributions are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.0-beta.4 — 2026-07-13
+
+### Minecraft 1.21.11
+
+- Fixed rapid place/attack cycles stalling after the optimizer removed a real crystal but left the crosshair on the dead entity.
+- Resolved optimizer targets from the outgoing attack packet's real entity ID instead of assuming the current crosshair still matched.
+- Retraced the crosshair immediately after client-side cleanup and excluded both removed crystals and KoHs local predictions from the new target.
+- Kept the one-input/one-action boundary: no generated clicks, automatic retry loop, guessed entity ID, or additional attack packet.
+- Added `Accept` / `Restore` confirmation before disabling every toggle.
+- Added concise bilingual consequences to each warning, with English first and Spanish second.
+- Embedded the upstream Marlow MIT attribution in the repository and the distributed JAR.
+
 ## 1.1.0-beta.3 — 2026-07-13
 
 ### Minecraft 1.21.11
