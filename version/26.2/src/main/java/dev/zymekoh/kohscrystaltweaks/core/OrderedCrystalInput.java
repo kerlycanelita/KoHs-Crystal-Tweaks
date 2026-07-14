@@ -120,5 +120,23 @@ public final class OrderedCrystalInput {
         public boolean isEmpty() {
             return entries.isEmpty();
         }
+
+        /**
+         * Replays only sequences whose physical order vanilla can collapse inside
+         * one input pass. A lone attack or use stays entirely on vanilla's direct
+         * path, avoiding any extra handling in ordinary crystal combat.
+         */
+        public boolean requiresOrderedReplay() {
+            int actionCount = 0;
+            boolean slotChanged = false;
+            for (Entry entry : entries) {
+                if (entry.action() == Action.SELECT_SLOT) {
+                    slotChanged = true;
+                } else {
+                    actionCount++;
+                }
+            }
+            return actionCount > 1 || (slotChanged && actionCount > 0);
+        }
     }
 }

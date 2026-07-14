@@ -1,6 +1,8 @@
 package dev.zymekoh.kohscrystaltweaks.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
@@ -40,5 +42,18 @@ final class OrderedCrystalInputTest {
                 new OrderedCrystalInput.Entry(OrderedCrystalInput.Action.ATTACK, -1),
                 new OrderedCrystalInput.Entry(OrderedCrystalInput.Action.USE, -1)
         ), batch.entries());
+    }
+
+    @Test
+    void replaysOnlyWhenVanillaCouldLosePhysicalOrder() {
+        OrderedCrystalInput.recordInputUnchecked(false, true, 4);
+        assertFalse(OrderedCrystalInput.drain().requiresOrderedReplay());
+
+        OrderedCrystalInput.recordInputUnchecked(true, true, 4);
+        assertTrue(OrderedCrystalInput.drain().requiresOrderedReplay());
+
+        OrderedCrystalInput.recordSlotChangeUnchecked(4, 5);
+        OrderedCrystalInput.recordInputUnchecked(false, true, 5);
+        assertTrue(OrderedCrystalInput.drain().requiresOrderedReplay());
     }
 }

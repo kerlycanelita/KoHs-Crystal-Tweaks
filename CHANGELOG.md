@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.0.1 — 2026-07-13
+
+### Minecraft 1.21.10, 1.21.11, 26.1, 26.1.1, 26.1.2, and 26.2
+
+- Keeps ordinary single attack/use clicks entirely on Minecraft's direct input path.
+- Reserves ordered replay for multi-action or slot-sensitive same-tick sequences whose physical order vanilla could otherwise collapse.
+- Keeps outgoing real-crystal cleanup active independently of optional Local Crystal prediction, restoring immediate explosion feedback with the default Local Crystal OFF state.
+- Retains exact causal placement retargeting, one validated pending attack, and the strict no-synthesized-input/no-extra-packet boundary.
+- Restricts each artifact to its exact Minecraft target and verifies every maintained branch with 10 automated tests.
+
 ## 2.0.0 — 2026-07-13
 
 ### Minecraft 1.21.10, 1.21.11, 26.1, 26.1.1, 26.1.2, and 26.2

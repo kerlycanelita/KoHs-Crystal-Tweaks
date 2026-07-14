@@ -2,13 +2,13 @@
 
 ## Build matrix
 
-- Mod version: `2.0.0+mc1.21.11`
+- Mod version: `2.0.1+mc1.21.11`
 - Minecraft: `1.21.11` (exact; Fabric rejects this artifact on 26.x)
 - Java: 21
 - Yarn mappings: `1.21.11+build.5`
 - Fabric Loader: `0.17.2`
 - Fabric API: `0.140.0+1.21.11`
-- Artifact: `kohs-crystal-tweaks-2.0.0+mc1.21.11.jar`
+- Artifact: `kohs-crystal-tweaks-2.0.1+mc1.21.11.jar`
 - Distribution status: Stable release
 
 ## Release 2 implementation

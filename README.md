@@ -4,7 +4,7 @@ KoHs Crystal Tweaks is a client-side Fabric mod for legitimate Crystal PvP quali
 
 [Modrinth project page](https://modrinth.com/mod/kohs-crystal-tweaks) · [GitHub releases](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/releases)
 
-> Release 2 is built for Minecraft 1.21.10, 1.21.11, 26.1, 26.1.1, 26.1.2, and 26.2. The mod does not automate clicks, attacks, or placements.
+> Release 2.0.1 is built for Minecraft 1.21.10, 1.21.11, 26.1, 26.1.1, 26.1.2, and 26.2. The mod does not automate clicks, attacks, or placements.
 
 Each release-2 JAR targets exactly the Minecraft version shown in its filename. Cross-version installation is rejected by Fabric before KoHs mixins or entrypoints load.
 
@@ -17,12 +17,12 @@ Each release-2 JAR targets exactly the Minecraft version shown in its filename. 
 | 1.21.5 | 21 | `1.0.0+mc1.21.5` | `kohs-crystal-tweaks-1.0.0+mc1.21.5.jar` |
 | 1.21.6–1.21.8 | 21 | `1.0.0+mc1.21.6` | `kohs-crystal-tweaks-1.0.0+mc1.21.6.jar` |
 | 1.21.9 | 21 | `1.0.0+mc1.21.9` | `kohs-crystal-tweaks-1.0.0+mc1.21.9.jar` |
-| 1.21.10 | 21 | `2.0.0+mc1.21.10` | `kohs-crystal-tweaks-2.0.0+mc1.21.10.jar` |
-| 1.21.11 | 21 | `2.0.0+mc1.21.11` | `kohs-crystal-tweaks-2.0.0+mc1.21.11.jar` |
-| 26.1 | 25 | `2.0.0+mc26.1` | `kohs-crystal-tweaks-2.0.0+mc26.1.jar` |
-| 26.1.1 | 25 | `2.0.0+mc26.1.1` | `kohs-crystal-tweaks-2.0.0+mc26.1.1.jar` |
-| 26.1.2 | 25 | `2.0.0+mc26.1.2` | `kohs-crystal-tweaks-2.0.0+mc26.1.2.jar` |
-| 26.2 | 25 | `2.0.0+mc26.2` | `kohs-crystal-tweaks-2.0.0+mc26.2.jar` |
+| 1.21.10 | 21 | `2.0.1+mc1.21.10` | `kohs-crystal-tweaks-2.0.1+mc1.21.10.jar` |
+| 1.21.11 | 21 | `2.0.1+mc1.21.11` | `kohs-crystal-tweaks-2.0.1+mc1.21.11.jar` |
+| 26.1 | 25 | `2.0.1+mc26.1` | `kohs-crystal-tweaks-2.0.1+mc26.1.jar` |
+| 26.1.1 | 25 | `2.0.1+mc26.1.1` | `kohs-crystal-tweaks-2.0.1+mc26.1.1.jar` |
+| 26.1.2 | 25 | `2.0.1+mc26.1.2` | `kohs-crystal-tweaks-2.0.1+mc26.1.2.jar` |
+| 26.2 | 25 | `2.0.1+mc26.2` | `kohs-crystal-tweaks-2.0.1+mc26.2.jar` |
 
 The 1.0.0 artifacts keep their original internal version and are distributed as GitHub pre-releases. Placement Fix starts with the 1.21.10 build.
 
@@ -64,6 +64,8 @@ sequenceDiagram
 Placement Fix does not create packets, repeat interactions, switch items, or select remote targets. If the original hit already points to a valid base, it remains unchanged.
 
 On release 2 builds, the same toggle also fixes keyboard-place sequencing. Vanilla stores attack and use presses in separate counters, processes hotbar keys before both, and drains every attack before every use. This can make several physical actions received in one tick use only the final selected item. KoHs records number-key and mouse-wheel slot changes together with attack/use presses, then replays that exact sequence while consuming the corresponding vanilla click counters. Key repeat is ignored; no cooldown is removed and no action is synthesized.
+
+Release 2.0.1 keeps an ordinary single attack or use entirely on Minecraft's direct input path. Ordered replay runs only for a multi-action or slot-sensitive same-tick sequence whose physical order vanilla could otherwise collapse. Outgoing attacks also clean up the matching real crystal independently of optional Local Crystal prediction, restoring immediate explosion feedback with the default Local Crystal OFF state.
 
 The retarget is strictly causal. KoHs records a base only after vanilla returns an accepted obsidian placement. A crystal use that physically arrived first is never queued for later placement. If the original crystal hit already points to a valid base it stays untouched; otherwise only the recorded base or its exact placement offset can be substituted. Adjacent-block guessing was removed.
 
