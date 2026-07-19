@@ -91,6 +91,9 @@ final class MixinConflictScanner {
         for (MixinSignature candidate : candidates) {
             for (String target : candidate.targetClasses()) {
                 if (target.startsWith(KOHS_PACKAGE)) {
+                    if (ForceCrystalPriorityConflictScanner.isFeatureInternalTarget(target)) {
+                        continue;
+                    }
                     Set<String> methods = candidate.targetMethods().isEmpty()
                             ? Set.of("<class>") : candidate.targetMethods();
                     for (String method : methods) {

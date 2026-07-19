@@ -1,5 +1,6 @@
 package dev.zymekoh.kohscrystaltweaks.gui;
 
+import dev.zymekoh.kohscrystaltweaks.compat.ForceCrystalPriorityConflictScanner;
 import dev.zymekoh.kohscrystaltweaks.config.KoHsCrystalTweaksConfig;
 import dev.zymekoh.kohscrystaltweaks.sound.CrystalSoundManager;
 import java.nio.file.Files;
@@ -30,8 +31,7 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
     private final Screen parent;
     private final List<AbstractWidget> contentWidgets = new ArrayList<>();
 
-    private Tab activeTab = Tab.OPTIMIZATION;
-    private Button tabOptimization;
+    private Tab activeTab = Tab.TWEAKS;
     private Button tabVisuals;
     private Button tabTweaks;
     private Button tabSound;
@@ -53,8 +53,6 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
     private boolean compact;
 
     private boolean stateLoaded;
-    private boolean clientSideCrystalsEnabled;
-    private boolean seamlessEnabled;
     private boolean crystalTintEnabled;
     private ColorState frameColor;
     private ColorState coreColor;
@@ -65,8 +63,8 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
     private boolean crystalFlotationEnabled;
     private boolean staticCrystalEnabled;
     private boolean placementFixEnabled;
-    private boolean rapidAttackFixEnabled;
     private boolean safeCrystalEnabled;
+    private boolean forceCrystalPvpPriorityEnabled;
     private boolean customSoundEnabled;
     private String selectedSoundFileName = "";
     private float soundVolume;
@@ -86,25 +84,21 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
 
         int tabGap = panelWidth < 320 ? 2 : 4;
         int tabsWidth = panelWidth - 12;
-        int tabWidth = Math.max(1, (tabsWidth - tabGap * 3) / 4);
-        int tabStartX = panelX + (panelWidth - (tabWidth * 4 + tabGap * 3)) / 2;
+        int tabWidth = Math.max(1, (tabsWidth - tabGap * 2) / 3);
+        int tabStartX = panelX + (panelWidth - (tabWidth * 3 + tabGap * 2)) / 2;
         int tabY = panelY + (compact ? 23 : 35);
 
-        tabOptimization = addRenderableWidget(Button.builder(
-                Component.literal("Optimize"), button -> switchTab(Tab.OPTIMIZATION))
-                .bounds(tabStartX, tabY, tabWidth, tabHeight)
-                .build());
         tabVisuals = addRenderableWidget(Button.builder(
                 Component.literal("Visuals"), button -> switchTab(Tab.VISUALS))
-                .bounds(tabStartX + tabWidth + tabGap, tabY, tabWidth, tabHeight)
+                .bounds(tabStartX, tabY, tabWidth, tabHeight)
                 .build());
         tabTweaks = addRenderableWidget(Button.builder(
                 Component.literal("Tweaks"), button -> switchTab(Tab.TWEAKS))
-                .bounds(tabStartX + (tabWidth + tabGap) * 2, tabY, tabWidth, tabHeight)
+                .bounds(tabStartX + tabWidth + tabGap, tabY, tabWidth, tabHeight)
                 .build());
         tabSound = addRenderableWidget(Button.builder(
                 Component.literal("Sound"), button -> switchTab(Tab.SOUND))
-                .bounds(tabStartX + (tabWidth + tabGap) * 3, tabY, tabWidth, tabHeight)
+                .bounds(tabStartX + (tabWidth + tabGap) * 2, tabY, tabWidth, tabHeight)
                 .build());
 
         int closeHeight = Math.max(12, Math.min(16, footerHeight - 6));
@@ -153,8 +147,6 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
         }
 
         KoHsCrystalTweaksConfig config = KoHsCrystalTweaksConfig.get();
-        clientSideCrystalsEnabled = config.clientSideCrystalsEnabled;
-        seamlessEnabled = config.seamlessEnabled;
         crystalTintEnabled = config.crystalTintEnabled;
         frameColor = ColorState.fromArgb(KoHsCrystalTweaksConfig.getCrystalFrameTintArgb());
         coreColor = ColorState.fromArgb(KoHsCrystalTweaksConfig.getCrystalCoreTintArgb());
@@ -162,8 +154,8 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
         crystalFlotationEnabled = config.crystalFlotationEnabled;
         staticCrystalEnabled = config.staticCrystalEnabled;
         placementFixEnabled = config.placementFixEnabled;
-        rapidAttackFixEnabled = config.rapidAttackFixEnabled;
         safeCrystalEnabled = config.safeCrystalEnabled;
+        forceCrystalPvpPriorityEnabled = config.forceCrystalPvpPriorityEnabled;
         customSoundEnabled = config.customSoundEnabled;
         selectedSoundFileName = config.customSoundFileName;
         soundVolume = config.soundVolume;
@@ -189,49 +181,10 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
 
     private void initContent() {
         switch (activeTab) {
-            case OPTIMIZATION -> initOptimizationTab();
             case VISUALS -> initVisualsTab();
             case TWEAKS -> initTweaksTab();
             case SOUND -> initSoundTab();
         }
-    }
-
-    private void initOptimizationTab() {
-        int secondY = contentY + controlHeight + (compact ? 5 : 16);
-
-        addContent(withTooltip(Button.builder(localCrystalLabel(), button -> requestLocalCrystalToggle())
-                .bounds(centerX() - buttonWidth / 2, contentY, buttonWidth, controlHeight)
-                .build(), "Predicts accepted crystal placements locally for immediate visual and input feedback."));
-
-        addContent(withTooltip(Button.builder(seamlessLabel(), button -> requestSeamlessToggle())
-                .bounds(centerX() - buttonWidth / 2, secondY, buttonWidth, controlHeight)
-                .build(), "Bridges a local prediction into the matching server crystal to reduce popping."));
-    }
-
-    private void requestLocalCrystalToggle() {
-        if (!clientSideCrystalsEnabled) {
-            clientSideCrystalsEnabled = true;
-            rebuildContent();
-            return;
-        }
-        confirmDisable(
-                "Local Crystal",
-                "Disabling Local Crystal removes immediate local placement feedback and cleanup. On high latency, crystal cycles may feel delayed or stall until the server responds.",
-                "Desactivar Local Crystal elimina la respuesta local inmediata de colocación y limpieza. Con latencia alta, los ciclos de cristal pueden sentirse lentos o detenerse hasta que responda el servidor.",
-                () -> clientSideCrystalsEnabled = false);
-    }
-
-    private void requestSeamlessToggle() {
-        if (!seamlessEnabled) {
-            seamlessEnabled = true;
-            rebuildContent();
-            return;
-        }
-        confirmDisable(
-                "Seamless Mode",
-                "Disabling Seamless Mode may make predicted crystals pop, flicker, or reset when the matching server entity arrives.",
-                "Desactivar Seamless Mode puede hacer que los cristales predichos aparezcan de golpe, parpadeen o se reinicien cuando llegue la entidad del servidor.",
-                () -> seamlessEnabled = false);
     }
 
     private void initVisualsTab() {
@@ -268,20 +221,22 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
                 .bounds(leftX, contentY, columnWidth, controlHeight).build(),
                 "Preserves the real obsidian-then-crystal input order and retargets only the current vanilla click."));
 
-        addContent(withTooltip(Button.builder(rapidAttackFixLabel(), button -> requestRapidAttackFixToggle())
-                .bounds(rightX, contentY, columnWidth, controlHeight).build(),
-                "Keeps one validated attack pending for a predicted crystal until its real server entity arrives."));
-
         addContent(withTooltip(Button.builder(safeCrystalLabel(), button -> {
             safeCrystalEnabled = !safeCrystalEnabled;
             button.setMessage(safeCrystalLabel());
-        }).bounds(leftX, contentY + rowStep(), columnWidth, controlHeight).build(),
+        }).bounds(rightX, contentY, columnWidth, controlHeight).build(),
                 "Prevents accidental hand mining of normal obsidian while holding an End Crystal."));
+
+        addContent(withTooltip(Button.builder(forceCrystalPvpPriorityLabel(), button ->
+                        requestForceCrystalPvpPriorityToggle())
+                .bounds(centerX() - buttonWidth / 2, contentY + rowStep(), buttonWidth, controlHeight)
+                .build(),
+                "Fast-tracks your explicit hotbar key or mouse binding when that slot already contains an End Crystal or obsidian."));
 
         addContent(withTooltip(Button.builder(staticCrystalLabel(), button -> {
             staticCrystalEnabled = !staticCrystalEnabled;
             rebuildContent();
-        }).bounds(rightX, contentY + rowStep(), columnWidth, controlHeight).build(),
+        }).bounds(centerX() - buttonWidth / 2, contentY + rowStep() * 2, buttonWidth, controlHeight).build(),
                 "Stops both crystal spin and flotation animation."));
 
         if (staticCrystalEnabled) {
@@ -291,12 +246,12 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
         addContent(withTooltip(Button.builder(flotationLabel(), button -> {
             crystalFlotationEnabled = !crystalFlotationEnabled;
             button.setMessage(flotationLabel());
-        }).bounds(leftX, contentY + rowStep() * 2, columnWidth, controlHeight).build(),
+        }).bounds(leftX, contentY + rowStep() * 3, columnWidth, controlHeight).build(),
                 "Enables or disables the vanilla crystal bobbing motion."));
 
         PercentSlider spinSlider = new PercentSlider(
                 rightX,
-                contentY + rowStep() * 2,
+                contentY + rowStep() * 3,
                 columnWidth,
                 controlHeight,
                 "Spin Speed",
@@ -305,6 +260,29 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
                 crystalSpinSpeed,
                 value -> crystalSpinSpeed = value.floatValue());
         addContent(withTooltip(spinSlider, "Adjusts crystal rotation speed without changing gameplay timing."));
+    }
+
+    private void requestForceCrystalPvpPriorityToggle() {
+        if (forceCrystalPvpPriorityEnabled) {
+            forceCrystalPvpPriorityEnabled = false;
+            rebuildContent();
+            return;
+        }
+
+        List<ForceCrystalPriorityConflictScanner.Conflict> conflicts =
+                ForceCrystalPriorityConflictScanner.scanInstalledMods();
+        if (conflicts.isEmpty()) {
+            forceCrystalPvpPriorityEnabled = true;
+            rebuildContent();
+            return;
+        }
+
+        Minecraft client = Minecraft.getInstance();
+        client.setScreen(new ForceCrystalPriorityConflictScreen(
+                this,
+                conflicts,
+                () -> forceCrystalPvpPriorityEnabled = true,
+                () -> forceCrystalPvpPriorityEnabled = false));
     }
 
     private void requestPlacementFixToggle() {
@@ -320,19 +298,6 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
                 "Disabling Placement Fix can reintroduce ghost placements or delayed crystal placement when obsidian and crystal inputs occur almost together.",
                 "Desactivar Placement Fix puede volver a causar colocaciones fantasma o retraso del cristal cuando las entradas de obsidiana y cristal ocurren casi al mismo tiempo.",
                 () -> placementFixEnabled = false);
-    }
-
-    private void requestRapidAttackFixToggle() {
-        if (!rapidAttackFixEnabled) {
-            rapidAttackFixEnabled = true;
-            rebuildContent();
-            return;
-        }
-        confirmDisable(
-                "Rapid Attack Fix",
-                "Disabling Rapid Attack Fix may cause very fast attack inputs against predicted crystals to be ignored before the real server entity arrives.",
-                "Desactivar Rapid Attack Fix puede hacer que entradas de ataque muy rápidas contra cristales predichos sean ignoradas antes de que llegue la entidad real del servidor.",
-                () -> rapidAttackFixEnabled = false);
     }
 
     private void initSoundTab() {
@@ -421,7 +386,6 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
         drawActiveTabUnderline(graphics);
 
         switch (activeTab) {
-            case OPTIMIZATION -> extractOptimizationContent(graphics);
             case VISUALS -> extractVisualsContent(graphics);
             case TWEAKS -> extractTweaksContent(graphics);
             case SOUND -> extractSoundContent(graphics);
@@ -430,7 +394,6 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
 
     private void drawActiveTabUnderline(GuiGraphicsExtractor graphics) {
         Button activeButton = switch (activeTab) {
-            case OPTIMIZATION -> tabOptimization;
             case VISUALS -> tabVisuals;
             case TWEAKS -> tabTweaks;
             case SOUND -> tabSound;
@@ -443,9 +406,6 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
                     activeButton.getY() + activeButton.getHeight() + 2,
                     0xFFFFE38D);
         }
-    }
-
-    private void extractOptimizationContent(GuiGraphicsExtractor graphics) {
     }
 
     private void extractVisualsContent(GuiGraphicsExtractor graphics) {
@@ -668,8 +628,6 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
     @Override
     public void onClose() {
         KoHsCrystalTweaksConfig config = KoHsCrystalTweaksConfig.get();
-        config.clientSideCrystalsEnabled = clientSideCrystalsEnabled;
-        config.seamlessEnabled = seamlessEnabled;
         config.crystalTintEnabled = crystalTintEnabled;
         config.crystalFrameTintHex = frameColor.toHex();
         config.crystalCoreTintHex = coreColor.toHex();
@@ -677,8 +635,8 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
         config.crystalFlotationEnabled = crystalFlotationEnabled;
         config.staticCrystalEnabled = staticCrystalEnabled;
         config.placementFixEnabled = placementFixEnabled;
-        config.rapidAttackFixEnabled = rapidAttackFixEnabled;
         config.safeCrystalEnabled = safeCrystalEnabled;
+        config.forceCrystalPvpPriorityEnabled = forceCrystalPvpPriorityEnabled;
         config.customSoundEnabled = customSoundEnabled;
         config.customSoundFileName = selectedSoundFileName;
         config.soundVolume = soundVolume;
@@ -686,14 +644,6 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
         KoHsCrystalTweaksConfig.save();
         CrystalSoundManager.reloadFromConfig();
         minecraft.setScreen(parent);
-    }
-
-    private Component localCrystalLabel() {
-        return toggleLabel("Local Crystal", clientSideCrystalsEnabled);
-    }
-
-    private Component seamlessLabel() {
-        return toggleLabel("Seamless Mode", seamlessEnabled);
     }
 
     private Component tintLabel() {
@@ -708,12 +658,12 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
         return toggleLabel("Placement Fix", placementFixEnabled);
     }
 
-    private Component rapidAttackFixLabel() {
-        return toggleLabel("Rapid Attack", rapidAttackFixEnabled);
-    }
-
     private Component safeCrystalLabel() {
         return toggleLabel("Safe Crystal", safeCrystalEnabled);
+    }
+
+    private Component forceCrystalPvpPriorityLabel() {
+        return toggleLabel("Force Crystal PvP Priority", forceCrystalPvpPriorityEnabled);
     }
 
     private Component flotationLabel() {
@@ -787,7 +737,6 @@ public final class KoHsCrystalTweaksConfigScreen extends Screen {
     }
 
     private enum Tab {
-        OPTIMIZATION,
         VISUALS,
         TWEAKS,
         SOUND

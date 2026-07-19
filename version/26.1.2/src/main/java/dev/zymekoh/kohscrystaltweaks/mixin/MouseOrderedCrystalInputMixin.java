@@ -1,6 +1,7 @@
 package dev.zymekoh.kohscrystaltweaks.mixin;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import dev.zymekoh.kohscrystaltweaks.core.CrystalInputFastPath;
 import dev.zymekoh.kohscrystaltweaks.core.OrderedCrystalInput;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.MouseHandler;
@@ -34,10 +35,17 @@ public abstract class MouseOrderedCrystalInputMixin {
         }
 
         MouseButtonEvent click = new MouseButtonEvent(0.0D, 0.0D, input);
-        OrderedCrystalInput.recordInput(
-                this.minecraft.options.keyAttack.matchesMouse(click),
-                this.minecraft.options.keyUse.matchesMouse(click),
-                this.minecraft.player.getInventory().getSelectedSlot());
+        boolean attack = this.minecraft.options.keyAttack.matchesMouse(click);
+        boolean use = this.minecraft.options.keyUse.matchesMouse(click);
+        boolean hotbarSelection = false;
+        for (int slot = 0; slot < this.minecraft.options.keyHotbarSlots.length; slot++) {
+            if (this.minecraft.options.keyHotbarSlots[slot].matchesMouse(click)) {
+                hotbarSelection = true;
+                break;
+            }
+        }
+        OrderedCrystalInput.recordInput(attack, use, this.minecraft.player.getInventory().getSelectedSlot());
+        CrystalInputFastPath.onPhysicalInput(attack, use, hotbarSelection);
     }
 
     @Inject(method = "onScroll", at = @At("HEAD"))

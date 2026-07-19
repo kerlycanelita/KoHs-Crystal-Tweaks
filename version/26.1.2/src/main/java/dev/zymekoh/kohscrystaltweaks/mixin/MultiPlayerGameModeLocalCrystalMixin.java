@@ -1,6 +1,7 @@
 package dev.zymekoh.kohscrystaltweaks.mixin;
 
 import dev.zymekoh.kohscrystaltweaks.core.CrystalPredictor;
+import dev.zymekoh.kohscrystaltweaks.core.CrystalInteractionFastPath;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -17,7 +18,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class MultiPlayerGameModeLocalCrystalMixin {
     @Inject(method = "attack", at = @At("HEAD"), cancellable = true)
     private void kct$doNotSendAttackForPrediction(Player player, Entity target, CallbackInfo callback) {
-        if (CrystalPredictor.isLocalCrystalEntity(target)) {
+        if (CrystalPredictor.isLocalCrystalEntity(target)
+                || !CrystalInteractionFastPath.claimRealCrystalAttack(target)) {
             callback.cancel();
         }
     }

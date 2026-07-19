@@ -31,8 +31,8 @@ public final class KoHsCrystalTweaksConfig {
     public boolean crystalFlotationEnabled = true;
     public boolean staticCrystalEnabled = false;
     public boolean placementFixEnabled = true;
-    public boolean rapidAttackFixEnabled = true;
     public boolean safeCrystalEnabled = false;
+    public boolean forceCrystalPvpPriorityEnabled = false;
 
     // ── Sound Crystal ──
     public boolean customSoundEnabled = true;
@@ -153,8 +153,8 @@ public final class KoHsCrystalTweaksConfig {
                 config.crystalFlotationEnabled = loaded.crystalFlotationEnabled;
                 config.staticCrystalEnabled = loaded.staticCrystalEnabled;
                 config.placementFixEnabled = loaded.placementFixEnabled;
-                config.rapidAttackFixEnabled = loaded.rapidAttackFixEnabled;
                 config.safeCrystalEnabled = loaded.safeCrystalEnabled;
+                config.forceCrystalPvpPriorityEnabled = loaded.forceCrystalPvpPriorityEnabled;
                 config.customSoundEnabled = loaded.customSoundEnabled;
                 config.customSoundFileName = loaded.customSoundFileName != null ? loaded.customSoundFileName : "";
                 config.soundVolume = Math.max(0f, Math.min(2f, loaded.soundVolume));

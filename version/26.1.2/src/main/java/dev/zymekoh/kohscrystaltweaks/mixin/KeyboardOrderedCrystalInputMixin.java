@@ -1,6 +1,7 @@
 package dev.zymekoh.kohscrystaltweaks.mixin;
 
 import com.mojang.blaze3d.platform.InputConstants;
+import dev.zymekoh.kohscrystaltweaks.core.CrystalInputFastPath;
 import dev.zymekoh.kohscrystaltweaks.core.OrderedCrystalInput;
 import net.minecraft.client.KeyboardHandler;
 import net.minecraft.client.Minecraft;
@@ -29,16 +30,18 @@ public abstract class KeyboardOrderedCrystalInputMixin {
         }
 
         int selectedSlot = this.minecraft.player.getInventory().getSelectedSlot();
+        boolean hotbarSelection = false;
         for (int slot = 0; slot < this.minecraft.options.keyHotbarSlots.length; slot++) {
             if (this.minecraft.options.keyHotbarSlots[slot].matches(input)) {
+                hotbarSelection = true;
                 OrderedCrystalInput.recordSlotChange(selectedSlot, slot);
                 selectedSlot = slot;
             }
         }
 
-        OrderedCrystalInput.recordInput(
-                this.minecraft.options.keyAttack.matches(input),
-                this.minecraft.options.keyUse.matches(input),
-                selectedSlot);
+        boolean attack = this.minecraft.options.keyAttack.matches(input);
+        boolean use = this.minecraft.options.keyUse.matches(input);
+        OrderedCrystalInput.recordInput(attack, use, selectedSlot);
+        CrystalInputFastPath.onPhysicalInput(attack, use, hotbarSelection);
     }
 }

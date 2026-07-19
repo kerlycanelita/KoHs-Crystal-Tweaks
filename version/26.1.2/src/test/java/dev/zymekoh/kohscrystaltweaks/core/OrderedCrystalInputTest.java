@@ -56,4 +56,22 @@ final class OrderedCrystalInputTest {
         OrderedCrystalInput.recordInputUnchecked(false, true, 5);
         assertTrue(OrderedCrystalInput.drain().requiresOrderedReplay());
     }
+
+    @Test
+    void claimsOnlyOneExclusiveActionForImmediateDispatch() {
+        OrderedCrystalInput.recordInputUnchecked(false, true, 4);
+        assertTrue(OrderedCrystalInput.claimExclusiveActionForImmediateDispatch(
+                OrderedCrystalInput.Action.USE, true));
+        assertTrue(OrderedCrystalInput.drain().isEmpty());
+
+        OrderedCrystalInput.recordInputUnchecked(true, false, 4);
+        assertTrue(OrderedCrystalInput.claimExclusiveActionForImmediateDispatch(
+                OrderedCrystalInput.Action.ATTACK, true));
+        assertTrue(OrderedCrystalInput.drain().isEmpty());
+
+        OrderedCrystalInput.recordSlotChangeUnchecked(4, 5);
+        OrderedCrystalInput.recordInputUnchecked(false, true, 5);
+        assertFalse(OrderedCrystalInput.claimExclusiveActionForImmediateDispatch(
+                OrderedCrystalInput.Action.USE, true));
+    }
 }

@@ -14,12 +14,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySelector;
-import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
 import net.minecraft.world.entity.projectile.ProjectileUtil;
 import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
@@ -95,16 +92,7 @@ public final class CrystalPredictor {
         if (!isLocalCrystalEntity(entity) || MINECRAFT.level == null) {
             return null;
         }
-
-        BlockPos position = entity.blockPosition();
-        return MINECRAFT.level.getEntities(
-                        EntityType.END_CRYSTAL,
-                        placementBox(position),
-                        crystal -> !isLocalCrystalEntity(crystal)
-                                && crystal.blockPosition().equals(position))
-                .stream()
-                .findFirst()
-                .orElse(null);
+        return CrystalInteractionFastPath.findKnownRealCrystal(entity.blockPosition());
     }
 
     public static boolean queueLocalCrystalAttack(Entity entity) {
@@ -206,15 +194,8 @@ public final class CrystalPredictor {
         }
 
         BlockPos base = hit.getBlockPos();
-        if (!isValidBase(base)) {
-            return;
-        }
-
         BlockPos crystalPosition = base.above();
         long positionKey = crystalPosition.asLong();
-        if (hasRealCrystal(crystalPosition)) {
-            return;
-        }
 
         LocalPrediction existing = PREDICTIONS.get(positionKey);
         if (existing != null) {
@@ -230,9 +211,6 @@ public final class CrystalPredictor {
             removePrediction(positionKey);
         }
 
-        if (!hasPlacementSpace(crystalPosition)) {
-            return;
-        }
         targetLocalCrystal(spawnLocal(crystalPosition));
     }
 
@@ -281,8 +259,7 @@ public final class CrystalPredictor {
         }
 
         removePrediction(positionKey);
-        if (!KoHsCrystalTweaksConfig.get().rapidAttackFixEnabled
-                || MINECRAFT.level == null
+        if (MINECRAFT.level == null
                 || MINECRAFT.player == null
                 || MINECRAFT.gameMode == null
                 || realCrystal.level() != MINECRAFT.level
@@ -293,7 +270,9 @@ public final class CrystalPredictor {
 
         MINECRAFT.crosshairPickEntity = realCrystal;
         MINECRAFT.hitResult = new EntityHitResult(realCrystal);
-        MINECRAFT.gameMode.attack(MINECRAFT.player, realCrystal);
+        if (!CrystalInteractionFastPath.wasRealCrystalAttackedThisTick(realCrystal.getId())) {
+            MINECRAFT.gameMode.attack(MINECRAFT.player, realCrystal);
+        }
         return true;
     }
 
@@ -371,46 +350,6 @@ public final class CrystalPredictor {
 
     private static boolean isUsable(LocalPrediction prediction) {
         return prediction != null && !prediction.entity.isRemoved();
-    }
-
-    private static boolean isValidBase(BlockPos base) {
-        ClientLevel level = MINECRAFT.level;
-        if (level == null) {
-            return false;
-        }
-
-        BlockState state = level.getBlockState(base);
-        return (state.is(Blocks.OBSIDIAN) || state.is(Blocks.BEDROCK))
-                && level.isEmptyBlock(base.above());
-    }
-
-    private static boolean hasPlacementSpace(BlockPos crystalPosition) {
-        ClientLevel level = MINECRAFT.level;
-        if (level == null) {
-            return false;
-        }
-
-        AABB placementBox = placementBox(crystalPosition);
-        return level.getEntities((Entity) null, placementBox, entity -> !isLocalCrystalEntity(entity)).isEmpty();
-    }
-
-    private static boolean hasRealCrystal(BlockPos crystalPosition) {
-        ClientLevel level = MINECRAFT.level;
-        if (level == null) {
-            return false;
-        }
-
-        return !level.getEntities(
-                EntityType.END_CRYSTAL,
-                placementBox(crystalPosition),
-                crystal -> !isLocalCrystalEntity(crystal)).isEmpty();
-    }
-
-    private static AABB placementBox(BlockPos position) {
-        double x = position.getX();
-        double y = position.getY();
-        double z = position.getZ();
-        return new AABB(x, y, z, x + 1.0, y + 2.0, z + 1.0);
     }
 
     private static EndCrystal spawnLocal(BlockPos position) {

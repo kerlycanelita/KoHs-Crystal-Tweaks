@@ -83,6 +83,28 @@ public final class OrderedCrystalInput {
         clearInternal();
     }
 
+    /**
+     * Removes only the single expected action just recorded by an exclusive
+     * physical input. Any earlier action or slot change keeps the sequence on replay.
+     */
+    public static synchronized boolean claimExclusiveActionForImmediateDispatch(Action expected) {
+        return claimExclusiveActionForImmediateDispatch(expected, CrystalPlacementFix.isEnabled());
+    }
+
+    static boolean claimExclusiveActionForImmediateDispatch(Action expected, boolean orderedReplayEnabled) {
+        if (expected == Action.SELECT_SLOT || vanillaFallback) {
+            return false;
+        }
+        if (!orderedReplayEnabled) {
+            return QUEUE.isEmpty();
+        }
+        if (QUEUE.size() != 1 || QUEUE.peekFirst().action() != expected) {
+            return false;
+        }
+        clearInternal();
+        return true;
+    }
+
     private static void beginSequence(int selectedSlot) {
         if (initialSlot == NO_SLOT && Inventory.isHotbarSlot(selectedSlot)) {
             initialSlot = selectedSlot;

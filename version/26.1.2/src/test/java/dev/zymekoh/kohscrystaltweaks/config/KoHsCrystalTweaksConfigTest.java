@@ -13,5 +13,6 @@ final class KoHsCrystalTweaksConfigTest {
         assertFalse(config.safeCrystalEnabled);
         assertFalse(config.clientSideCrystalsEnabled);
         assertFalse(config.seamlessEnabled);
+        assertFalse(config.forceCrystalPvpPriorityEnabled);
     }
 }

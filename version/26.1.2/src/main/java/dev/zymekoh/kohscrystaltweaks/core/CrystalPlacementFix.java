@@ -7,11 +7,9 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
@@ -72,7 +70,7 @@ public final class CrystalPlacementFix {
             return hit;
         }
 
-        if (isValidCrystalBase(level, hit.getBlockPos())) {
+        if (isCrystalBase(level, hit.getBlockPos())) {
             pendingObsidian = null;
             return hit;
         }
@@ -81,7 +79,7 @@ public final class CrystalPlacementFix {
         if (!isSameFastPlacement(hit, base)) {
             return hit;
         }
-        if (!isObsidian(level, base) || !hasCrystalSpace(level, base.above())) {
+        if (!isObsidian(level, base)) {
             pendingObsidian = null;
             return hit;
         }
@@ -105,29 +103,13 @@ public final class CrystalPlacementFix {
         return clicked.equals(base) || clicked.relative(hit.getDirection()).equals(base);
     }
 
-    private static boolean isValidCrystalBase(ClientLevel level, BlockPos pos) {
+    private static boolean isCrystalBase(ClientLevel level, BlockPos pos) {
         BlockState state = level.getBlockState(pos);
-        return (state.is(Blocks.OBSIDIAN) || state.is(Blocks.BEDROCK))
-                && hasCrystalSpace(level, pos.above());
+        return state.is(Blocks.OBSIDIAN) || state.is(Blocks.BEDROCK);
     }
 
     private static boolean isObsidian(ClientLevel level, BlockPos pos) {
         return level.getBlockState(pos).is(Blocks.OBSIDIAN);
-    }
-
-    private static boolean hasCrystalSpace(ClientLevel level, BlockPos crystalPos) {
-        if (!level.isEmptyBlock(crystalPos)) {
-            return false;
-        }
-
-        AABB box = new AABB(
-                crystalPos.getX(),
-                crystalPos.getY(),
-                crystalPos.getZ(),
-                crystalPos.getX() + 1.0D,
-                crystalPos.getY() + 2.0D,
-                crystalPos.getZ() + 1.0D);
-        return level.getEntities((Entity) null, box).isEmpty();
     }
 
     private static boolean isExpired(PendingObsidian pending) {

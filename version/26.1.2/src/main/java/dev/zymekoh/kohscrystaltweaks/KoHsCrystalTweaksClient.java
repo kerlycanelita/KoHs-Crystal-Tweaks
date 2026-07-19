@@ -3,8 +3,10 @@ package dev.zymekoh.kohscrystaltweaks;
 import dev.zymekoh.kohscrystaltweaks.compat.IncompatibilityManager;
 import dev.zymekoh.kohscrystaltweaks.config.KoHsCrystalTweaksConfig;
 import dev.zymekoh.kohscrystaltweaks.core.CrystalPlacementFix;
+import dev.zymekoh.kohscrystaltweaks.core.CrystalInteractionFastPath;
 import dev.zymekoh.kohscrystaltweaks.core.CrystalPredictor;
 import dev.zymekoh.kohscrystaltweaks.gui.IncompatibilityScreen;
+import dev.zymekoh.kohscrystaltweaks.gui.ForceCrystalPriorityConflictScreen;
 import dev.zymekoh.kohscrystaltweaks.marlow.MarlowOptimizerCompat;
 import dev.zymekoh.kohscrystaltweaks.sound.CrystalSoundManager;
 import net.fabricmc.api.ClientModInitializer;
@@ -23,26 +25,37 @@ public final class KoHsCrystalTweaksClient implements ClientModInitializer {
         }
 
         KoHsCrystalTweaksConfig config = KoHsCrystalTweaksConfig.get();
+        ForceCrystalPriorityConflictScreen.registerStartupWarning();
         CrystalPredictor.setEnabled(config.clientSideCrystalsEnabled);
         MarlowOptimizerCompat.initClient();
 
         ClientPlayConnectionEvents.JOIN.register((listener, sender, client) -> {
+            CrystalInteractionFastPath.reset();
             CrystalPredictor.reset();
             CrystalPlacementFix.reset();
         });
         ClientPlayConnectionEvents.DISCONNECT.register((listener, client) -> {
+            CrystalInteractionFastPath.reset();
             CrystalPredictor.reset();
             CrystalPlacementFix.reset();
         });
 
-        ClientEntityEvents.ENTITY_LOAD.register((entity, level) -> CrystalPredictor.onEntityLoaded(entity));
-        ClientEntityEvents.ENTITY_UNLOAD.register((entity, level) -> CrystalPredictor.onEntityUnloaded(entity));
+        ClientEntityEvents.ENTITY_LOAD.register((entity, level) -> {
+            CrystalInteractionFastPath.onEntityLoaded(entity);
+            CrystalPredictor.onEntityLoaded(entity);
+        });
+        ClientEntityEvents.ENTITY_UNLOAD.register((entity, level) -> {
+            CrystalInteractionFastPath.onEntityUnloaded(entity);
+            CrystalPredictor.onEntityUnloaded(entity);
+        });
         ClientTickEvents.START_CLIENT_TICK.register(client -> {
+            CrystalInteractionFastPath.clientTick();
             CrystalPredictor.clientTick();
             CrystalPlacementFix.clientTick();
             CrystalSoundManager.tick();
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
+            CrystalInteractionFastPath.reset();
             CrystalPredictor.clearAll();
             CrystalPlacementFix.reset();
             CrystalSoundManager.cleanup();

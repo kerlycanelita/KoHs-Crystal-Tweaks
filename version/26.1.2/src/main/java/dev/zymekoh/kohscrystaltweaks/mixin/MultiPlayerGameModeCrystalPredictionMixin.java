@@ -1,6 +1,7 @@
 package dev.zymekoh.kohscrystaltweaks.mixin;
 
 import dev.zymekoh.kohscrystaltweaks.core.CrystalPlacementFix;
+import dev.zymekoh.kohscrystaltweaks.core.CrystalInteractionFastPath;
 import dev.zymekoh.kohscrystaltweaks.core.CrystalPredictor;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
@@ -65,7 +66,9 @@ public abstract class MultiPlayerGameModeCrystalPredictionMixin {
         if (wasUsingObsidian) {
             CrystalPlacementFix.recordObsidianPlacement(player, hit);
         } else if (wasUsingCrystal) {
-            CrystalPredictor.onSuccessfulCrystalUse(hit);
+            if (CrystalInteractionFastPath.recordCrystalPlacement(hit)) {
+                CrystalPredictor.onSuccessfulCrystalUse(hit);
+            }
         }
     }
 }
