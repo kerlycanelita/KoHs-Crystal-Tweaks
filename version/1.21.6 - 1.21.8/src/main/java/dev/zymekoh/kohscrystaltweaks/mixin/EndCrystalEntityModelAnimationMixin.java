@@ -1,6 +1,7 @@
 package dev.zymekoh.kohscrystaltweaks.mixin;
 
 import dev.zymekoh.kohscrystaltweaks.config.KoHsCrystalTweaksConfig;
+import dev.zymekoh.kohscrystaltweaks.core.CrystalTint;
 import net.minecraft.client.model.ModelPart;
 import net.minecraft.client.render.entity.EndCrystalEntityRenderer;
 import net.minecraft.client.render.entity.model.EndCrystalEntityModel;
@@ -31,6 +32,11 @@ public abstract class EndCrystalEntityModelAnimationMixin {
     @Shadow
     public ModelPart cube;
 
+    @Inject(method = "<init>", at = @At("TAIL"))
+    private void kct$registerTintedParts(ModelPart root, CallbackInfo ci) {
+        CrystalTint.register(this.outerGlass, this.innerGlass, this.cube);
+    }
+
     @Inject(
             method = "setAngles(Lnet/minecraft/client/render/entity/state/EndCrystalEntityRenderState;)V",
             at = @At("TAIL"))
@@ -53,7 +59,8 @@ public abstract class EndCrystalEntityModelAnimationMixin {
         float rotationDegrees = spinAge * 3.0f;
         float offset = EndCrystalEntityRenderer.getYOffset(floatAge) * 16.0f;
 
-        // Preserve the vanilla base placement and only override the age-driven animation.
+        // Keep the vanilla hierarchy intact: only the outer glass moves vertically,
+        // and the child parts inherit that placement from the model tree.
         this.outerGlass.originY += offset / 2.0f;
 
         this.outerGlass.rotate(

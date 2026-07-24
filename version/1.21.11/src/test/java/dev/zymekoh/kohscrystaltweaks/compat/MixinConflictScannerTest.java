@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import dev.zymekoh.kohscrystaltweaks.compat.IncompatibilityManager.ConflictPoint;
-import dev.zymekoh.kohscrystaltweaks.mixin.MinecraftClientPassThroughLocalCrystalMixin;
+import dev.zymekoh.kohscrystaltweaks.mixin.ClientConnectionMixin;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -19,15 +19,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 final class MixinConflictScannerTest {
     @Test
-    void readsTheRealKoHsCriticalMinecraftClientHooks() throws IOException {
-        byte[] bytes = classBytes(MinecraftClientPassThroughLocalCrystalMixin.class);
+    void readsTheRealKoHsConfirmedCleanupHook() throws IOException {
+        byte[] bytes = classBytes(ClientConnectionMixin.class);
 
         List<MixinConflictScanner.MixinSignature> signatures = MixinConflictScanner.inspectMixinClass(
-                MinecraftClientPassThroughLocalCrystalMixin.class.getName(), bytes);
+                ClientConnectionMixin.class.getName(), bytes);
 
         assertEquals(1, signatures.size());
-        assertEquals(Set.of("handleInputEvents", "doAttack", "doItemUse"),
-                signatures.getFirst().targetMethods());
+        assertEquals(Set.of("send"), signatures.getFirst().targetMethods());
     }
 
     @Test

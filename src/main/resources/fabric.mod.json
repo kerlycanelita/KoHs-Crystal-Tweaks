@@ -3,7 +3,7 @@
   "id": "kohs_crystal_tweaks",
   "version": "${version}",
   "name": "KoHs Crystal Tweaks",
-  "description": "Legit crystal QoL: safe break protection and optional local prediction.",
+  "description": "Client-only End Crystal visuals, sound controls, and safety-focused interaction options.",
   "authors": [
     "zymekoh"
   ],
@@ -26,7 +26,7 @@
   ],
   "depends": {
     "fabricloader": ">=0.17.0",
-    "minecraft": ">=1.21.10 <1.21.12",
+    "minecraft": ">=1.21.10 <=1.21.10",
     "java": ">=21",
     "fabric-api": "*"
   },

@@ -7,11 +7,12 @@ import org.junit.jupiter.api.Test;
 
 final class KoHsCrystalTweaksConfigTest {
     @Test
-    void optionalPredictionAndSafetyFeaturesDefaultToDisabledWhenFieldsAreMissing() {
+    void freshInstallDefaultsKeepGameplayChangingOptionsDisabled() {
         KoHsCrystalTweaksConfig config = new Gson().fromJson("{}", KoHsCrystalTweaksConfig.class);
 
         assertFalse(config.safeCrystalEnabled);
         assertFalse(config.clientSideCrystalsEnabled);
         assertFalse(config.seamlessEnabled);
+        assertFalse(config.confirmedCrystalCleanupEnabled);
     }
 }

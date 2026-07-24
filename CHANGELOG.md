@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.0.4 — 2026-07-24
+
+### Minecraft 1.21 through 26.2
+
+- Removed every custom client-identification, version, opt-out, and acknowledgement payload.
+- Removed sub-tick action queues, delayed actions, input replay, and automatic retry paths.
+- Removed automatic hotbar-slot changes. The mod no longer selects obsidian, crystals, or any other item for the player.
+- Enforced a strict boundary of at most one corresponding vanilla action for each physical attack or use input.
+- Reworked the optional crystal preview so it is render-only, non-targetable, absent from the client entity registry, and OFF by default.
+- Limited optional local cleanup to the exact real, server-provided crystal targeted by the player's normal vanilla attack; the option is OFF by default.
+- Removed obsolete compatibility code and attribution files tied to code that is no longer distributed.
+- Updated all active documentation and release notes with the new safety model.
+- No universal anti-cheat guarantee is claimed; users must follow the rules of each server.
+
 ## 2.0.1 — 2026-07-13
 
 ### Minecraft 1.21.10, 1.21.11, 26.1, 26.1.1, 26.1.2, and 26.2
@@ -19,7 +33,7 @@
 - Retargets a crystal interaction only after vanilla accepts the preceding obsidian placement and only to that exact causal base.
 - Keeps `Placement Fix`, `Rapid Attack Fix`, and `Crystal Flotation` enabled by default while `Local Crystal`, `Seamless Mode`, `Safe Crystal`, and `Static Crystal` start disabled on fresh installations.
 - Keeps pending predicted attacks deduplicated until the server supplies the real crystal entity ID; no IDs are guessed and no attack is generated.
-- Retains the early incompatibility guard for Marlow Crystal Optimizer and high-confidence mixin conflicts.
+- Retains the early guard for high-confidence timing-critical mixin conflicts.
 - Includes bilingual timing-feature warnings, compact hover descriptions, MIT metadata, and the regression suites (10 tests on 1.21.10 and 1.21.11; nine on each 26.x release-2 port).
 - Restores runtime WAV/OGG/MP3 crystal sound replacement on the official-name 26.x branches.
 - Adapts the 26.2 screen ownership and entity registry changes while keeping the same user-facing behavior.
@@ -85,9 +99,9 @@
 ### Minecraft 1.21.11
 
 - Added an early incompatibility guard for known crystal optimizers, direct mutations of KoHs classes, and exact class/method overlaps in timing-critical crystal mixins.
-- Explicitly blocks `marlowcrystal`; a confirmed beta.5 crash showed KoHs and Marlow both registering `marlowcrystal:opt_out`, causing Fabric to reject the duplicate payload during client entrypoint initialization.
+- Blocks a confirmed conflicting optimizer before duplicate compatibility registration can crash client entrypoint initialization.
 - Disables every KoHs gameplay mixin through an `IMixinConfigPlugin` before application when a conflict is found.
-- Skips KoHs prediction, placement, sound, event, and compatibility-network initialization while blocked, preventing the duplicate Marlow payload registration.
+- Skips KoHs prediction, placement, sound, event, and compatibility-network initialization while blocked, preventing duplicate compatibility registration.
 - Replaces Mod Menu and normal gameplay with a mandatory responsive incompatibility screen that identifies each conflicting mod and provides technical reasons in English and Spanish.
 - Prevents Escape or screen replacement from bypassing the warning; the only action schedules a clean Minecraft shutdown.
 - Limits generic detection to high-confidence evidence so a shared Minecraft class or an unrelated method does not cause a false positive.
@@ -114,7 +128,7 @@
 - Kept the one-input/one-action boundary: no generated clicks, automatic retry loop, guessed entity ID, or additional attack packet.
 - Added `Accept` / `Restore` confirmation before disabling every toggle.
 - Added concise bilingual consequences to each warning, with English first and Spanish second.
-- Embedded the upstream Marlow MIT attribution in the repository and the distributed JAR.
+- Documented the origin of the cleanup implementation that was distributed in this historical beta.
 
 ## 1.1.0-beta.3 — 2026-07-13
 

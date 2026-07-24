@@ -104,17 +104,17 @@ public final class IncompatibilityScreen extends Screen {
         english.append("KoHs Crystal Tweaks requires you to remove the following incompatible mod(s):\n\n");
         appendConflicts(english, conflicts, false);
         english.append("\nKoHs has disabled all gameplay mixins and runtime services before they could alter Minecraft. "
-                + "Continuing is blocked because the combined callback order is not a compatibility contract and can "
-                + "corrupt crystal placement, attack prediction, or entity cleanup state. Remove the listed mod(s), "
+                + "Continuing is blocked because the detected target-and-method overlap has no defined application "
+                + "order and can invalidate KoHs safety checks or local rendering state. Remove the listed mod(s), "
                 + "then restart Minecraft.\n\n");
 
         StringBuilder spanish = new StringBuilder();
         spanish.append("ESPAÑOL\n\nKoHs Crystal Tweaks necesita que retires los siguientes mods incompatibles:\n\n");
         appendConflicts(spanish, conflicts, true);
         spanish.append("\nKoHs desactivó todos sus mixins de jugabilidad y servicios de ejecución antes de que pudieran "
-                + "modificar Minecraft. No se permite continuar porque el orden combinado de callbacks no es un "
-                + "contrato de compatibilidad y puede corromper el estado de colocación, predicción de ataques o "
-                + "limpieza de entidades de cristal. Retira los mods indicados y reinicia Minecraft.");
+                + "modificar Minecraft. No se permite continuar porque el solapamiento detectado de clase y método "
+                + "no tiene un orden de aplicación definido y puede invalidar las comprobaciones de seguridad o el "
+                + "estado de renderizado local de KoHs. Retira los mods indicados y reinicia Minecraft.");
         return english.append(spanish).toString();
     }
 
@@ -125,15 +125,6 @@ public final class IncompatibilityScreen extends Screen {
                     .append(conflict.version()).append(")\n");
 
             switch (conflict.type()) {
-                case KNOWN_CRYSTAL_OPTIMIZER -> output.append(spanish
-                        ? "  Razón: KoHs y Marlow registran los mismos identificadores de compatibilidad, incluido "
-                                + "marlowcrystal:opt_out; Fabric rechaza el registro duplicado antes del menú principal. "
-                                + "Ambos también eliminan cristales localmente y redirigen el objetivo tras los paquetes "
-                                + "de ataque, lo que puede duplicar la limpieza y corromper estados pendientes.\n"
-                        : "  Reason: KoHs and Marlow register the same compatibility payload identifiers, including "
-                                + "marlowcrystal:opt_out; Fabric rejects that duplicate registration before the title "
-                                + "screen. Both also remove crystals client-side and retarget after attack packets, "
-                                + "which can duplicate cleanup and corrupt pending placement or attack state.\n");
                 case MIXIN_OVERLAP -> output.append(spanish
                         ? "  Razón: el mod inyecta en las mismas clases y métodos críticos de cristales que KoHs. "
                                 + "El resultado depende de un orden de aplicación no garantizado.\n"

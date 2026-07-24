@@ -1,50 +1,41 @@
 package dev.zymekoh.kohscrystaltweaks.core;
 
-import dev.zymekoh.kohscrystaltweaks.compat.CrystalAnchorCounterCompat;
 import dev.zymekoh.kohscrystaltweaks.config.KoHsCrystalTweaksConfig;
-import dev.zymekoh.kohscrystaltweaks.mixin.EntityAgeAccessor;
-import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityType;
 import net.minecraft.entity.decoration.EndCrystalEntity;
-import net.minecraft.entity.projectile.ProjectileUtil;
-import net.minecraft.item.Items;
+import net.minecraft.particle.ParticleTypes;
 import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.RaycastContext;
 
+/**
+ * Maintains a short, particle-only placement preview after vanilla accepts a crystal use.
+ *
+ * <p>No entity is added to the client world, so the preview cannot be targeted, attacked,
+ * interacted with, or referenced by an outgoing packet.</p>
+ */
 public final class CrystalPredictor {
-    private static final MinecraftClient MC = MinecraftClient.getInstance();
-    private static final Long2ObjectOpenHashMap<Local> LOCAL = new Long2ObjectOpenHashMap<>();
+    private static final MinecraftClient CLIENT = MinecraftClient.getInstance();
+    private static final Map<Long, Integer> PREVIEWS = new HashMap<>();
 
-    private static boolean enabled = true;
-    private static int tick;
-    private static boolean ageResolved;
-    private static Field ageField;
+    private static boolean enabled;
+    private static int clientTick;
 
     private CrystalPredictor() {
     }
 
     public static int debugTick() {
-        return tick;
+        return clientTick;
     }
 
-    public static void setEnabled(boolean on) {
-        enabled = on;
-        if (!on) {
+    public static void setEnabled(boolean value) {
+        enabled = value;
+        if (!value) {
             clearAll();
         }
     }
@@ -53,419 +44,86 @@ public final class CrystalPredictor {
         return enabled && KoHsCrystalTweaksConfig.get().clientSideCrystalsEnabled;
     }
 
-    public static void reset() {
-        clearAll();
-        tick = 0;
-    }
-
+    /**
+     * Particle previews are never entities, so this predicate is intentionally always false.
+     */
     public static boolean isLocalCrystalEntity(Entity entity) {
-        if (entity == null) {
-            return false;
-        }
-        Local local = LOCAL.get(entity.getBlockPos().asLong());
-        return local != null && local.entity == entity;
+        return false;
     }
 
-    public static void onLocalCrystalAttack(Entity entity) {
-        if (!(entity instanceof EndCrystalEntity)) {
-            return;
-        }
-
-        BlockPos pos = entity.getBlockPos();
-        Local local = LOCAL.remove(pos.asLong());
-        if (local == null) {
-            return;
-        }
-
-        if (local.pairedRealId == -1) {
-            CrystalAnchorCounterCompat.recordCrystalBreak(entity.getId(), entity.getUuid());
-        } else {
-            SeamlessCrystalBridge.clear(local.pairedRealId);
-        }
-
-        if (local.entity != null && local.entity.isAlive()) {
-            local.entity.discard();
-        }
-    }
-
-    public static HitResult raycastIgnoringLocal(float tickDelta) {
-        if (MC.world == null) {
-            return BlockHitResult.createMissed(Vec3d.ZERO, Direction.DOWN, BlockPos.ORIGIN);
-        }
-
-        Entity camera = MC.getCameraEntity();
-        if (camera == null) {
-            return BlockHitResult.createMissed(Vec3d.ZERO, Direction.DOWN, BlockPos.ORIGIN);
-        }
-
-        double reach = 4.5;
-        if (MC.player != null && MC.player.getAbilities().creativeMode) {
-            reach = 5.0;
-        }
-        Vec3d start = camera.getCameraPosVec(tickDelta);
-        Vec3d rot = camera.getRotationVec(tickDelta);
-        Vec3d end = start.add(rot.x * reach, rot.y * reach, rot.z * reach);
-
-        BlockHitResult blockHit = MC.world.raycast(new RaycastContext(
-                start,
-                end,
-                RaycastContext.ShapeType.OUTLINE,
-                RaycastContext.FluidHandling.NONE,
-                camera));
-        double blockDist = blockHit.getType() == HitResult.Type.MISS
-                ? Double.MAX_VALUE
-                : blockHit.getPos().squaredDistanceTo(start);
-
-        Box box = camera.getBoundingBox().stretch(rot.multiply(reach)).expand(1.0, 1.0, 1.0);
-        EntityHitResult entityHit = ProjectileUtil.raycast(
-                camera,
-                start,
-                end,
-                box,
-                entity -> entity != camera
-                        && entity.isAlive()
-                        && !entity.isSpectator()
-                        && !isLocalCrystalEntity(entity),
-                reach * reach);
-
-        if (entityHit != null) {
-            double entityDist = entityHit.getPos().squaredDistanceTo(start);
-            if (entityDist < blockDist) {
-                return entityHit;
-            }
-        }
-
-        return blockHit;
+    public static void reset() {
+        PREVIEWS.clear();
+        clientTick = 0;
+        SeamlessCrystalBridge.clearAll();
     }
 
     public static void clientTick() {
-        if (!isEnabled()) {
-            if (!LOCAL.isEmpty()) {
-                clearAll();
-            }
+        if (!isEnabled() || CLIENT.world == null) {
+            clearAll();
             return;
         }
 
-        if (MC.world == null) {
-            return;
-        }
-
-        tick++;
-        long[] keys = LOCAL.keySet().toLongArray();
-        for (long key : keys) {
-            Local local = LOCAL.get(key);
-            if (local == null || local.entity == null || local.entity.isRemoved() || !local.entity.isAlive()) {
-                LOCAL.remove(key);
+        clientTick++;
+        Iterator<Map.Entry<Long, Integer>> iterator = PREVIEWS.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<Long, Integer> entry = iterator.next();
+            if (clientTick >= entry.getValue()) {
+                iterator.remove();
                 continue;
             }
-
-            BlockPos pos = BlockPos.fromLong(key);
-            double x = pos.getX() + 0.5;
-            double y = pos.getY();
-            double z = pos.getZ() + 0.5;
-            local.entity.refreshPositionAndAngles(x, y, z, 0.0f, 0.0f);
-            local.entity.setNoGravity(false);
-            local.entity.velocityModified = true;
-
-            if (tick < local.expiresTick) {
-                continue;
+            if ((clientTick & 1) == 0) {
+                emitPreviewParticle(BlockPos.fromLong(entry.getKey()));
             }
-            if (local.pairedRealId != -1) {
-                SeamlessCrystalBridge.clear(local.pairedRealId);
-            }
-            local.entity.discard();
-            LOCAL.remove(key);
         }
     }
 
     public static void onUseBlock(BlockHitResult hit) {
-        if (!isEnabled()) {
-            return;
-        }
-        if (MC.player == null || MC.world == null) {
-            return;
-        }
-        if (!holdingCrystal()) {
+        if (!isEnabled() || hit == null || CLIENT.world == null) {
             return;
         }
 
-        BlockPos base = resolveBaseFromHit(hit);
-        if (base == null) {
+        BlockPos base = hit.getBlockPos();
+        BlockState state = CLIENT.world.getBlockState(base);
+        if (!state.isOf(Blocks.OBSIDIAN) && !state.isOf(Blocks.BEDROCK)) {
             return;
         }
 
-        BlockPos crystalPos = base.up();
-        if (hasAnyRealCrystal(crystalPos)) {
-            return;
-        }
-        if (LOCAL.containsKey(crystalPos.asLong())) {
+        BlockPos previewPosition = base.up();
+        if (!CLIENT.world.getBlockState(previewPosition).isAir()) {
             return;
         }
 
-        spawnLocal(crystalPos);
+        int timeout = Math.max(2, Math.min(20, KoHsCrystalTweaksConfig.get().predictionTimeoutTicks));
+        PREVIEWS.put(previewPosition.asLong(), clientTick + timeout);
+        emitPreviewParticle(previewPosition);
     }
 
     public static void onEntityLoaded(Entity entity) {
-        if (!isEnabled()) {
-            return;
-        }
-        if (!(entity instanceof EndCrystalEntity realCrystal)) {
-            return;
-        }
-
-        boolean attacking = MC.options.attackKey.isPressed();
-        BlockPos realPos = realCrystal.getBlockPos();
-        long realKey = realPos.asLong();
-
-        Local exact = LOCAL.get(realKey);
-        if (exact != null && exact.entity != null && exact.entity.isAlive()) {
-            if (KoHsCrystalTweaksConfig.get().seamlessEnabled && !attacking) {
-                Integer fakeAge = getAge(exact.entity);
-                Integer realAge = getAge(realCrystal);
-                if (fakeAge == null || realAge == null) {
-                    LOCAL.remove(realKey);
-                    exact.entity.discard();
-                    return;
-                }
-
-                int delta = fakeAge - realAge;
-                exact.pairedRealId = realCrystal.getId();
-                SeamlessCrystalBridge.link(exact.pairedRealId, delta, tick, 1);
-                exact.expiresTick = Math.min(exact.expiresTick, tick + 1);
-            } else {
-                LOCAL.remove(realKey);
-                exact.entity.discard();
-            }
-            return;
-        }
-
-        long[] keys = LOCAL.keySet().toLongArray();
-        for (long key : keys) {
-            BlockPos pos = BlockPos.fromLong(key);
-            if (Math.abs(pos.getX() - realPos.getX()) > 1
-                    || Math.abs(pos.getY() - realPos.getY()) > 1
-                    || Math.abs(pos.getZ() - realPos.getZ()) > 1) {
-                continue;
-            }
-
-            Local near = LOCAL.get(key);
-            if (near == null || near.entity == null || !near.entity.isAlive()) {
-                LOCAL.remove(key);
-                continue;
-            }
-
-            if (KoHsCrystalTweaksConfig.get().seamlessEnabled && !attacking) {
-                Integer fakeAge = getAge(near.entity);
-                Integer realAge = getAge(realCrystal);
-                if (fakeAge == null || realAge == null) {
-                    LOCAL.remove(key);
-                    near.entity.discard();
-                    continue;
-                }
-
-                int delta = fakeAge - realAge;
-                near.pairedRealId = realCrystal.getId();
-                SeamlessCrystalBridge.link(near.pairedRealId, delta, tick, 1);
-                near.expiresTick = Math.min(near.expiresTick, tick + 1);
-                continue;
-            }
-
-            LOCAL.remove(key);
-            near.entity.discard();
+        if (entity instanceof EndCrystalEntity) {
+            PREVIEWS.remove(entity.getBlockPos().asLong());
         }
     }
 
     public static void onEntityUnloaded(Entity entity) {
-        if (!isEnabled()) {
-            return;
-        }
-        if (!(entity instanceof EndCrystalEntity)) {
-            return;
-        }
-
-        SeamlessCrystalBridge.clear(entity.getId());
-        BlockPos realPos = entity.getBlockPos();
-
-        long[] keys = LOCAL.keySet().toLongArray();
-        for (long key : keys) {
-            BlockPos pos = BlockPos.fromLong(key);
-            if (pos.getX() != realPos.getX() || pos.getY() != realPos.getY() || pos.getZ() != realPos.getZ()) {
-                continue;
-            }
-
-            Local local = LOCAL.remove(key);
-            if (local != null && local.entity != null && local.entity.isAlive()) {
-                local.entity.discard();
-            }
-            return;
-        }
-    }
-
-    private static BlockPos resolveBaseFromHit(BlockHitResult hit) {
-        if (hit == null || hit.getType() != HitResult.Type.BLOCK) {
-            return null;
-        }
-
-        BlockPos pos = hit.getBlockPos();
-        Direction side = hit.getSide();
-        List<BlockPos> candidates = new ArrayList<>(4);
-
-        if (side != Direction.DOWN) {
-            candidates.add(pos);
-        }
-        candidates.add(pos.offset(side.getOpposite()));
-        if (side == Direction.UP) {
-            candidates.add(pos.down());
-        }
-        candidates.add(pos.down().offset(side.getOpposite()));
-
-        for (BlockPos base : candidates) {
-            if (isValidBase(base)) {
-                return base;
-            }
-        }
-        return null;
-    }
-
-    private static boolean holdingCrystal() {
-        return MC.player.getMainHandStack().isOf(Items.END_CRYSTAL)
-                || MC.player.getOffHandStack().isOf(Items.END_CRYSTAL);
-    }
-
-    private static void spawnLocal(BlockPos pos) {
-        ClientWorld world = MC.world;
-        if (world == null) {
-            return;
-        }
-
-        Local old = LOCAL.remove(pos.asLong());
-        if (old != null && old.entity != null && old.entity.isAlive()) {
-            if (old.pairedRealId != -1) {
-                SeamlessCrystalBridge.clear(old.pairedRealId);
-            }
-            old.entity.discard();
-        }
-
-        double x = pos.getX() + 0.5;
-        double y = pos.getY();
-        double z = pos.getZ() + 0.5;
-        EndCrystalEntity localCrystal = new EndCrystalEntity(world, x, y, z);
-        localCrystal.setShowBottom(false);
-        localCrystal.setUuid(UUID.randomUUID());
-        localCrystal.setNoGravity(false);
-        localCrystal.velocityModified = true;
-        localCrystal.refreshPositionAndAngles(x, y, z, 0.0f, 0.0f);
-        world.addEntity(localCrystal);
-
-        int ttl = Math.max(2, KoHsCrystalTweaksConfig.get().predictionTimeoutTicks);
-        LOCAL.put(pos.asLong(), new Local(localCrystal, tick + ttl));
-    }
-
-    private static boolean hasAnyRealCrystal(BlockPos pos) {
-        return findRealNear(pos) != null;
-    }
-
-    private static EndCrystalEntity findRealNear(BlockPos pos) {
-        ClientWorld world = MC.world;
-        if (world == null) {
-            return null;
-        }
-
-        Vec3d center = Vec3d.ofBottomCenter(pos);
-        Box box = new Box(center.add(-0.5, -0.5, -0.5), center.add(0.5, 1.5, 0.5));
-        return world.getEntitiesByType(
-                        EntityType.END_CRYSTAL,
-                        box,
-                        crystal -> !isLocalCrystal(crystal))
-                .stream()
-                .findFirst()
-                .orElse(null);
-    }
-
-    private static boolean isValidBase(BlockPos base) {
-        ClientWorld world = MC.world;
-        if (world == null) {
-            return false;
-        }
-
-        BlockState below = world.getBlockState(base);
-        if (!below.isOf(Blocks.OBSIDIAN) && !below.isOf(Blocks.CRYING_OBSIDIAN)) {
-            return false;
-        }
-
-        BlockPos above = base.up();
-        if (!world.getBlockState(above).isAir()) {
-            return false;
-        }
-
-        Vec3d center = Vec3d.ofBottomCenter(above);
-        Box box = new Box(center.add(-0.5, -0.5, -0.5), center.add(0.5, 1.5, 0.5));
-        return world.getOtherEntities(null, box, entity -> entity.isAlive()
-                && (!(entity instanceof EndCrystalEntity) || !isLocalCrystal(entity))).isEmpty();
-    }
-
-    private static boolean isLocalCrystal(Entity entity) {
-        Local local = LOCAL.get(entity.getBlockPos().asLong());
-        return local != null && local.entity == entity;
+        // A particle preview has no entity lifecycle to reconcile.
     }
 
     public static void clearAll() {
-        long[] keys = LOCAL.keySet().toLongArray();
-        for (long key : keys) {
-            Local local = LOCAL.remove(key);
-            if (local != null && local.entity != null && local.entity.isAlive()) {
-                local.entity.discard();
-            }
-        }
+        PREVIEWS.clear();
         SeamlessCrystalBridge.clearAll();
     }
 
-    private static Integer getAge(Entity entity) {
-        if (entity instanceof EntityAgeAccessor accessor) {
-            return accessor.kct$getAge();
+    private static void emitPreviewParticle(BlockPos position) {
+        if (CLIENT.world == null) {
+            return;
         }
-
-        Field field = resolveAgeField();
-        if (field == null) {
-            return null;
-        }
-
-        try {
-            return field.getInt(entity);
-        } catch (Throwable ignored) {
-            return null;
-        }
-    }
-
-    private static Field resolveAgeField() {
-        if (ageResolved) {
-            return ageField;
-        }
-
-        synchronized (CrystalPredictor.class) {
-            if (ageResolved) {
-                return ageField;
-            }
-            try {
-                Field field = Entity.class.getDeclaredField("age");
-                field.setAccessible(true);
-                ageField = field;
-            } catch (Throwable ignored) {
-                ageField = null;
-            }
-            ageResolved = true;
-            return ageField;
-        }
-    }
-
-    private static final class Local {
-        private final EndCrystalEntity entity;
-        private int expiresTick;
-        private int pairedRealId = -1;
-
-        private Local(EndCrystalEntity entity, int expiresTick) {
-            this.entity = entity;
-            this.expiresTick = expiresTick;
-        }
+        CLIENT.world.addParticleClient(
+                ParticleTypes.END_ROD,
+                position.getX() + 0.5D,
+                position.getY() + 0.75D,
+                position.getZ() + 0.5D,
+                0.0D,
+                0.01D,
+                0.0D);
     }
 }

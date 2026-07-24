@@ -1,83 +1,73 @@
-# Technical investigation and decisions
+# KoHs 2.0.4 safety investigation
 
-## External signals
+## Why this review was required
 
-Public hit-crystal reports describe the same pattern: after quickly placing obsidian, the following End Crystal use can retain the previous target and fail to place. Client-side prediction mods also reduce perceived latency by rendering a local entity until the real server entity arrives.
+Users reported multiplayer enforcement after installing earlier builds. A local code review cannot prove the exact cause of every enforcement event because servers use different rules and detection systems, but it can identify behavior that unnecessarily changes the normal client/server interaction boundary.
 
-Sources reviewed:
+The review treated the following patterns as unacceptable for the 2.0.4 safety release:
 
-- [Community report: crystal fails to place when spamming after obsidian](https://www.reddit.com/r/MinecraftPVP/comments/1kwove8/weird_bug_or_glitch_when_practicing_hit_crystal/)
-- [Community discussion about hit-crystal consistency and delay](https://www.reddit.com/r/CompetitiveMinecraft/comments/1jbmyhx/what_am_i_doing_wrong_in_hitcrystalling/)
-- [Fabric 1.21.9/1.21.10 entity rendering migration](https://fabricmc.net/2025/09/23/1219.html)
-- [Fabric client entity lifecycle events](https://maven.fabricmc.net/docs/fabric-api-0.102.0%2B1.21/net/fabricmc/fabric/api/client/event/lifecycle/v1/ClientEntityEvents.html)
-- [Yarn 1.21.11 `ClientPlayerInteractionManager`](https://maven.fabricmc.net/docs/yarn-1.21.11%2Bbuild.1/net/minecraft/client/network/ClientPlayerInteractionManager.html)
-- [Yarn 1.21.11 `KeyBinding`](https://maven.fabricmc.net/docs/yarn-1.21.11%2Bbuild.1/net/minecraft/client/option/KeyBinding.html)
-- [Yarn 1.21.11 `Keyboard`](https://maven.fabricmc.net/docs/yarn-1.21.11%2Bbuild.1/net/minecraft/client/Keyboard.html)
-- [Yarn 1.21.11 `Mouse`](https://maven.fabricmc.net/docs/yarn-1.21.11%2Bbuild.1/net/minecraft/client/Mouse.html)
-- [Marlow's Crystal Optimizer v1.1.0 source (MIT)](https://github.com/Bram1903/MarlowsCrystalOptimizer/tree/v1.1.0)
-- [Fabric Loader mod discovery API](https://maven.fabricmc.net/docs/fabric-loader-0.17.2/net/fabricmc/loader/api/FabricLoader.html)
-- [Fabric Loader mod-container resource API](https://maven.fabricmc.net/docs/fabric-loader-0.17.2/net/fabricmc/loader/api/ModContainer.html)
-- [Fabric mixin registration and configuration](https://wiki.fabricmc.net/tutorial%3Amixin_registration)
-- [Public KoHs Crystal Tweaks project page](https://modrinth.com/mod/kohs-crystal-tweaks)
+- custom client-identification or compatibility messages sent when joining a server;
+- multiple actions generated from one physical input;
+- actions replayed, delayed, retried, or moved into a sub-tick queue;
+- automatic hotbar selection;
+- locally created entities that can become a crosshair target;
+- attacks delayed until a future entity appears;
+- guessed entity IDs or remote target selection;
+- direct removal of vanilla cooldowns.
 
-## Code findings
+## Findings
 
-1. In 1.21.10/1.21.11, prediction ran from `UseBlockCallback` before the final interaction result was known.
-2. The adaptive timeout started at 4 ticks even though configuration declared 12. At latency above roughly 200 ms, prediction could expire before pairing and never learn that latency.
-3. The 1.21.x validation accepted crying obsidian even though vanilla `EndCrystalItem` accepts only obsidian or bedrock.
-4. The 1.21.x tint implementation queued several parts while temporarily changing `ModelPart.visible`. Rendering happened later, so restoring visibility before queue consumption could duplicate subtrees or mix colors.
-5. In 26.1.2, the UI persisted tint/spin/flotation/static values but renderer hooks did not consume them.
-6. In 1.21.11, attacking a predicted local crystal removed that prediction and raycast past it. When the matching server crystal had not loaded yet, vanilla had no real entity ID to attack, so the click was lost and the later server crystal remained alive.
-7. The earlier integrated optimizer detected the attacked crystal through `crosshairTarget`. After client-side removal it did not retrace the crosshair, so the next rapid use could still target the dead entity and break the place/attack cycle. Marlow instead resolves the crystal by the outgoing packet ID and retraces immediately after cleanup.
-8. Keyboard and mouse presses both increment vanilla `KeyBinding` counters. A keyboard binding is therefore not a separate placement action and does not need a separate packet path.
-9. `MinecraftClient.handleInputEvents` drains the complete attack counter before the use counter. A physical `use → attack → use` sequence received inside one client tick is therefore reordered, regardless of whether Use Item came from a keyboard binding or the right mouse button.
-10. A successful local placement is added after `interactBlock` returns, but the crosshair is normally refreshed later. Without an immediate target update, a following attack in the same input pass still sees the earlier block hit.
-11. A confirmed 1.21.11 beta.5 startup log with `marlowcrystal` failed in `PayloadTypeRegistryImpl.register`: both entrypoints registered `marlowcrystal:opt_out`, and Fabric raised `Packet type ... is already registered` before the title screen.
-12. A Fabric dependency-level `breaks` declaration cannot provide the requested in-game explanation because Loader would stop before Minecraft creates a screen.
-13. `SafeCrystalMixin` targets only `ClientPlayerInteractionManager.attackBlock` and `updateBlockBreakingProgress`. It does not inject into the crystal placement path (`interactBlock`) or crystal entity attacks (`attackEntity`), although disabling it is useful for isolating rapid cycles where the crosshair still points at the base.
-14. Vanilla consumes hotbar key counters before the attack/use loops. The earlier ordered-input implementation preserved attack/use order but not slot order, so several actions received in one tick could all execute with the final selected item.
-15. The earlier retarget path performed a pending-base collision query before determining that the vanilla hit was already valid or unrelated, and its one-block neighborhood fallback could associate an adjacent aim change with the recorded placement.
+1. Custom identification messages expose implementation details to a server without being required for normal Fabric gameplay.
+2. Reordering or replaying inputs can make the outgoing action sequence differ from an unmodified client even when each individual action originated from the player.
+3. Delaying an attack until an entity later appears changes the time at which the action occurs and can turn one old input into a future action.
+4. Automatic slot changes alter player state independently of the physical hotbar selection performed by the user.
+5. A preview implemented as a normal local entity can enter raycasting and leave a stale entity reference in the crosshair target. A movement-only `noClip` flag does not make an entity non-targetable.
+6. Local removal of an unconfirmed or predicted entity can make the visual world disagree with the server and can affect subsequent targeting.
+7. A purely visual preview does not need an entity ID, UUID, bounding box, collision state, or registration in the client world.
 
-## Implemented solution
+## 2.0.4 decisions
 
-- Capture the used item in `interactBlock` / `useItemOn` and act only on accepted results.
-- Keep the freshly predicted obsidian position for no more than 4 ticks.
-- Retarget only if the original crystal hit is invalid and belongs to the same rapid placement sequence.
-- Reuse the vanilla packet path; never invoke networking manually.
-- Register crystal model parts by identity and select their color in `ModelPart.render`, when queued geometry is actually consumed.
-- Bound the configuration UI to current logical dimensions for high GUI scales and compact windows.
-- In 1.21.11, intercept only the vanilla `attackEntity` call after vanilla validation. Queue one boolean attack intent on the local prediction, consume it once when the matching server entity loads, and expire it with the prediction.
-- Replace fixed option descriptions with hover tooltips so explanatory text does not consume layout space.
-- Resolve real-crystal cleanup from the attack packet's entity ID, then clear `targetedEntity` and retrace through KoHs prediction-aware raycasting. This preserves the next physical use without producing another action.
-- Record gameplay attack/use arrivals from both vanilla keyboard and mouse callbacks, then drain them in order only when a real `wasPressed()` count exists for that action.
-- Target the local crystal immediately after an accepted placement, allowing the next recorded physical attack in the same tick to enter the existing prediction handoff.
-- Keep English-first, Spanish-second `Accept` / `Restore` confirmations only for `Local Crystal`, `Seamless Mode`, `Placement Fix`, and `Rapid Attack Fix`.
-- Initialize incompatibility detection from an `IMixinConfigPlugin`, then return `false` from `shouldApplyMixin` for every KoHs gameplay mixin when startup is blocked.
-- Treat `marlowcrystal` as an explicit incompatibility and stop KoHs client initialization before its mirrored Marlow payloads can be registered.
-- For unknown mods, parse Fabric mixin metadata and ASM annotations without loading candidate classes. Block only direct KoHs targets or crystal-related exact target-class/method overlaps with KoHs critical hooks.
-- Fail open if generic metadata inspection is malformed, while retaining explicit known-mod detection. This prevents damaged third-party metadata from becoming an unsupported global deny list.
-- Replace the config screen with a bounded, scrollable bilingual report; reassert it at client tick end, disable Escape, and expose only `MinecraftClient.scheduleStop()`.
-- Expose Safe Crystal as a default-off direct toggle that protects normal obsidian only. Crying obsidian remains on the vanilla block-breaking path. When disabled, return before player/world/block inspection and do not cancel either method.
-- Reflow the six Tweaks controls into two columns on compact logical screens instead of compressing them into the Close-button area.
-- Record hotbar number keys and mouse-wheel selection changes in the same bounded queue as attack/use presses. Replay the initial slot and each physical slot transition before consuming the corresponding vanilla action count.
-- Ignore keyboard repeat events, which do not represent a new vanilla `wasPressed()` count.
-- Fast-path valid vanilla crystal bases, reject unrelated hits before collision lookup, and accept only the recorded base or exact placement offset.
-- Default Local Crystal and Seamless Mode to OFF for new/missing configuration fields; preserve explicit saved values.
+- Remove every custom identification, version, opt-out, and acknowledgement message.
+- Keep Minecraft's normal input and interaction pipeline responsible for combat actions.
+- Enforce this invariant:
 
-## Verification boundaries
+```text
+one physical attack/use input -> zero or one corresponding vanilla action
+```
 
-- All eight published JARs contain readable Fabric metadata matching their documented Minecraft and Java ranges.
-- The 1.21.10, 1.21.11, 26.1, 26.1.1, 26.1.2, and 26.2 projects completed clean Gradle builds for the complete release 2 integration.
-- No Minecraft instance was launched. Runtime multiplayer and optional-mod compatibility remain beta testing responsibilities.
-- Nine automated tests per port verify input ordering, exact causal placement matching, fresh configuration defaults, real KoHs mixin-signature extraction, selector normalization, exact-overlap detection, different-method tolerance, and unrelated-mod tolerance.
-- The 26.x runtime sound path is implemented with `SoundBufferLibrary`, `SoundBuffer`, `WeighedSoundEvents`, and `SoundEngine`; invalid or disabled custom files restore the captured vanilla explosion registration.
+- Do not replay consumed input.
+- Do not defer an action until a placement or entity appears.
+- Do not create an automatic retry.
+- Do not select or restore a hotbar slot on behalf of the player.
+- Represent an optional placement preview as render-only state. It must not be registered as an entity and must never participate in raycasting.
+- Keep the visual preview OFF on a fresh installation.
+- Allow optional local cleanup only for the exact real crystal supplied by the server and selected by the player's normal vanilla attack.
+- Keep confirmed local cleanup OFF on a fresh installation.
+- Clear temporary visual state on timeout, disconnect, world change, configuration disable, and client shutdown.
 
-## Legitimacy constraints
+## Network boundary
 
-Placement Fix changes only the `BlockHitResult` consumed by the player's current vanilla interaction. It sends no additional use or attack packets, repeats no input, and performs no remote targeting. The optimizer reacts only to an attack the player already issued and performs client-side visual cleanup.
+KoHs 2.0.4 does not need a custom networking channel for its client-only configuration and rendering features. It does not construct an additional combat action packet.
 
-Rapid Attack Fix does not synthesize clicks, guess entity IDs, or retry packets. It preserves at most one attack that already reached vanilla's normal attack call and sends that single attack only when the corresponding real entity is available.
+The normal Minecraft interaction path may send the usual vanilla action caused by the player's physical input. The server remains authoritative and can accept or reject that action.
 
-Ordered Crystal Input does not invoke an action from a held state, remove the four-tick vanilla use cooldown, or manufacture a key count. Every ordered action must consume one count already present in the matching vanilla `KeyBinding`; overflow falls back to untouched vanilla processing.
+## Verification requirements
 
-Placement Fix does not defer a crystal use until obsidian exists. The base record is created only after the obsidian interaction returns an accepted result, so packet and method order remains obsidian first, crystal second. A server crystal cannot be legitimately attacked before its real entity ID arrives; Rapid Attack Fix waits for that ID rather than guessing it.
+Each maintained version should pass the following checks before publication:
+
+1. Search the source and resources for custom identification-channel registration.
+2. Search for direct combat-packet construction or transmission.
+3. Verify that no held-input loop, replay queue, delayed intent, or automatic retry remains.
+4. Verify that no gameplay feature changes the selected hotbar slot automatically.
+5. Verify that the optional preview cannot produce an `EntityHitResult`.
+6. Verify that local cleanup requires an exact server-provided entity and a normal player attack.
+7. Compare outgoing action counts with features OFF and ON for the same physical input sequence.
+8. Run clean Gradle builds and automated tests for every maintained Minecraft target.
+
+Minecraft is not launched during automated release preparation; runtime testing remains a separate manual step.
+
+## Scope and server rules
+
+These changes reduce avoidable differences from vanilla input and networking. They do not make the mod universally permitted or undetectable. A server may prohibit visual previews, local cleanup, or all gameplay-related client mods regardless of packet behavior.
+
+Users are responsible for checking server rules. When a rule is unclear, the safest configuration is to leave optional gameplay-related features disabled or remove the mod for that server.

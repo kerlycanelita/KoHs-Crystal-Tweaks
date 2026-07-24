@@ -4,17 +4,12 @@
   "plugin": "dev.zymekoh.kohscrystaltweaks.compat.KoHsMixinConfigPlugin",
   "compatibilityLevel": "JAVA_25",
   "client": [
-    "ConnectionMixin",
+    "ConfirmedCrystalCleanupMixin",
     "EndCrystalRendererSeamlessMixin",
     "EndCrystalModelAnimationMixin",
     "EndCrystalRenderStateMixin",
-    "KeyboardOrderedCrystalInputMixin",
-    "MinecraftPassThroughLocalCrystalMixin",
     "ModelPartCrystalTintMixin",
     "MultiPlayerGameModeCrystalPredictionMixin",
-    "MultiPlayerGameModeLocalCrystalMixin",
-    "MouseOrderedCrystalInputMixin",
-    "SafeCrystalMixin",
     "SoundBufferLibraryMixin",
     "SoundManagerAccessor",
     "SoundManagerOverrideMixin"

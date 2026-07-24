@@ -36,14 +36,8 @@ final class MixinConflictScanner {
     private static final int MAX_POINTS_PER_MOD = 8;
 
     private static final Set<String> CRITICAL_KOHS_MIXINS = Set.of(
-            "ClientConnectionMixin",
-            "ClientPlayerInteractionManagerLocalCrystalMixin",
-            "EndCrystalEntityModelAnimationMixin",
-            "EndCrystalEntityRendererSeamlessMixin",
-            "KeyboardOrderedCrystalInputMixin",
-            "MinecraftClientPassThroughLocalCrystalMixin",
-            "MouseOrderedCrystalInputMixin",
-            "SafeCrystalMixin"
+            "ConfirmedCrystalCleanupMixin",
+            "MultiPlayerGameModeCrystalPredictionMixin"
     );
 
     private MixinConflictScanner() {
@@ -91,9 +85,6 @@ final class MixinConflictScanner {
         for (MixinSignature candidate : candidates) {
             for (String target : candidate.targetClasses()) {
                 if (target.startsWith(KOHS_PACKAGE)) {
-                    if (ForceCrystalPriorityConflictScanner.isFeatureInternalTarget(target)) {
-                        continue;
-                    }
                     Set<String> methods = candidate.targetMethods().isEmpty()
                             ? Set.of("<class>") : candidate.targetMethods();
                     for (String method : methods) {

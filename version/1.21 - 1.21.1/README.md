@@ -1,22 +1,30 @@
-# Compatibility status — Minecraft 1.21–1.21.1
+# KoHs Crystal Tweaks — Minecraft 1.21–1.21.1
 
 ## Build matrix
 
-- Mod version: `1.0.0+mc1.21`
+- Mod version: `2.0.4+mc1.21`
 - Minecraft: `>=1.21 <1.21.2`
 - Java: 21
 - Yarn mappings: `1.21+build.9`
 - Fabric Loader: `0.18.6`
 - Fabric API: `0.102.0+1.21`
-- Artifact: `kohs-crystal-tweaks-1.0.0+mc1.21.jar`
-- Distribution status: GitHub beta/pre-release
+- Artifact: `kohs-crystal-tweaks-2.0.4+mc1.21.jar`
 
-## Verified behavior
+## 2.0.4 safety behavior
 
-- Custom sound replaces `minecraft:entity.generic.explode` through the vanilla sound pipeline instead of parallel manual playback.
-- WAV, OGG, and MP3 imports remain supported.
-- `Anchor Charge` was removed; this branch only manages the vanilla explosion replacement.
-- The configuration screen keeps its custom background isolated from vanilla blur.
-- The declared range is intentionally limited to 1.21–1.21.1.
+- No custom client-identification or compatibility payloads.
+- No sub-tick queue, delayed action, replay, retry, or automatic slot selection.
+- At most one corresponding vanilla action per physical attack or use input.
+- Render-only, non-targetable visual crystal preview; OFF by default.
+- Optional cleanup only for the exact real, server-provided crystal selected by the player's normal attack; OFF by default.
+- The server remains authoritative for placement, entity IDs, damage, and explosions.
 
-The preserved build completed `gradlew.bat clean build` successfully on 2026-04-23. Placement Fix is not included in this legacy branch; it starts with Minecraft 1.21.10.
+Visual, sound, and manual safety controls remain available. No universal anti-cheat guarantee is claimed; server rules must be checked before use.
+
+## Build
+
+```powershell
+.\gradlew.bat clean build --no-daemon
+```
+
+Minecraft is not launched during automated release preparation.

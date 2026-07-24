@@ -2,7 +2,9 @@ plugins {
     id "fabric-loom" version "1.11-SNAPSHOT"
 }
 
-version = project.mod_version
+def artifactVersion = "${project.mod_version}+mc${project.minecraft_version}"
+
+version = artifactVersion
 group = project.maven_group
 
 base {
@@ -27,18 +29,38 @@ dependencies {
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
     modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+
+    implementation "javazoom:jlayer:1.0.1"
+    include "javazoom:jlayer:1.0.1"
+
+    testImplementation "org.junit.jupiter:junit-jupiter:5.11.4"
+    testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.11.4"
+}
+
+test {
+    useJUnitPlatform()
 }
 
 processResources {
-    inputs.property "version", project.version
+    inputs.property "version", artifactVersion
     filesMatching("fabric.mod.json") {
-        expand "version": project.version
+        filter { line -> line.replace('${version}', artifactVersion) }
     }
 }
 
 tasks.withType(JavaCompile).configureEach {
     options.release = 21
     options.encoding = "UTF-8"
+}
+
+tasks.withType(AbstractArchiveTask).configureEach {
+    archiveVersion.set(artifactVersion)
+}
+
+jar {
+    from("LICENSE") {
+        rename { "LICENSE_kohs_crystal_tweaks" }
+    }
 }
 
 java {

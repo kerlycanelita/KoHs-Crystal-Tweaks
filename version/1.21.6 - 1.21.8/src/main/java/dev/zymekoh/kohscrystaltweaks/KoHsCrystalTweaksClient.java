@@ -1,45 +1,37 @@
 package dev.zymekoh.kohscrystaltweaks;
 
+import dev.zymekoh.kohscrystaltweaks.compat.IncompatibilityManager;
 import dev.zymekoh.kohscrystaltweaks.config.KoHsCrystalTweaksConfig;
 import dev.zymekoh.kohscrystaltweaks.core.CrystalPredictor;
-import dev.zymekoh.kohscrystaltweaks.network.OptOutPacket;
+import dev.zymekoh.kohscrystaltweaks.core.SafeCrystalGuard;
+import dev.zymekoh.kohscrystaltweaks.gui.IncompatibilityScreen;
 import dev.zymekoh.kohscrystaltweaks.sound.CrystalSoundManager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
-import net.fabricmc.fabric.api.event.player.UseBlockCallback;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.decoration.EndCrystalEntity;
-import net.minecraft.item.Items;
-import net.minecraft.util.ActionResult;
 
 public final class KoHsCrystalTweaksClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        IncompatibilityManager.initialize();
+        if (IncompatibilityManager.isBlocked()) {
+            IncompatibilityScreen.registerBlocker();
+            return;
+        }
+
         KoHsCrystalTweaksConfig config = KoHsCrystalTweaksConfig.get();
+        SafeCrystalGuard.initialize();
         CrystalPredictor.setEnabled(config.clientSideCrystalsEnabled);
 
-        PayloadTypeRegistry.playC2S().register(OptOutPacket.ID, OptOutPacket.CODEC);
-
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> CrystalPredictor.reset());
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> CrystalPredictor.reset());
-
-        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
-            if (!(world instanceof ClientWorld)) {
-                return ActionResult.PASS;
-            }
-            if (!CrystalPredictor.isEnabled()) {
-                return ActionResult.PASS;
-            }
-            if (!player.getStackInHand(hand).isOf(Items.END_CRYSTAL)) {
-                return ActionResult.PASS;
-            }
-            CrystalPredictor.onUseBlock(hitResult);
-            return ActionResult.PASS;
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            CrystalPredictor.reset();
+            CrystalSoundManager.resetTracking();
+        });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            CrystalPredictor.reset();
+            CrystalSoundManager.resetTracking();
         });
 
         ClientEntityEvents.ENTITY_LOAD.register((entity, world) -> {
@@ -49,6 +41,7 @@ public final class KoHsCrystalTweaksClient implements ClientModInitializer {
         });
 
         ClientEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
+            CrystalSoundManager.onEntityUnloaded(entity);
             if (CrystalPredictor.isEnabled()) {
                 CrystalPredictor.onEntityUnloaded(entity);
             }

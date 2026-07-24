@@ -2,17 +2,21 @@
   "required": true,
   "minVersion": "0.8",
   "package": "dev.zymekoh.kohscrystaltweaks.mixin",
+  "plugin": "dev.zymekoh.kohscrystaltweaks.compat.KoHsMixinConfigPlugin",
   "compatibilityLevel": "JAVA_21",
   "refmap": "kohs_crystal_tweaks-refmap.json",
   "mixins": [],
   "client": [
     "ClientConnectionMixin",
-    "ClientPlayerInteractionManagerLocalCrystalMixin",
+    "ClientPlayerInteractionObserverMixin",
+    "EndCrystalEntityModelAnimationMixin",
+    "EndCrystalEntityRenderStateMixin",
     "EndCrystalEntityRendererSeamlessMixin",
-    "EntityAgeAccessor",
-    "MinecraftClientPassThroughLocalCrystalMixin",
-    "SafeCrystalMixin",
-    "ServerOptOutMixin"
+    "ModelPartCrystalTintMixin",
+    "PlayerInteractEntityC2SPacketAccessor",
+    "SoundLoaderMixin",
+    "SoundManagerAccessor",
+    "SoundManagerOverrideMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -168,10 +168,6 @@ public abstract class EndCrystalEntityRendererSeamlessMixin {
 
     @Unique
     private static Integer getAge(Entity entity) {
-        if (entity instanceof EntityAgeAccessor accessor) {
-            return accessor.kct$getAge();
-        }
-
         Field field = resolveAgeField();
         if (field == null) {
             return null;
@@ -185,11 +181,6 @@ public abstract class EndCrystalEntityRendererSeamlessMixin {
 
     @Unique
     private static boolean setAge(Entity entity, int age) {
-        if (entity instanceof EntityAgeAccessor accessor) {
-            accessor.kct$setAge(age);
-            return true;
-        }
-
         Field field = resolveAgeField();
         if (field == null) {
             return false;

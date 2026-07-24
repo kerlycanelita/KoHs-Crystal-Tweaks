@@ -1,6 +1,7 @@
 # Gradle and generated artifacts
 .gradle/
 **/.gradle/
+/.gradle-*/
 build/
 **/build/
 

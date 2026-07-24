@@ -2,6 +2,7 @@ package dev.zymekoh.kohscrystaltweaks.sound;
 
 import dev.zymekoh.kohscrystaltweaks.KoHsCrystalTweaks;
 import dev.zymekoh.kohscrystaltweaks.config.KoHsCrystalTweaksConfig;
+import dev.zymekoh.kohscrystaltweaks.core.CrystalPredictor;
 import dev.zymekoh.kohscrystaltweaks.mixin.SoundManagerAccessor;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
@@ -12,19 +13,26 @@ import java.nio.ShortBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayDeque;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
 import javax.sound.sampled.AudioFormat;
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.client.sound.Sound;
+import net.minecraft.client.sound.SoundInstance;
 import net.minecraft.client.sound.SoundManager;
 import net.minecraft.client.sound.SoundSystem;
 import net.minecraft.client.sound.StaticSound;
 import net.minecraft.client.sound.WeightedSoundSet;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.floatprovider.ConstantFloatProvider;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.decoration.EndCrystalEntity;
 import org.lwjgl.BufferUtils;
 import org.lwjgl.stb.STBVorbis;
 import org.lwjgl.system.MemoryStack;
@@ -32,8 +40,12 @@ import org.lwjgl.system.MemoryUtil;
 
 public final class CrystalSoundManager {
     private static final float MAX_DURATION = 5.0f;
+    private static final long RECENT_CRYSTAL_NANOS = 750_000_000L;
+    private static final double CRYSTAL_SOUND_RADIUS = 2.5;
     private static final Identifier EXPLOSION_EVENT_ID = Identifier.ofVanilla("entity.generic.explode");
     private static final String EXPLOSION_SUBTITLE = "subtitles.entity.generic.explode";
+    private static final Identifier RUNTIME_EXPLOSION_EVENT_ID =
+            Identifier.of(KoHsCrystalTweaks.MOD_ID, "crystal_explosion");
     private static final Identifier RUNTIME_EXPLOSION_SOUND_ID = Identifier.of(KoHsCrystalTweaks.MOD_ID, "runtime/explosion");
     private static final Identifier RUNTIME_EXPLOSION_LOCATION = Sound.FINDER.toResourcePath(RUNTIME_EXPLOSION_SOUND_ID);
 
@@ -41,8 +53,8 @@ public final class CrystalSoundManager {
     private static String loadedFileName = "";
     private static String lastError = "";
     private static float loadedDuration = 0f;
-    private static WeightedSoundSet vanillaExplosionSet;
-    private static boolean vanillaSetsCaptured;
+    private static final ArrayDeque<RecentCrystal> RECENT_CRYSTALS = new ArrayDeque<>();
+    private static boolean soundManagerReady;
 
     private CrystalSoundManager() {}
 
@@ -51,6 +63,7 @@ public final class CrystalSoundManager {
     }
 
     public static void tick() {
+        pruneRecentCrystals(System.nanoTime());
     }
 
     public static void cleanup() {
@@ -58,8 +71,21 @@ public final class CrystalSoundManager {
         loadedFileName = "";
         loadedDuration = 0f;
         lastError = "";
-        vanillaExplosionSet = null;
-        vanillaSetsCaptured = false;
+        RECENT_CRYSTALS.clear();
+        soundManagerReady = false;
+    }
+
+    public static void resetTracking() {
+        RECENT_CRYSTALS.clear();
+    }
+
+    public static void onEntityUnloaded(Entity entity) {
+        if (!(entity instanceof EndCrystalEntity) || CrystalPredictor.isLocalCrystalEntity(entity)) {
+            return;
+        }
+        long now = System.nanoTime();
+        pruneRecentCrystals(now);
+        RECENT_CRYSTALS.addLast(new RecentCrystal(entity.getX(), entity.getY(), entity.getZ(), now));
     }
 
     public static void reloadFromConfig() {
@@ -112,8 +138,32 @@ public final class CrystalSoundManager {
     }
 
     public static void onSoundManagerApply(SoundManager soundManager) {
-        captureVanillaSets(soundManager);
+        soundManagerReady = true;
         applyConfiguredOverrides(soundManager);
+    }
+
+    public static SoundInstance replaceCrystalExplosion(SoundInstance original) {
+        KoHsCrystalTweaksConfig cfg = KoHsCrystalTweaksConfig.get();
+        if (!cfg.customSoundEnabled
+                || decodedAudio == null
+                || !EXPLOSION_EVENT_ID.equals(original.getId())
+                || !isCrystalExplosionAt(original.getX(), original.getY(), original.getZ())) {
+            return original;
+        }
+
+        return new PositionedSoundInstance(
+                RUNTIME_EXPLOSION_EVENT_ID,
+                original.getCategory(),
+                4.0F * cfg.soundVolume,
+                cfg.soundSpeed,
+                Random.create(),
+                false,
+                0,
+                SoundInstance.AttenuationType.LINEAR,
+                original.getX(),
+                original.getY(),
+                original.getZ(),
+                false);
     }
 
     public static boolean isRuntimeLocation(Identifier id) {
@@ -143,7 +193,7 @@ public final class CrystalSoundManager {
 
     private static void applyRuntimeOverridesToCurrentManager() {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || !vanillaSetsCaptured) {
+        if (client == null || !soundManagerReady) {
             return;
         }
 
@@ -156,15 +206,9 @@ public final class CrystalSoundManager {
         soundManager.reloadSounds();
     }
 
-    private static void captureVanillaSets(SoundManager soundManager) {
-        Map<Identifier, WeightedSoundSet> sounds = ((SoundManagerAccessor) soundManager).kct$getSounds();
-        vanillaExplosionSet = sounds.get(EXPLOSION_EVENT_ID);
-        vanillaSetsCaptured = true;
-    }
-
     private static void applyConfiguredOverrides(SoundManager soundManager) {
         Map<Identifier, WeightedSoundSet> sounds = ((SoundManagerAccessor) soundManager).kct$getSounds();
-        restoreVanillaOverrides(sounds);
+        sounds.remove(RUNTIME_EXPLOSION_EVENT_ID);
 
         KoHsCrystalTweaksConfig cfg = KoHsCrystalTweaksConfig.get();
         if (!cfg.customSoundEnabled || decodedAudio == null) {
@@ -172,33 +216,63 @@ public final class CrystalSoundManager {
         }
 
         Sound explosionSound = createRuntimeSound(RUNTIME_EXPLOSION_SOUND_ID);
-        WeightedSoundSet explosionSet = new WeightedSoundSet(EXPLOSION_EVENT_ID, EXPLOSION_SUBTITLE);
+        WeightedSoundSet explosionSet = new WeightedSoundSet(RUNTIME_EXPLOSION_EVENT_ID, EXPLOSION_SUBTITLE);
         explosionSet.add(explosionSound);
-        sounds.put(EXPLOSION_EVENT_ID, explosionSet);
+        sounds.put(RUNTIME_EXPLOSION_EVENT_ID, explosionSet);
 
         SoundSystem soundSystem = ((SoundManagerAccessor) soundManager).kct$getSoundSystem();
         explosionSound.preload(soundSystem);
     }
 
-    private static void restoreVanillaOverrides(Map<Identifier, WeightedSoundSet> sounds) {
-        if (vanillaExplosionSet != null) {
-            sounds.put(EXPLOSION_EVENT_ID, vanillaExplosionSet);
-        } else {
-            sounds.remove(EXPLOSION_EVENT_ID);
-        }
-    }
-
     private static Sound createRuntimeSound(Identifier id) {
-        KoHsCrystalTweaksConfig cfg = KoHsCrystalTweaksConfig.get();
         return new Sound(
                 id,
-                ConstantFloatProvider.create(cfg.soundVolume),
-                ConstantFloatProvider.create(cfg.soundSpeed),
+                ConstantFloatProvider.create(1.0F),
+                ConstantFloatProvider.create(1.0F),
                 1,
                 Sound.RegistrationType.FILE,
                 false,
                 true,
                 16);
+    }
+
+    private static boolean isCrystalExplosionAt(double x, double y, double z) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.world != null) {
+            Box area = new Box(
+                    x - CRYSTAL_SOUND_RADIUS,
+                    y - CRYSTAL_SOUND_RADIUS,
+                    z - CRYSTAL_SOUND_RADIUS,
+                    x + CRYSTAL_SOUND_RADIUS,
+                    y + CRYSTAL_SOUND_RADIUS,
+                    z + CRYSTAL_SOUND_RADIUS);
+            if (!client.world.getEntitiesByClass(
+                    EndCrystalEntity.class,
+                    area,
+                    crystal -> !CrystalPredictor.isLocalCrystalEntity(crystal)).isEmpty()) {
+                return true;
+            }
+        }
+
+        long now = System.nanoTime();
+        pruneRecentCrystals(now);
+        double radiusSquared = CRYSTAL_SOUND_RADIUS * CRYSTAL_SOUND_RADIUS;
+        for (RecentCrystal crystal : RECENT_CRYSTALS) {
+            double deltaX = crystal.x - x;
+            double deltaY = crystal.y - y;
+            double deltaZ = crystal.z - z;
+            if (deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ <= radiusSquared) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void pruneRecentCrystals(long now) {
+        while (!RECENT_CRYSTALS.isEmpty()
+                && now - RECENT_CRYSTALS.peekFirst().removedAtNanos > RECENT_CRYSTAL_NANOS) {
+            RECENT_CRYSTALS.removeFirst();
+        }
     }
 
     private static String loadSound(Path file, String name) {
@@ -417,6 +491,9 @@ public final class CrystalSoundManager {
     private static String getExtension(String name) {
         int dot = name.lastIndexOf('.');
         return dot >= 0 ? name.substring(dot + 1) : "";
+    }
+
+    private record RecentCrystal(double x, double y, double z, long removedAtNanos) {
     }
 
     private record DecodedAudio(ByteBuffer pcmData, AudioFormat format, float duration) {

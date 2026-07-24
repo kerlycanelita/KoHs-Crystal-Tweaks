@@ -2,31 +2,30 @@
 
 ## Build matrix
 
-- Mod version: `2.0.1+mc26.1.2`
+- Mod version: `2.0.4+mc26.1.2`
 - Minecraft: `26.1.2`
 - Java: 25
 - Mappings: official Mojang names
 - Fabric Loader: `0.19.3`
 - Fabric API: `0.154.2+26.1.2`
-- Artifact: `kohs-crystal-tweaks-2.0.1+mc26.1.2.jar`
+- Artifact: `kohs-crystal-tweaks-2.0.4+mc26.1.2.jar`
 
-## Release 2 implementation
+## 2.0.4 safety behavior
 
-- Full feature parity with the stable 1.21.11 branch, adapted to `MultiPlayerGameMode`, official names, and the submit renderer.
-- Ordered keyboard/mouse input, exact causal Placement Fix, deduplicated Rapid Attack Fix, and switchable Safe Crystal.
-- Ordinary single clicks stay on Minecraft's direct input path; replay is reserved for order-sensitive same-tick sequences.
-- Real-crystal cleanup remains immediate when optional Local Crystal prediction is OFF.
-- Fresh defaults: Placement Fix, Rapid Attack Fix, and Flotation ON; Local Crystal, Seamless, Safe Crystal, and Static Crystal OFF.
-- Responsive tooltip-based Mod Menu interface with bilingual warnings only for timing-critical options.
-- Runtime WAV/OGG/MP3 replacement through `SoundBufferLibrary` and `SoundEngine`.
-- Early high-confidence mixin incompatibility guard with a mandatory bilingual shutdown screen.
-- No synthesized input, guessed entity IDs, cooldown removal, retry loops, or extra interaction packets.
+- No custom client-identification or compatibility payloads.
+- No sub-tick queue, delayed action, replay, retry, or automatic slot selection.
+- At most one corresponding vanilla action per physical attack or use input.
+- Render-only, non-targetable visual crystal preview; OFF by default.
+- Optional cleanup only for the exact real, server-provided crystal selected by the player's normal attack; OFF by default.
+- The server remains authoritative for placement, entity IDs, damage, and explosions.
 
-## Verified build
+Visual, sound, and manual safety controls remain available. No universal anti-cheat guarantee is claimed; server rules must be checked before use.
+
+## Build
 
 ```powershell
 $env:JAVA_HOME='C:\Program Files\Java\jdk-25.0.2'
 .\gradlew.bat clean build --no-daemon
 ```
 
-The build and all 10 regression tests completed successfully on 2026-07-13. Minecraft was not launched.
+Minecraft is not launched during automated release preparation.

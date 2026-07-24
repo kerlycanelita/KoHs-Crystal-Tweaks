@@ -2,10 +2,9 @@ package dev.zymekoh.kohscrystaltweaks;
 
 import dev.zymekoh.kohscrystaltweaks.compat.IncompatibilityManager;
 import dev.zymekoh.kohscrystaltweaks.config.KoHsCrystalTweaksConfig;
-import dev.zymekoh.kohscrystaltweaks.core.CrystalPlacementFix;
 import dev.zymekoh.kohscrystaltweaks.core.CrystalPredictor;
+import dev.zymekoh.kohscrystaltweaks.core.SafeCrystalGuard;
 import dev.zymekoh.kohscrystaltweaks.gui.IncompatibilityScreen;
-import dev.zymekoh.kohscrystaltweaks.marlow.MarlowOptimizerCompat;
 import dev.zymekoh.kohscrystaltweaks.sound.CrystalSoundManager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
@@ -24,27 +23,27 @@ public final class KoHsCrystalTweaksClient implements ClientModInitializer {
 
         KoHsCrystalTweaksConfig config = KoHsCrystalTweaksConfig.get();
         CrystalPredictor.setEnabled(config.clientSideCrystalsEnabled);
-        MarlowOptimizerCompat.initClient();
+        SafeCrystalGuard.init();
 
         ClientPlayConnectionEvents.JOIN.register((listener, sender, client) -> {
             CrystalPredictor.reset();
-            CrystalPlacementFix.reset();
+            CrystalSoundManager.resetTracking();
         });
         ClientPlayConnectionEvents.DISCONNECT.register((listener, client) -> {
             CrystalPredictor.reset();
-            CrystalPlacementFix.reset();
+            CrystalSoundManager.resetTracking();
         });
 
         ClientEntityEvents.ENTITY_LOAD.register((entity, level) -> CrystalPredictor.onEntityLoaded(entity));
-        ClientEntityEvents.ENTITY_UNLOAD.register((entity, level) -> CrystalPredictor.onEntityUnloaded(entity));
+        ClientEntityEvents.ENTITY_UNLOAD.register((entity, level) -> {
+            CrystalSoundManager.onEntityUnloaded(entity);
+        });
         ClientTickEvents.START_CLIENT_TICK.register(client -> {
             CrystalPredictor.clientTick();
-            CrystalPlacementFix.clientTick();
             CrystalSoundManager.tick();
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             CrystalPredictor.clearAll();
-            CrystalPlacementFix.reset();
             CrystalSoundManager.cleanup();
         });
         CrystalSoundManager.init();

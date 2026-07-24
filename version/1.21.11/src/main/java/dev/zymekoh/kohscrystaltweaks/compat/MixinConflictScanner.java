@@ -37,13 +37,7 @@ final class MixinConflictScanner {
 
     private static final Set<String> CRITICAL_KOHS_MIXINS = Set.of(
             "ClientConnectionMixin",
-            "ClientPlayerInteractionManagerLocalCrystalMixin",
-            "EndCrystalEntityModelAnimationMixin",
-            "EndCrystalEntityRendererSeamlessMixin",
-            "KeyboardOrderedCrystalInputMixin",
-            "MinecraftClientPassThroughLocalCrystalMixin",
-            "MouseOrderedCrystalInputMixin",
-            "SafeCrystalMixin"
+            "ClientPlayerInteractionObserverMixin"
     );
 
     private MixinConflictScanner() {

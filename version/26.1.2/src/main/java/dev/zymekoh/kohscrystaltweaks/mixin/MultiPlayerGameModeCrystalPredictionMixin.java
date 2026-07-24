@@ -1,7 +1,5 @@
 package dev.zymekoh.kohscrystaltweaks.mixin;
 
-import dev.zymekoh.kohscrystaltweaks.core.CrystalPlacementFix;
-import dev.zymekoh.kohscrystaltweaks.core.CrystalInteractionFastPath;
 import dev.zymekoh.kohscrystaltweaks.core.CrystalPredictor;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
@@ -13,62 +11,40 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+/**
+ * Observes vanilla's result without changing the hit, packet, slot, or input
+ * timing. An accepted crystal use may create only a visual particle preview.
+ */
 @Mixin(MultiPlayerGameMode.class)
 public abstract class MultiPlayerGameModeCrystalPredictionMixin {
     @Unique
     private boolean kct$usingCrystal;
 
-    @Unique
-    private boolean kct$usingObsidian;
-
-    @ModifyVariable(
-            method = "useItemOn(Lnet/minecraft/client/player/LocalPlayer;Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/phys/BlockHitResult;)Lnet/minecraft/world/InteractionResult;",
-            at = @At("HEAD"),
-            argsOnly = true,
-            ordinal = 0)
-    private BlockHitResult kct$retargetFastCrystal(
-            BlockHitResult hit,
-            LocalPlayer player,
-            InteractionHand hand) {
-        return CrystalPlacementFix.retargetCrystal(player, hand, hit);
-    }
-
     @Inject(
             method = "useItemOn(Lnet/minecraft/client/player/LocalPlayer;Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/phys/BlockHitResult;)Lnet/minecraft/world/InteractionResult;",
             at = @At("HEAD"))
-    private void kct$captureCrystalUse(
+    private void kct$captureVanillaCrystalUse(
             LocalPlayer player,
             InteractionHand hand,
             BlockHitResult hit,
-            CallbackInfoReturnable<InteractionResult> callback) {
+            CallbackInfoReturnable<InteractionResult> cir) {
         this.kct$usingCrystal = player.getItemInHand(hand).is(Items.END_CRYSTAL);
-        this.kct$usingObsidian = player.getItemInHand(hand).is(Items.OBSIDIAN);
     }
 
     @Inject(
             method = "useItemOn(Lnet/minecraft/client/player/LocalPlayer;Lnet/minecraft/world/InteractionHand;Lnet/minecraft/world/phys/BlockHitResult;)Lnet/minecraft/world/InteractionResult;",
             at = @At("RETURN"))
-    private void kct$predictSuccessfulCrystalUse(
+    private void kct$observeAcceptedVanillaCrystalUse(
             LocalPlayer player,
             InteractionHand hand,
             BlockHitResult hit,
-            CallbackInfoReturnable<InteractionResult> callback) {
+            CallbackInfoReturnable<InteractionResult> cir) {
         boolean wasUsingCrystal = this.kct$usingCrystal;
-        boolean wasUsingObsidian = this.kct$usingObsidian;
         this.kct$usingCrystal = false;
-        this.kct$usingObsidian = false;
-        if (!(callback.getReturnValue() instanceof InteractionResult.Success)) {
-            return;
-        }
-        if (wasUsingObsidian) {
-            CrystalPlacementFix.recordObsidianPlacement(player, hit);
-        } else if (wasUsingCrystal) {
-            if (CrystalInteractionFastPath.recordCrystalPlacement(hit)) {
-                CrystalPredictor.onSuccessfulCrystalUse(hit);
-            }
+        if (wasUsingCrystal && cir.getReturnValue() instanceof InteractionResult.Success) {
+            CrystalPredictor.onSuccessfulCrystalUse(hit);
         }
     }
 }

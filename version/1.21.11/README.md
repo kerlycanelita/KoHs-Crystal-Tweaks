@@ -2,58 +2,29 @@
 
 ## Build matrix
 
-- Mod version: `2.0.1+mc1.21.11`
-- Minecraft: `1.21.11` (exact; Fabric rejects this artifact on 26.x)
+- Mod version: `2.0.4+mc1.21.11`
+- Minecraft: `1.21.11`
 - Java: 21
 - Yarn mappings: `1.21.11+build.5`
 - Fabric Loader: `0.17.2`
 - Fabric API: `0.140.0+1.21.11`
-- Artifact: `kohs-crystal-tweaks-2.0.1+mc1.21.11.jar`
-- Distribution status: Stable release
+- Artifact: `kohs-crystal-tweaks-2.0.4+mc1.21.11.jar`
 
-## Release 2 implementation
+## 2.0.4 safety behavior
 
-- Fresh installations default `Local Crystal` and `Seamless Mode` to OFF; existing explicit JSON values remain unchanged.
-- Placement Fix records physical hotbar changes from number keys and the mouse wheel together with attack/use inputs.
-- Ordinary single attack/use clicks stay on Minecraft's direct input path; replay is reserved for multi-action or slot-sensitive same-tick cycles.
-- Same-tick replay restores the item selected at each physical input instead of executing every use with the final slot processed by vanilla.
-- A pending base exists only after an accepted obsidian interaction. Earlier crystal input is consumed normally and is never deferred or retried.
-- Retargeting is limited to the recorded base or its exact placement offset; the former one-block neighborhood fallback was removed.
-- Valid vanilla targets and unrelated hits skip redundant pending-base collision scans.
-- Startup incompatibility detection runs from the Mixin configuration plugin before KoHs gameplay mixins are applied.
-- `marlowcrystal` is explicitly blocked because both mods register the `marlowcrystal:opt_out` compatibility payload and modify the same client-side crystal cleanup/retargeting path.
-- Unknown mods are blocked only for a direct KoHs-class target or an exact critical target-class/method overlap from a crystal-related mixin.
-- The blocked path registers no KoHs prediction, sound, gameplay event, or compatibility-network services.
-- The mandatory bilingual screen replaces Mod Menu, restores itself if another screen is opened, ignores Escape, and exposes only a clean-shutdown button.
-- `Safe Crystal` is disabled by default and has a direct ON/OFF control in `Tweaks` without a confirmation dialog.
-- When enabled, Safe Crystal protects only normal obsidian; crying obsidian remains fully vanilla.
-- When Safe Crystal is disabled, its two callbacks return before any player/world/block lookup and do not cancel vanilla block attacks or breaking progress.
-- Existing configs without the new field migrate to `safeCrystalEnabled=false`; explicit saved user selections are preserved.
-- Compact screens use a two-column Tweaks layout so all six controls stay inside the panel.
-- `Rapid Attack Fix` is enabled by default in `Tweaks` and preserves one validated attack if the local prediction is clicked before the server crystal loads.
-- Placement Fix preserves the physical order of vanilla attack/use presses during crystal cycles, including Use Item bound to a keyboard key.
-- Each ordered entry must consume one existing vanilla `KeyBinding.wasPressed()` count; the implementation does not create input or remove the use cooldown.
-- An accepted predicted crystal becomes the immediate target for a following physical attack in the same client tick.
-- Pending attacks are deduplicated, require the real server entity ID, and expire with the prediction timeout.
-- Real-crystal cleanup resolves the outgoing packet ID and immediately retraces the crosshair through prediction-aware raycasting.
-- Real-crystal cleanup remains active when optional Local Crystal prediction is OFF, restoring immediate explosion feedback with the default configuration.
-- Placement Fix is integrated into `ClientPlayerInteractionManager.interactBlock` and enabled by default.
-- The `Tweaks` confirmation uses `Accept` to disable and `Restore` to keep the feature enabled.
-- Local prediction runs only after `ActionResult.isAccepted()`.
-- Valid bases match vanilla: obsidian or bedrock.
-- The visual timeout starts at 12 ticks and adapts after successful pairing.
-- Outer/core tint is selected by `ModelPart` identity during actual queued rendering.
-- The screen layout is bounded by the current logical dimensions.
-- Feature explanations are hover tooltips; fixed description blocks have been removed.
-- `Local Crystal`, `Seamless Mode`, `Placement Fix`, and `Rapid Attack Fix` retain English-first, Spanish-second `Accept` / `Restore` warnings.
-- Visual, Sound, Safe Crystal, Static Crystal, and Crystal Flotation controls switch directly without a confirmation dialog.
+- No custom client-identification or compatibility payloads.
+- No sub-tick queue, delayed action, replay, retry, or automatic slot selection.
+- At most one corresponding vanilla action per physical attack or use input.
+- Render-only, non-targetable visual crystal preview; OFF by default.
+- Optional cleanup only for the exact real, server-provided crystal selected by the player's normal attack; OFF by default.
+- The server remains authoritative for placement, entity IDs, damage, and explosions.
 
-Placement Fix changes only the current interaction's `BlockHitResult`. Rapid Attack Fix preserves at most one attack that already passed vanilla validation. Neither feature guesses IDs, repeats clicks, or selects remote targets.
+Visual, sound, and manual safety controls remain available. No universal anti-cheat guarantee is claimed; server rules must be checked before use.
 
-## Verified build
+## Build
 
 ```powershell
 .\gradlew.bat clean build --no-daemon
 ```
 
-The build and all 10 regression tests completed successfully on 2026-07-13. Minecraft was not launched.
+Minecraft is not launched during automated release preparation.

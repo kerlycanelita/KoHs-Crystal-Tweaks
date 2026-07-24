@@ -36,14 +36,8 @@ final class MixinConflictScanner {
     private static final int MAX_POINTS_PER_MOD = 8;
 
     private static final Set<String> CRITICAL_KOHS_MIXINS = Set.of(
-            "ClientConnectionMixin",
-            "ClientPlayerInteractionManagerLocalCrystalMixin",
-            "EndCrystalEntityModelAnimationMixin",
-            "EndCrystalEntityRendererSeamlessMixin",
-            "KeyboardOrderedCrystalInputMixin",
-            "MinecraftClientPassThroughLocalCrystalMixin",
-            "MouseOrderedCrystalInputMixin",
-            "SafeCrystalMixin"
+            "ConfirmedCrystalCleanupMixin",
+            "MultiPlayerGameModeCrystalPredictionMixin"
     );
 
     private MixinConflictScanner() {

@@ -3,7 +3,7 @@
   "id": "kohs_crystal_tweaks",
   "version": "${version}",
   "name": "KoHs Crystal Tweaks",
-  "description": "Enhances End Crystal visuals and mechanics with smooth animations, custom tints, and local prediction.",
+  "description": "Client-only End Crystal visuals, sound controls, and safety-focused interaction options.",
   "authors": [
     "zymekoh"
   ],

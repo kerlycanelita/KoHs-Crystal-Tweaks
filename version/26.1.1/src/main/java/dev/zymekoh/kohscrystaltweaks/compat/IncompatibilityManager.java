@@ -10,14 +10,14 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 
 /**
- * Detects incompatible crystal optimizers before KoHs gameplay mixins are applied.
+ * Detects high-confidence mixin conflicts before KoHs gameplay mixins are applied.
  *
  * <p>The scanner is deliberately conservative: an unknown mod is blocked only when it directly
  * targets KoHs code or when a crystal-related mixin touches the same target class and critical
  * method as a KoHs mixin.</p>
  */
 public final class IncompatibilityManager {
-    private static final Set<String> KNOWN_CRYSTAL_OPTIMIZERS = Set.of("marlowcrystal");
+    private static final Set<String> EXPLICIT_CONFLICT_IDS = Set.of();
 
     private static volatile boolean initialized;
     private static List<Conflict> conflicts = List.of();
@@ -33,24 +33,19 @@ public final class IncompatibilityManager {
         FabricLoader loader = FabricLoader.getInstance();
         Map<String, Conflict> detected = new LinkedHashMap<>();
 
-        for (String modId : KNOWN_CRYSTAL_OPTIMIZERS) {
-            loader.getModContainer(modId).ifPresent(container -> detected.put(modId,
-                    conflictFor(container, ConflictType.KNOWN_CRYSTAL_OPTIMIZER, List.of())));
-        }
-
         try {
             ModContainer ownContainer = loader.getModContainer(KoHsCrystalTweaks.MOD_ID).orElse(null);
             if (ownContainer != null) {
                 for (Conflict conflict : MixinConflictScanner.scan(loader, ownContainer,
-                        KNOWN_CRYSTAL_OPTIMIZERS)) {
+                        EXPLICIT_CONFLICT_IDS)) {
                     detected.merge(conflict.modId(), conflict, IncompatibilityManager::mergeConflicts);
                 }
             } else {
                 KoHsCrystalTweaks.LOGGER.warn("Unable to locate the KoHs mod container; generic mixin conflict scanning was skipped");
             }
         } catch (RuntimeException exception) {
-            // Fail open for heuristic scanning. Explicit known conflicts above remain blocked.
-            KoHsCrystalTweaks.LOGGER.warn("Generic mixin conflict scanning failed; known incompatibility checks remain active", exception);
+            // Fail open for heuristic scanning rather than blocking an unrelated installation.
+            KoHsCrystalTweaks.LOGGER.warn("Generic mixin conflict scanning failed", exception);
         }
 
         conflicts = List.copyOf(detected.values());
@@ -99,7 +94,6 @@ public final class IncompatibilityManager {
     }
 
     public enum ConflictType {
-        KNOWN_CRYSTAL_OPTIMIZER,
         MIXIN_OVERLAP,
         DIRECT_KOHS_MUTATION
     }

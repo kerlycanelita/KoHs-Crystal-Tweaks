@@ -2,31 +2,30 @@
 
 ## Build matrix
 
-- Mod version: `2.0.1+mc26.1.1`
+- Mod version: `2.0.4+mc26.1.1`
 - Minecraft: `26.1.1`
 - Java: 25
 - Mappings: official Mojang names
 - Fabric Loader: `0.19.3`
 - Fabric API: `0.145.4+26.1.1`
-- Artifact: `kohs-crystal-tweaks-2.0.1+mc26.1.1.jar`
+- Artifact: `kohs-crystal-tweaks-2.0.4+mc26.1.1.jar`
 
-## Included fixes
+## 2.0.4 safety behavior
 
-- Exact causal Placement Fix with ordered keyboard and mouse input.
-- Ordinary single clicks stay on Minecraft's direct input path; replay is reserved for order-sensitive same-tick sequences.
-- Deduplicated Rapid Attack Fix that waits for the real server entity ID.
-- Real-crystal cleanup remains immediate when optional Local Crystal prediction is OFF.
-- Safe Crystal OFF by default and limited to normal obsidian.
-- Local Crystal and Seamless Mode OFF by default.
-- Tooltip-based responsive menu and bilingual timing warnings.
-- Runtime custom sound, complete visual controls, and early incompatibility blocking.
-- No synthesized actions, guessed IDs, retries, cooldown changes, or extra interaction packets.
+- No custom client-identification or compatibility payloads.
+- No sub-tick queue, delayed action, replay, retry, or automatic slot selection.
+- At most one corresponding vanilla action per physical attack or use input.
+- Render-only, non-targetable visual crystal preview; OFF by default.
+- Optional cleanup only for the exact real, server-provided crystal selected by the player's normal attack; OFF by default.
+- The server remains authoritative for placement, entity IDs, damage, and explosions.
 
-## Verified build
+Visual, sound, and manual safety controls remain available. No universal anti-cheat guarantee is claimed; server rules must be checked before use.
+
+## Build
 
 ```powershell
 $env:JAVA_HOME='C:\Program Files\Java\jdk-25.0.2'
 .\gradlew.bat clean build --no-daemon
 ```
 
-The build and all 10 regression tests completed successfully on 2026-07-13. Minecraft was not launched.
+Minecraft is not launched during automated release preparation.
