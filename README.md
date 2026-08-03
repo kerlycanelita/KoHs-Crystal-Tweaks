@@ -1,5 +1,7 @@
 # KoHs Crystal Tweaks
 
+> **Archived legacy implementation:** this code is preserved for historical reference only. It was retired because its behavior was not considered legitimate for continued use. The maintained Crystal Tweaks implementation is available on the `main` branch.
+
 KoHs Crystal Tweaks is a client-only Fabric mod with configurable Crystal PvP visuals, sound, and safety-focused interaction corrections for Minecraft 1.21 through 26.2.
 
 [Modrinth project page](https://modrinth.com/mod/kohs-crystal-tweaks) · [GitHub releases](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/releases)
