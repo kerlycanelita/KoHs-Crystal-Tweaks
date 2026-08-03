@@ -1,0 +1,457 @@
+plugins {
+	id 'net.fabricmc.fabric-loom' version "${loom_version}" apply false
+	id 'net.fabricmc.fabric-loom-remap' version "${loom_version}" apply false
+	id 'maven-publish'
+}
+
+def usesRemapping = project.minecraft_version.toString().startsWith("1.")
+def usesPreIdentifierNames = usesRemapping && project.minecraft_version.toString() != '1.21.11'
+def usesLegacyMouseApi = usesRemapping && !(project.minecraft_version.toString() in [
+		'1.21.9', '1.21.10', '1.21.11'
+])
+def usesLegacyEntityPreview = usesRemapping && project.minecraft_version.toString() in [
+		'1.21.2', '1.21.3', '1.21.4', '1.21.5'
+]
+def usesLegacyStateDispatcher = usesRemapping && project.minecraft_version.toString() in [
+		'1.21.2', '1.21.3', '1.21.4'
+]
+def usesOldCrystalRenderer = usesRemapping && project.minecraft_version.toString() in ['1.21', '1.21.1']
+def usesModernRegistrySplit = project.minecraft_version.toString() == '26.2'
+apply plugin: usesRemapping ? 'net.fabricmc.fabric-loom-remap' : 'net.fabricmc.fabric-loom'
+
+def legacyGuiTransform = { String line -> line
+		.replace('net.minecraft.client.gui.GuiGraphicsExtractor', 'net.minecraft.client.gui.GuiGraphics')
+		.replace('GuiGraphicsExtractor', 'GuiGraphics')
+		.replace('extractWidgetRenderState', 'renderWidget')
+		.replace('extractContents', usesPreIdentifierNames ? 'renderWidget' : 'renderContents')
+		.replace('extractDefaultLabel', 'renderDefaultLabel')
+		.replace('extractScrollingStringOverContents', 'renderScrollingStringOverContents')
+		.replace('extractBackground', 'renderBackground')
+		.replace('extractRenderState', 'render')
+		.replace('centeredText', 'drawCenteredString')
+		.replace('graphics.text(', 'graphics.drawString(')
+		.replace(
+				'graphics.entity(',
+				usesOldCrystalRenderer
+						? 'renderOldCrystal(graphics, '
+						: usesLegacyEntityPreview
+								? 'renderLegacyCrystal(graphics, '
+								: 'graphics.submitEntityRenderState(')
+		.replace('this.minecraft.gui.extractDeferredSubtitles();', '') }
+
+def preIdentifierTransform = { String line -> line
+		.replace('.getIdentifier()', '.getLocation()')
+		.replace('net.minecraft.resources.Identifier', 'net.minecraft.resources.ResourceLocation')
+		.replace('Identifier', 'ResourceLocation')
+		.replace(
+				'net.minecraft.client.model.object.crystal.EndCrystalModel',
+				'net.minecraft.client.model.EndCrystalModel') }
+
+def legacyMouseTransform = { String line -> line
+		.replace('import net.minecraft.client.input.MouseButtonEvent;', '')
+		.replace('import net.minecraft.client.input.KeyEvent;', '')
+		.replace('import net.minecraft.client.input.InputWithModifiers;', '')
+		.replace('public void onPress(InputWithModifiers input)', 'public void onPress()')
+		.replace(
+				'public void onClick(MouseButtonEvent event, boolean doubleClick)',
+				'public void onClick(double mouseX, double mouseY)')
+		.replace(
+				'protected void onDrag(MouseButtonEvent event, double dragX, double dragY)',
+				'protected void onDrag(double mouseX, double mouseY, double dragX, double dragY)')
+		.replace(
+				'public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick)',
+				'public boolean mouseClicked(double mouseX, double mouseY, int button)')
+		.replace(
+				'public boolean keyPressed(KeyEvent event)',
+				'public boolean keyPressed(int keyCode, int scanCode, int modifiers)')
+		.replace('.matchesMouse(event)', '.matchesMouse(button)')
+		.replace('.matches(event)', '.matches(keyCode, scanCode)')
+		.replace('event.button()', 'button')
+		.replace('event.x()', 'mouseX')
+		.replace('event.y()', 'mouseY')
+		.replace(
+				'super.mouseClicked(event, doubleClick)',
+				'super.mouseClicked(mouseX, mouseY, button)')
+		.replace(
+				'super.keyPressed(event)',
+				'super.keyPressed(keyCode, scanCode, modifiers)')
+		.replace('this.previewState.outlineColor = 0;', '') }
+
+def legacyEntityRenderInvocation = usesLegacyStateDispatcher
+		? '''        graphics.drawSpecial(buffers -> {
+            EndCrystalRenderer renderer = (EndCrystalRenderer)
+                    ((EntityRenderDispatcherAccessor) dispatcher)
+                            .crystalTweaks$getRenderers()
+                            .get(EntityType.END_CRYSTAL);
+            renderer.render(state, graphics.pose(), buffers, 15728880);
+        });'''
+		: '''        graphics.drawSpecial(buffers -> dispatcher.render(
+                state,
+                0.0D,
+                0.0D,
+                0.0D,
+                graphics.pose(),
+                buffers,
+                15728880));'''
+
+def legacyEntityPreviewHelper = '''    private static void renderLegacyCrystal(
+            GuiGraphics graphics,
+            EndCrystalRenderState state,
+            float scale,
+            Vector3f offset,
+            Quaternionf rotation,
+            Quaternionf cameraRotation,
+            int left,
+            int top,
+            int right,
+            int bottom
+    ) {
+        graphics.pose().pushPose();
+        graphics.pose().translate((left + right) / 2.0F, (top + bottom) / 2.0F, 50.0F);
+        graphics.pose().scale(scale, scale, -scale);
+        graphics.pose().translate(offset.x, offset.y, offset.z);
+        graphics.pose().mulPose(rotation);
+        graphics.flush();
+        Lighting.setupForEntityInInventory();
+        EntityRenderDispatcher dispatcher = Minecraft.getInstance().getEntityRenderDispatcher();
+        dispatcher.overrideCameraOrientation(cameraRotation.conjugate(new Quaternionf()).rotateY((float) Math.PI));
+        dispatcher.setRenderShadow(false);
+''' + legacyEntityRenderInvocation + '''
+        graphics.flush();
+        dispatcher.setRenderShadow(true);
+        graphics.pose().popPose();
+        Lighting.setupFor3DItems();
+    }
+
+'''
+
+def legacyEntityPreviewTransform = { String line -> line
+		.replace(
+				'import net.minecraft.client.gui.GuiGraphics;',
+				'import net.minecraft.client.gui.GuiGraphics;' + System.lineSeparator()
+						+ 'import com.mojang.blaze3d.platform.Lighting;' + System.lineSeparator()
+						+ 'import net.minecraft.client.renderer.entity.EntityRenderDispatcher;' + System.lineSeparator()
+						+ 'import net.minecraft.client.renderer.entity.EndCrystalRenderer;' + System.lineSeparator()
+						+ 'import com.zymekoh.crystaltweaks.mixin.client.EntityRenderDispatcherAccessor;')
+		.replace('graphics.nextStratum();', '')
+		.replace(usesLegacyStateDispatcher ? 'this.previewState.entityType = EntityType.END_CRYSTAL;' : '', '')
+		.replace(
+				'    private void updatePreviewPhase(long now) {',
+				legacyEntityPreviewHelper + '    private void updatePreviewPhase(long now) {') }
+
+def oldCrystalPreviewHelper = '''    private static void renderOldCrystal(
+            GuiGraphics graphics,
+            float age,
+            float scale,
+            Vector3f offset,
+            Quaternionf rotation,
+            Quaternionf cameraRotation,
+            int left,
+            int top,
+            int right,
+            int bottom
+    ) {
+        PoseStack poseStack = graphics.pose();
+        poseStack.pushPose();
+        poseStack.translate((left + right) / 2.0F, (top + bottom) / 2.0F, 50.0F);
+        poseStack.scale(scale, scale, -scale);
+        poseStack.translate(offset.x, offset.y, offset.z);
+        poseStack.mulPose(rotation);
+        Lighting.setupForEntityInInventory();
+
+        EntityRenderDispatcher dispatcher = Minecraft.getInstance().getEntityRenderDispatcher();
+        dispatcher.overrideCameraOrientation(cameraRotation.conjugate(new Quaternionf()).rotateY((float) Math.PI));
+        EndCrystalRenderer renderer = (EndCrystalRenderer)
+                ((EntityRenderDispatcherAccessor) dispatcher)
+                        .crystalTweaks$getRenderers()
+                        .get(EntityType.END_CRYSTAL);
+        LegacyEndCrystalRendererAccessor parts = (LegacyEndCrystalRendererAccessor) renderer;
+        VertexConsumer vertexConsumer = graphics.bufferSource().getBuffer(
+                LegacyEndCrystalRendererAccessor.crystalTweaks$getRenderType());
+
+        poseStack.pushPose();
+        poseStack.scale(2.0F, 2.0F, 2.0F);
+        poseStack.translate(0.0F, -0.5F, 0.0F);
+        int overlay = OverlayTexture.NO_OVERLAY;
+        int light = 15728880;
+        float rotationAge = age * CrystalVisualConfig.rotationSpeedPercent() / 100.0F;
+        float floatingAge = age * CrystalVisualConfig.floatingSpeedPercent() / 100.0F;
+        float rotationDegrees = rotationAge * 3.0F;
+        float floatingOffset = oldCrystalY(floatingAge);
+        float sine45 = (float) Math.sin(Math.PI / 4.0D);
+
+        poseStack.mulPose(Axis.YP.rotationDegrees(rotationDegrees));
+        poseStack.translate(0.0F, 1.5F + floatingOffset / 2.0F, 0.0F);
+        poseStack.mulPose(new Quaternionf().setAngleAxis(
+                (float) (Math.PI / 3.0D), sine45, 0.0F, sine45));
+        parts.crystalTweaks$getGlass().render(
+                poseStack, vertexConsumer, light, overlay, CrystalVisualConfig.outerColor());
+
+        poseStack.scale(0.875F, 0.875F, 0.875F);
+        poseStack.mulPose(new Quaternionf().setAngleAxis(
+                (float) (Math.PI / 3.0D), sine45, 0.0F, sine45));
+        poseStack.mulPose(Axis.YP.rotationDegrees(rotationDegrees));
+        parts.crystalTweaks$getGlass().render(
+                poseStack, vertexConsumer, light, overlay, CrystalVisualConfig.innerColor());
+
+        poseStack.scale(0.875F, 0.875F, 0.875F);
+        poseStack.mulPose(new Quaternionf().setAngleAxis(
+                (float) (Math.PI / 3.0D), sine45, 0.0F, sine45));
+        poseStack.mulPose(Axis.YP.rotationDegrees(rotationDegrees));
+        parts.crystalTweaks$getCube().render(
+                poseStack, vertexConsumer, light, overlay, CrystalVisualConfig.coreColor());
+        poseStack.popPose();
+
+        graphics.flush();
+        poseStack.popPose();
+        Lighting.setupFor3DItems();
+    }
+
+    private static float oldCrystalY(float age) {
+        float wave = Mth.sin(age * 0.2F) / 2.0F + 0.5F;
+        wave = (wave * wave + wave) * 0.4F;
+        return wave - 1.4F;
+    }
+
+'''
+
+def oldCrystalPreviewTransform = { String line -> line
+		.replace('import net.minecraft.client.renderer.entity.state.EndCrystalRenderState;', '')
+		.replace(
+				'import net.minecraft.client.gui.GuiGraphics;',
+				'import net.minecraft.client.gui.GuiGraphics;' + System.lineSeparator()
+						+ 'import com.mojang.blaze3d.platform.Lighting;' + System.lineSeparator()
+						+ 'import com.mojang.blaze3d.vertex.PoseStack;' + System.lineSeparator()
+						+ 'import com.mojang.blaze3d.vertex.VertexConsumer;' + System.lineSeparator()
+						+ 'import com.mojang.math.Axis;' + System.lineSeparator()
+						+ 'import net.minecraft.client.renderer.entity.EntityRenderDispatcher;' + System.lineSeparator()
+						+ 'import net.minecraft.client.renderer.entity.EndCrystalRenderer;' + System.lineSeparator()
+						+ 'import net.minecraft.client.renderer.texture.OverlayTexture;' + System.lineSeparator()
+						+ 'import com.zymekoh.crystaltweaks.mixin.client.EntityRenderDispatcherAccessor;' + System.lineSeparator()
+						+ 'import com.zymekoh.crystaltweaks.mixin.client.LegacyEndCrystalRendererAccessor;')
+		.replace(
+				'private final EndCrystalRenderState previewState = new EndCrystalRenderState();',
+				'private float previewAge;')
+		.replace(
+				'this.previewState.ageInTicks = previewAnimationAge(now);',
+				'this.previewAge = previewAnimationAge(now);')
+		.replace('this.previewState,', 'this.previewAge,')
+		.replace('this.previewState.entityType = EntityType.END_CRYSTAL;', '')
+		.replace('this.previewState.showsBottom = true;', '')
+		.replace('this.previewState.showsBottom = false;', '')
+		.replace('this.previewState.boundingBoxWidth = 2.0F;', '')
+		.replace('this.previewState.boundingBoxHeight = 2.0F;', '')
+		.replace('this.previewState.eyeHeight = 1.0F;', '')
+		.replace('this.previewState.outlineColor = 0;', '')
+		.replace('graphics.nextStratum();', '')
+		.replace(
+				'    private void updatePreviewPhase(long now) {',
+				oldCrystalPreviewHelper + '    private void updatePreviewPhase(long now) {') }
+
+def modernRegistryTransform = { String line -> line
+		.replace(
+				'import net.minecraft.world.entity.EntityType;',
+				'import net.minecraft.world.entity.EntityTypes;')
+		.replace('EntityType.END_CRYSTAL', 'EntityTypes.END_CRYSTAL')
+		.replace('this.minecraft.gui.extractDeferredSubtitles();', '')
+		.replace('this.minecraft.setScreen(this.parent);', 'this.minecraft.gui.setScreen(this.parent);') }
+
+repositories {
+	maven {
+		name = 'Terraformers'
+		url = 'https://maven.terraformersmc.com/releases/'
+	}
+}
+
+version = project.mod_version
+group = project.maven_group
+
+base {
+	archivesName = "${project.archives_base_name}-${project.minecraft_version}"
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"crystal_tweaks" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+if (usesRemapping || usesModernRegistrySplit) {
+	def generatedLegacySources = layout.buildDirectory.dir('generated/sources/crystalTweaksLegacy')
+	def generateLegacyClientSources = tasks.register('generateLegacyClientSources', Sync) {
+		from('src/client/java') {
+			if (usesRemapping) {
+				exclude 'com/zymekoh/crystaltweaks/core/CrystalAttackOptimizer.java'
+			}
+			if (usesOldCrystalRenderer) {
+				exclude 'com/zymekoh/crystaltweaks/client/CrystalLayerTint.java'
+				exclude 'com/zymekoh/crystaltweaks/mixin/client/CrystalAnimationMixin.java'
+				exclude 'com/zymekoh/crystaltweaks/mixin/client/ModelMixin.java'
+				exclude 'com/zymekoh/crystaltweaks/mixin/client/ModelPartMixin.java'
+			}
+			if (usesPreIdentifierNames) {
+				filesMatching('**/*.java') {
+					filter { line -> preIdentifierTransform(line) }
+				}
+			}
+			filesMatching([
+					'**/ColorPickerWidget.java',
+					'**/PurpleCloseButton.java',
+					'**/CrystalTweaksScreen.java'
+			]) {
+				filter { line ->
+					def transformed = usesRemapping ? legacyGuiTransform(line) : line
+					if (usesLegacyMouseApi) {
+						transformed = legacyMouseTransform(transformed)
+					}
+					if (usesLegacyEntityPreview) {
+						transformed = legacyEntityPreviewTransform(transformed)
+					}
+					if (usesOldCrystalRenderer) {
+						transformed = oldCrystalPreviewTransform(transformed)
+					}
+					if (usesModernRegistrySplit) {
+						transformed = modernRegistryTransform(transformed)
+					}
+					return transformed
+				}
+			}
+		}
+		if (usesRemapping) {
+			from('src/legacy/java') {
+				if (usesLegacyStateDispatcher || usesOldCrystalRenderer) {
+					filesMatching('**/CrystalAttackOptimizer.java') {
+						filter { line -> line.replace('MobEffects.STRENGTH', 'MobEffects.DAMAGE_BOOST') }
+					}
+				}
+				if (usesOldCrystalRenderer) {
+					filesMatching('**/EntityRenderDispatcherAccessor.java') {
+						filter { line -> line.replace('EntityRenderer<?, ?>', 'EntityRenderer<?>') }
+					}
+				}
+			}
+			if (usesOldCrystalRenderer) {
+				from('src/legacyOld/java')
+			}
+		}
+		into generatedLegacySources
+	}
+	sourceSets.client.java.setSrcDirs([generatedLegacySources])
+	tasks.named('compileClientJava').configure {
+		dependsOn generateLegacyClientSources
+	}
+	tasks.matching { it.name == 'sourcesJar' }.configureEach {
+		dependsOn generateLegacyClientSources
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	if (usesRemapping) {
+		mappings loom.officialMojangMappings()
+		modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+		modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	} else {
+		implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+		implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	}
+	if (!project.hasProperty("skip_modmenu")) {
+		if (usesRemapping) {
+			modCompileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+			modRuntimeOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+		} else {
+			compileOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+			runtimeOnly "com.terraformersmc:modmenu:${project.modmenu_version}"
+		}
+	}
+
+	implementation "javazoom:jlayer:1.0.1"
+	include "javazoom:jlayer:1.0.1"
+}
+
+if (project.hasProperty("skip_modmenu")) {
+	sourceSets.client.java.exclude "com/zymekoh/crystaltweaks/client/CrystalTweaksModMenu.java"
+}
+
+def modVersion = project.version
+def targetMinecraftDependency = project.findProperty("minecraft_dependency") ?: project.minecraft_version.toString()
+def targetJavaVersion = (project.findProperty("java_version") ?: "25").toString().toInteger()
+def targetModMenuVersion = project.modmenu_version.toString()
+
+processResources {
+	inputs.property "version", modVersion
+	inputs.property "minecraft_dependency", targetMinecraftDependency
+	inputs.property "java_version", targetJavaVersion
+	inputs.property "modmenu_version", targetModMenuVersion
+
+	filesMatching("fabric.mod.json") {
+		expand "version": modVersion
+		filter { line -> line
+				.replace('"minecraft": ">=1.21 <=26.2"', '"minecraft": "' + targetMinecraftDependency + '"')
+				.replace('"java": ">=21"', '"java": ">=' + targetJavaVersion + '"')
+				.replace('"modmenu": ">=20.0.1"', '"modmenu": ">=' + targetModMenuVersion + '"') }
+	}
+}
+
+if (usesRemapping) {
+	processClientResources {
+		filesMatching('crystal_tweaks.client.mixins.json') {
+			filter { line ->
+				if (line.contains('"compatibilityLevel": "JAVA_25"')) {
+					return line.replace('JAVA_25', 'JAVA_21')
+				}
+				if (usesOldCrystalRenderer && (
+						line.contains('"CrystalAnimationMixin",')
+								|| line.contains('"ModelMixin",')
+								|| line.contains('"ModelPartMixin",'))) {
+					return ''
+				}
+				if (line.contains('"CrystalAttackPacketMixin",')) {
+					def additions = line.concat(System.lineSeparator())
+							.concat('    "ServerboundInteractPacketAccessor",').concat(System.lineSeparator())
+							.concat('    "EntityRenderDispatcherAccessor",')
+					if (usesOldCrystalRenderer) {
+						additions = additions.concat(System.lineSeparator())
+								.concat('    "LegacyEndCrystalRendererAccessor",').concat(System.lineSeparator())
+								.concat('    "LegacyCrystalRendererMixin",')
+					}
+					return additions
+				}
+				return line
+			}
+		}
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+	options.release = targetJavaVersion
+}
+
+java {
+	withSourcesJar()
+	toolchain.languageVersion = JavaLanguageVersion.of(25)
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from("LICENSE") {
+		rename { "${it}_${projectName}" }
+	}
+	from("THIRD_PARTY_NOTICES.md")
+}
+
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			from components.java
+		}
+	}
+}

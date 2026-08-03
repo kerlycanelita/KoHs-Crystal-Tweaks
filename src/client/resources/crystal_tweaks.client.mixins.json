@@ -1,0 +1,22 @@
+{
+  "required": true,
+  "priority": 20000,
+  "minVersion": "0.8",
+  "package": "com.zymekoh.crystaltweaks.mixin.client",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "CrystalAnimationMixin",
+    "CrystalAttackPacketMixin",
+    "ModelMixin",
+    "ModelPartMixin",
+    "SoundBufferLibraryMixin",
+    "SoundManagerAccessor",
+    "SoundManagerOverrideMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}

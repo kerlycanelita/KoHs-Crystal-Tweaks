@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "crystal_tweaks",
+  "version": "${version}",
+  "name": "Crystal Tweaks",
+  "description": "Optimized End Crystal interactions with visual and sound customization.",
+  "authors": [
+    "zymekoh"
+  ],
+  "license": "MIT",
+  "icon": "assets/crystal_tweaks/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.zymekoh.crystaltweaks.CrystalTweaksClient",
+      "com.zymekoh.crystaltweaks.client.CrystalVisualInitializer"
+    ],
+    "modmenu": [
+      "com.zymekoh.crystaltweaks.client.CrystalTweaksModMenu"
+    ]
+  },
+  "mixins": [
+    {
+      "config": "crystal_tweaks.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "minecraft": ">=1.21 <=26.2",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "modmenu": ">=20.0.1"
+  }
+}
