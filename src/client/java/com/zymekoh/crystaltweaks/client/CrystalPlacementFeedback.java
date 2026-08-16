@@ -6,7 +6,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 import net.minecraft.world.entity.Entity;
@@ -78,7 +77,6 @@ public final class CrystalPlacementFeedback {
         }
 
         TRACKER.record(base, packet.getSequence(), System.nanoTime());
-        emitPlacementPulse(minecraft, base);
     }
 
     private static boolean isVanillaPlacementCandidate(Minecraft minecraft, BlockPos base) {
@@ -101,26 +99,6 @@ public final class CrystalPlacementFeedback {
                 above.getY() + 2.0D,
                 above.getZ() + 1.0D);
         return minecraft.level.getEntities(null, placementBox).isEmpty();
-    }
-
-    private static void emitPlacementPulse(Minecraft minecraft, BlockPos base) {
-        double centerX = base.getX() + 0.5D;
-        double centerY = base.getY() + 1.08D;
-        double centerZ = base.getZ() + 0.5D;
-
-        for (int index = 0; index < 16; index++) {
-            double angle = Math.PI * 2.0D * index / 16.0D;
-            double velocityX = Math.cos(angle) * 0.055D;
-            double velocityZ = Math.sin(angle) * 0.055D;
-            minecraft.level.addParticle(
-                    index % 4 == 0 ? ParticleTypes.END_ROD : ParticleTypes.PORTAL,
-                    centerX + Math.cos(angle) * 0.34D,
-                    centerY + (index % 3) * 0.18D,
-                    centerZ + Math.sin(angle) * 0.34D,
-                    velocityX,
-                    0.025D + (index % 2) * 0.012D,
-                    velocityZ);
-        }
     }
 
     private static void onEntityLoaded(Entity entity) {

@@ -19,7 +19,7 @@ Path:
 
 ```text
 physical input → vanilla logical Use action → vanilla interaction packet
-→ Connection.send(Packet) completes → local observer → local tracker/particles
+→ Connection.send(Packet) completes → local observer → local tracker
 ```
 
 The observer runs at the tail of the existing Vanilla send method. Across the supported builds it only reads a genuine use-on-block packet after the Vanilla send path and records bounded local state. It never creates, sends, cancels, retries, duplicates or mutates a packet.

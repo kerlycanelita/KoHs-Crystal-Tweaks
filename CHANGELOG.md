@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.2.6
+
+- Removed the custom white and portal particle pulse emitted after local crystal placement attempts.
+- Kept the silent placement tracker, core behavior, visuals, sounds, and Conflict Monitor unchanged.
+
 ## 2.2.5
 
 - Replaced the Advanced Tweaks placeholders with the local Conflict Monitor.
