@@ -14,6 +14,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -51,6 +52,7 @@ public final class CrystalTweaksScreen extends Screen {
     private PurpleCloseButton coreButton;
     private PurpleCloseButton soundToggle;
     private PurpleCloseButton soundFileButton;
+    private PurpleCloseButton conflictMonitorButton;
     private EditBox hexBox;
     private ColorPickerWidget colorPicker;
     private boolean updatingControls;
@@ -226,6 +228,7 @@ public final class CrystalTweaksScreen extends Screen {
         this.coreButton = null;
         this.soundToggle = null;
         this.soundFileButton = null;
+        this.conflictMonitorButton = null;
         this.hexBox = null;
         this.colorPicker = null;
         this.logicalContentBottom = 0;
@@ -364,7 +367,16 @@ public final class CrystalTweaksScreen extends Screen {
     }
 
     private void addTweaksControls() {
-        // Core features stay active without redundant controls in this tab.
+        this.conflictMonitorButton = addContent(new PurpleCloseButton(
+                this.optionsX,
+                this.contentY,
+                this.optionsWidth,
+                this.controlHeight,
+                Component.literal(this.spanish ? "Monitor de conflictos" : "Conflict Monitor"),
+                ignored -> openConflictMonitor()));
+        this.conflictMonitorButton.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "Analiza localmente los mixins instalados y muestra coincidencias de clase y método que podrían interferir con Crystal Tweaks."
+                : "Locally scans installed mixins and shows matching classes and methods that could interfere with Crystal Tweaks.")));
     }
 
     private <T extends AbstractWidget> T addContent(T widget) {
@@ -525,6 +537,10 @@ public final class CrystalTweaksScreen extends Screen {
         return Component.literal(label + ": " + state);
     }
 
+    private void openConflictMonitor() {
+        this.minecraft.setScreen(new ConflictMonitorScreen(this));
+    }
+
     private void openSoundPicker() {
         Thread picker = new Thread(() -> {
             try (MemoryStack stack = MemoryStack.stackPush()) {
@@ -630,8 +646,6 @@ public final class CrystalTweaksScreen extends Screen {
             drawVisualSelection(graphics);
         } else if (this.activeTab == Tab.SOUNDS) {
             drawSoundStatus(graphics);
-        } else {
-            drawTweaksComingSoon(graphics, now);
         }
         drawPreview(graphics);
         super.extractRenderState(graphics, mouseX, mouseY, partialTick);
@@ -717,52 +731,6 @@ public final class CrystalTweaksScreen extends Screen {
             int color = alpha << 24 | 224 << 16 | (92 + index % 4 * 18) << 8 | 255;
             graphics.fill(x - 1, y - 1, x + size + 1, y + size + 1, glow);
             graphics.fill(x, y, x + size, y + size, color);
-        }
-    }
-
-    private void drawTweaksComingSoon(GuiGraphicsExtractor graphics, long now) {
-        int centerX = this.optionsX + this.optionsWidth / 2;
-        int titleY = this.contentY + Math.max(5, this.contentHeight / 5);
-        graphics.centeredText(
-                this.font,
-                Component.literal(this.spanish ? "PRÓXIMAMENTE" : "COMING SOON"),
-                centerX,
-                titleY,
-                0xFFE7B4FF);
-
-        int spacing = this.optionsWidth < 220 ? 3 : 4;
-        int left = this.optionsX + 8;
-        int right = this.optionsX + this.optionsWidth - 8;
-        int desiredSegments = Mth.clamp(this.optionsWidth / 20, 9, 15);
-        int maxSegments = Math.max(3, Math.max(1, right - left) / (spacing * 2) + 1);
-        int segments = Math.min(desiredSegments, maxSegments);
-        int bodyLength = (segments - 1) * spacing;
-        int minimumHead = Math.min(right, left + bodyLength);
-        int maximumHead = Math.max(minimumHead, right - bodyLength);
-        float cycle = (now % 5_600L) / 5_600.0F;
-        boolean movingRight = cycle < 0.5F;
-        float travel = movingRight ? cycle * 2.0F : (1.0F - cycle) * 2.0F;
-        int headX = minimumHead + Math.round((maximumHead - minimumHead) * travel);
-        int centerY = this.contentY + Math.round(this.contentHeight * 0.58F);
-        int direction = movingRight ? -1 : 1;
-
-        for (int index = segments - 1; index >= 0; index--) {
-            int x = headX + direction * index * spacing;
-            int y = centerY + Math.round((float) Math.sin(
-                    now / 145.0D - index * 0.72D) * (3.0F + index % 2));
-            int size = index == 0 ? 5 : index < 4 ? 4 : 3;
-            int alpha = 245 - index * 7;
-            int red = index == 0 ? 224 : 174 + Math.max(0, 30 - index * 2);
-            int green = index == 0 ? 116 : 62 + index * 2;
-            int color = alpha << 24 | red << 16 | green << 8 | 255;
-            graphics.fill(x - 1, y - 1, x + size + 1, y + size + 1, 0x342C073C);
-            graphics.fill(x, y, x + size, y + size, color);
-            if (index == 0) {
-                int eyeX = movingRight ? x + size - 1 : x;
-                graphics.fill(eyeX, y + 1, eyeX + 1, y + 2, 0xFFFFFFFF);
-                int tongueX = movingRight ? x + size : x - 2;
-                graphics.fill(tongueX, y + 2, tongueX + 2, y + 3, 0xFFFF73D0);
-            }
         }
     }
 

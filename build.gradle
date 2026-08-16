@@ -16,6 +16,15 @@ def usesLegacyStateDispatcher = usesRemapping && project.minecraft_version.toStr
 		'1.21.2', '1.21.3', '1.21.4'
 ]
 def usesOldCrystalRenderer = usesRemapping && project.minecraft_version.toString() in ['1.21', '1.21.1']
+def usesOldIconBlit = usesRemapping && project.minecraft_version.toString() in [
+		'1.21', '1.21.1', '1.21.2', '1.21.3', '1.21.4', '1.21.5'
+]
+def usesRenderTypeIconBlit = usesRemapping && project.minecraft_version.toString() in [
+		'1.21.2', '1.21.3', '1.21.4', '1.21.5'
+]
+def usesLegacyTextureConstructor = usesRemapping && project.minecraft_version.toString() in [
+		'1.21', '1.21.1', '1.21.2', '1.21.3', '1.21.4'
+]
 def usesModernRegistrySplit = project.minecraft_version.toString() == '26.2'
 apply plugin: usesRemapping ? 'net.fabricmc.fabric-loom-remap' : 'net.fabricmc.fabric-loom'
 
@@ -248,13 +257,39 @@ def oldCrystalPreviewTransform = { String line -> line
 				'    private void updatePreviewPhase(long now) {',
 				oldCrystalPreviewHelper + '    private void updatePreviewPhase(long now) {') }
 
+def legacyIconTransform = { String line ->
+	def transformed = line
+	if (usesRenderTypeIconBlit) {
+		transformed = transformed.replace(
+				'import net.minecraft.client.gui.GuiGraphics;',
+				'import net.minecraft.client.gui.GuiGraphics;' + System.lineSeparator()
+						+ 'import net.minecraft.client.renderer.RenderType;')
+	}
+	if (usesOldIconBlit) {
+		def prefix = usesRenderTypeIconBlit ? 'RenderType::guiTextured, ' : ''
+		transformed = transformed.replace(
+				'graphics.blit(icon, iconX, iconY, iconSize, iconSize, 0.0F, 0.0F, 1.0F, 1.0F);',
+				'graphics.blit(' + prefix
+						+ 'icon, iconX, iconY, 0.0F, 0.0F, iconSize, iconSize, '
+						+ 'this.iconWidths.getOrDefault(entry.modId(), 64), '
+						+ 'this.iconHeights.getOrDefault(entry.modId(), 64));')
+	}
+	if (usesLegacyTextureConstructor) {
+		transformed = transformed.replace(
+				'new DynamicTexture(() -> "Crystal Tweaks conflict icon " + entry.modId(), image)',
+				'new DynamicTexture(image)')
+	}
+	return transformed
+}
+
 def modernRegistryTransform = { String line -> line
 		.replace(
 				'import net.minecraft.world.entity.EntityType;',
 				'import net.minecraft.world.entity.EntityTypes;')
 		.replace('EntityType.END_CRYSTAL', 'EntityTypes.END_CRYSTAL')
+		.replace('minecraft.screen != null', 'minecraft.gui.screen() != null')
 		.replace('this.minecraft.gui.extractDeferredSubtitles();', '')
-		.replace('this.minecraft.setScreen(this.parent);', 'this.minecraft.gui.setScreen(this.parent);') }
+		.replace('this.minecraft.setScreen(', 'this.minecraft.gui.setScreen(') }
 
 repositories {
 	maven {
@@ -302,8 +337,10 @@ if (usesRemapping || usesModernRegistrySplit) {
 			filesMatching([
 					'**/ColorPickerWidget.java',
 					'**/PurpleCloseButton.java',
-					'**/CrystalTweaksScreen.java'
-			]) {
+					'**/CrystalTweaksScreen.java',
+					'**/ConflictMonitorScreen.java',
+					'**/CrystalPlacementFeedback.java'
+			]) { details ->
 				filter { line ->
 					def transformed = usesRemapping ? legacyGuiTransform(line) : line
 					if (usesLegacyMouseApi) {
@@ -314,6 +351,9 @@ if (usesRemapping || usesModernRegistrySplit) {
 					}
 					if (usesOldCrystalRenderer) {
 						transformed = oldCrystalPreviewTransform(transformed)
+					}
+					if (details.name == 'ConflictMonitorScreen.java') {
+						transformed = legacyIconTransform(transformed)
 					}
 					if (usesModernRegistrySplit) {
 						transformed = modernRegistryTransform(transformed)

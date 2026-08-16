@@ -13,6 +13,7 @@ public final class CrystalVisualInitializer implements ClientModInitializer {
     public void onInitializeClient() {
         CrystalVisualConfig.load();
         ObsidianPlacementGuard.initialize();
+        CrystalPlacementFeedback.initialize();
         CrystalSoundManager.initialize();
 
         ClientEntityEvents.ENTITY_UNLOAD.register((entity, level) ->

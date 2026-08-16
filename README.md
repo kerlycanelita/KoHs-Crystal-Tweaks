@@ -26,6 +26,7 @@ Crystal Tweaks brings End Crystal visual and sound controls into one compact con
 - Custom local explosion sounds with volume and playback-speed controls.
 - Interactive preview using the player's mapped Attack and Use Item controls.
 - Responsive translucent interface with animated purple particles.
+- Local Conflict Monitor for qualified, exact Mixin class-and-method overlaps.
 - Spanish localization for Minecraft language codes beginning with `es`; English for every other locale.
 - Optional Mod Menu integration.
 
@@ -56,6 +57,8 @@ Each JAR declares one exact Minecraft version. Always download the file matching
 Do not load Crystal Tweaks together with the retired KoHs Crystal Tweaks mod or another mod that owns the same crystal input, prediction, or interaction paths. Competing mixins can produce inconsistent behavior even when one mod declares a higher mixin priority.
 
 Server rules differ. Review the rules of every multiplayer server and obtain staff approval when required; this project cannot guarantee acceptance by every server or anticheat.
+
+See [LEGITIMACY_AUDIT.md](LEGITIMACY_AUDIT.md) for the client/server boundary of the new local monitor and the remaining server-observable behavior in the pre-existing core.
 
 ## Building
 
