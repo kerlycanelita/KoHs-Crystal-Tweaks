@@ -1,0 +1,75 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  matrix:
+    # Reads gradle/versions.properties so the workflow never drifts from the build matrix.
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.read.outputs.targets }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: read
+        run: |
+          targets=$(grep -E '^[^#[:space:]].*=' gradle/versions.properties \
+            | cut -d= -f1 | tr -d ' ' | jq -R . | jq -sc .)
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          echo "Building: $targets"
+
+  build:
+    needs: matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        minecraft: ${{ fromJson(needs.matrix.outputs.targets) }}
+    name: ${{ matrix.minecraft }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          # The Gradle toolchain is pinned to 25; the per-target Java release is set by build.gradle.
+          java-version: '25'
+          distribution: temurin
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - run: ./gradlew build -Pmc=${{ matrix.minecraft }} --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: crystal-tweaks-${{ matrix.minecraft }}
+          path: build/libs/*.jar
+          if-no-files-found: error
+
+  verify:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: downloaded
+          merge-multiple: true
+
+      - name: Check declared dependencies against build metadata
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path versions | Out-Null
+          Get-ChildItem downloaded -Filter '*.jar' -Recurse |
+            Where-Object { $_.Name -notlike '*-sources.jar' } |
+            Copy-Item -Destination versions -Force
+          .\tools\verify-jars.ps1
+
+      # verify-mixins.py is not run here: it needs the Minecraft classes Loom caches during a
+      # build, which this job does not keep. Run it locally before publishing a release.

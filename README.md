@@ -34,7 +34,8 @@ See the [Crystal Tweaks Wiki](WIKI.md) for installation, configuration, preview 
 
 ## Requirements
 
-- Fabric Loader `0.19.3` or newer.
+- Fabric Loader: each JAR declares the exact minimum it was built against; see
+  [`gradle/versions.properties`](gradle/versions.properties).
 - The Fabric API version matching your Minecraft installation.
 - Java 21 for Minecraft 1.21–1.21.11.
 - Java 25 for Minecraft 26.1–26.2.
@@ -58,17 +59,34 @@ Do not load Crystal Tweaks together with the retired KoHs Crystal Tweaks mod or 
 
 Server rules differ. Review the rules of every multiplayer server and obtain staff approval when required; this project cannot guarantee acceptance by every server or anticheat.
 
-See [LEGITIMACY_AUDIT.md](LEGITIMACY_AUDIT.md) for the client/server boundary of the new local monitor and the remaining server-observable behavior in the pre-existing core.
+Crystal Tweaks never fabricates, delays, reorders or duplicates a gameplay packet, and never changes
+reach, rotation, attack cooldown or click rate. The server stays authoritative over every crystal.
+
+Its one predictive behavior is hiding a crystal you just hit before the server confirms the break,
+which is latency compensation for an action you already performed. It is constrained to hits the
+server is expected to accept.
+
+See [LEGITIMACY_AUDIT.md](LEGITIMACY_AUDIT.md) for the full client/server boundary of every feature,
+including the two places where the mod does change what a later packet contains.
 
 ## Building
 
-The default Gradle configuration targets Minecraft 26.2:
+Every supported Minecraft version has its own row in [`gradle/versions.properties`](gradle/versions.properties),
+holding the Fabric Loader, Fabric API, Mod Menu and Java release that target is built against. Pick a
+target with `-Pmc`:
 
 ```powershell
-.\gradlew.bat build
+.\gradlew.bat build -Pmc=26.1.2
 ```
 
-Prebuilt project artifacts are collected in the `versions` directory.
+To build the whole matrix, collect the JARs into `versions/` and refresh `CHECKSUMS.sha256`:
+
+```powershell
+.\tools\build-all.ps1
+```
+
+See [docs/RELEASING.md](docs/RELEASING.md) for the full release process and for how to add a new Minecraft
+version.
 
 ## Support
 

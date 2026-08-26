@@ -91,6 +91,8 @@ public final class CrystalVisualConfig {
                 root.add("visuals", visuals);
 
                 root.remove("tweaks");
+                // 2.2.7 briefly stored an instant-break toggle here; the behaviour is core now.
+                root.remove("gameplay");
 
                 JsonObject sounds = root.has("sounds") && root.get("sounds").isJsonObject()
                         ? root.getAsJsonObject("sounds")

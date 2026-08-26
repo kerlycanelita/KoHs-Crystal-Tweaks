@@ -89,7 +89,7 @@ public final class CrystalTweaksScreen extends Screen {
     private PreviewPhase previewPhase = PreviewPhase.APPEARING;
 
     public CrystalTweaksScreen(Screen parent) {
-        super(Component.literal("Crystal Tweaks"));
+        super(Component.literal("Crystal Tweaks KoHs"));
         this.parent = parent;
         this.spanish = usesSpanish();
         this.previewState.entityType = EntityType.END_CRYSTAL;
@@ -682,7 +682,7 @@ public final class CrystalTweaksScreen extends Screen {
                 + 0.5F * (float) Math.sin(System.currentTimeMillis() / 280.0F)));
         graphics.centeredText(
                 this.font,
-                Component.literal("Crystal Tweaks"),
+                Component.literal("Crystal Tweaks KoHs"),
                 this.panelX + this.panelWidth / 2,
                 this.panelY + 6,
                 0xFF000000 | glow << 16 | 225 << 8 | 255);

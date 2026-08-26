@@ -85,7 +85,16 @@ Sound replacement is local: it changes what the player hears without replacing t
 
 ## Advanced Tweaks
 
-The **Advanced Tweaks** tab is reserved for future options. Its current snake animation is decorative and does not perform gameplay actions.
+The **Advanced Tweaks** tab holds the Conflict Monitor.
+
+The Conflict Monitor scans installed mods locally and lists exact Mixin class-and-method overlaps
+with Crystal Tweaks. It reads local files only and never contacts a server. A clean result is not a
+guarantee: dynamic Mixin plugins and external bytecode agents are not visible to it.
+
+Instant crystal break is part of the mod's core and has no setting. It only runs for a hit the
+server is expected to accept: the crystal must be inside your interaction range, not already
+removed, and you must be alive, not spectating, and able to deal damage. Anything outside that waits
+for the server exactly like Vanilla.
 
 ## Interactive preview
 
@@ -148,15 +157,42 @@ Scroll inside the active options panel. If necessary, temporarily reduce Minecra
 
 Check the instance's `mods` directory for older Crystal Tweaks builds, KoHs Crystal Tweaks, or another crystal interaction optimizer. Remove conflicts only after closing Minecraft and keeping a backup of the instance.
 
+### Placed crystals do not appear, or a spot refuses new crystals
+
+Up to and including 2.2.6, a crystal you attacked was always hidden locally, even when the server
+refused the hit. The server kept the crystal, your client did not, and every later placement on that
+obsidian was silently rejected with nothing shown on screen.
+
+Update to 2.2.7, which only predicts hits the server is expected to accept. Relogging, or moving far
+enough for the chunk to reload, clears an already-desynchronised crystal.
+
+### Placing feels delayed on a high-ping server
+
+A placed crystal is created by the server, so Vanilla cannot show it before one full round trip.
+Crystal Tweaks does not change placement timing, click rate or the Vanilla use cooldown, so some
+delay is expected and is not a bug.
+
+### Placing right after breaking swallows the click
+
+This is fixed in 2.2.7. Breaking a crystal invalidates the crosshair target Minecraft computed at
+the start of the tick; if it is not refreshed, the very next placement takes Vanilla's entity branch
+against the crystal that is already gone, and is discarded while still spending the four-tick use
+cooldown, so roughly 200 ms is lost with nothing shown.
+
+It is most noticeable with Attack and Use bound to separate keys or mouse buttons, because both can
+fire inside the same tick.
+
 ## Building from source
 
-The repository's default configuration targets Minecraft 26.2:
+Pick a Minecraft target with `-Pmc`; the Fabric Loader, Fabric API, Mod Menu and Java release come
+from `gradle/versions.properties`:
 
 ```powershell
-.\gradlew.bat build
+.\gradlew.bat build -Pmc=26.1.2
 ```
 
-The generated development artifact is placed under `build/libs`. Released version-specific artifacts are collected in `versions`.
+The generated development artifact is placed under `build/libs`. Released version-specific artifacts
+are collected in `versions`. See `docs/RELEASING.md` for building the whole matrix at once.
 
 ## Getting support
 

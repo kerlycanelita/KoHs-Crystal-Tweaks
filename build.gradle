@@ -4,6 +4,40 @@ plugins {
 	id 'maven-publish'
 }
 
+// `-Pmc=<version>` selects a target from gradle/versions.properties and fills in the Fabric Loader,
+// Fabric API, Mod Menu and Java release that target was built and tested against. Every value stays
+// overridable with its own -P flag, and the gradle.properties defaults still apply when the target
+// is not listed in the matrix.
+def buildMatrix = new Properties()
+file('gradle/versions.properties').withInputStream { buildMatrix.load(it) }
+
+// Only an explicit -P on the command line outranks the matrix; the gradle.properties defaults do not.
+def commandLineProperties = gradle.startParameter.projectProperties
+
+if (commandLineProperties.containsKey('mc')) {
+	project.ext.minecraft_version = commandLineProperties.get('mc').toString()
+}
+
+def matrixEntry = buildMatrix.getProperty(project.minecraft_version.toString())
+if (matrixEntry != null) {
+	def matrixValues = matrixEntry.split(',').collect { it.trim() }
+	[
+			loader_version      : matrixValues[0],
+			fabric_version      : matrixValues[1],
+			modmenu_version     : matrixValues[2],
+			java_version        : matrixValues[3],
+			minecraft_dependency: project.minecraft_version.toString()
+	].each { key, value ->
+		if (!commandLineProperties.containsKey(key)) {
+			project.ext.setProperty(key, value)
+		}
+	}
+} else if (commandLineProperties.containsKey('mc')) {
+	throw new GradleException(
+			"Minecraft ${project.minecraft_version} is not listed in gradle/versions.properties. "
+					+ "Add it to the matrix or pass every -P flag explicitly.")
+}
+
 def usesRemapping = project.minecraft_version.toString().startsWith("1.")
 def usesPreIdentifierNames = usesRemapping && project.minecraft_version.toString() != '1.21.11'
 def usesLegacyMouseApi = usesRemapping && !(project.minecraft_version.toString() in [
@@ -319,9 +353,28 @@ loom {
 if (usesRemapping || usesModernRegistrySplit) {
 	def generatedLegacySources = layout.buildDirectory.dir('generated/sources/crystalTweaksLegacy')
 	def generateLegacyClientSources = tasks.register('generateLegacyClientSources', Sync) {
+		// The `filter` closures below rewrite the shared client sources differently per Minecraft
+		// target, and Gradle cannot see inside them. Without these declared inputs the task stays
+		// up-to-date across a version switch and the next JAR is built from the previous target's
+		// transformed sources.
+		inputs.property 'minecraftVersion', project.minecraft_version.toString()
+		inputs.property 'usesRemapping', usesRemapping
+		inputs.property 'usesPreIdentifierNames', usesPreIdentifierNames
+		inputs.property 'usesLegacyMouseApi', usesLegacyMouseApi
+		inputs.property 'usesLegacyEntityPreview', usesLegacyEntityPreview
+		inputs.property 'usesLegacyStateDispatcher', usesLegacyStateDispatcher
+		inputs.property 'usesOldCrystalRenderer', usesOldCrystalRenderer
+		inputs.property 'usesOldIconBlit', usesOldIconBlit
+		inputs.property 'usesRenderTypeIconBlit', usesRenderTypeIconBlit
+		inputs.property 'usesLegacyTextureConstructor', usesLegacyTextureConstructor
+		inputs.property 'usesModernRegistrySplit', usesModernRegistrySplit
+
 		from('src/client/java') {
 			if (usesRemapping) {
 				exclude 'com/zymekoh/crystaltweaks/core/CrystalAttackOptimizer.java'
+				// Minecraft.pick(float) only exists from 26.1 onwards. The 1.x targets reach the same
+				// Vanilla code through the public GameRenderer.pick(float), so they need no invoker.
+				exclude 'com/zymekoh/crystaltweaks/mixin/client/MinecraftPickInvoker.java'
 			}
 			if (usesOldCrystalRenderer) {
 				exclude 'com/zymekoh/crystaltweaks/client/CrystalLayerTint.java'
@@ -422,17 +475,23 @@ def modVersion = project.version
 def targetMinecraftDependency = project.findProperty("minecraft_dependency") ?: project.minecraft_version.toString()
 def targetJavaVersion = (project.findProperty("java_version") ?: "25").toString().toInteger()
 def targetModMenuVersion = project.modmenu_version.toString()
+def targetLoaderVersion = project.loader_version.toString()
 
 processResources {
 	inputs.property "version", modVersion
 	inputs.property "minecraft_dependency", targetMinecraftDependency
 	inputs.property "java_version", targetJavaVersion
 	inputs.property "modmenu_version", targetModMenuVersion
+	inputs.property "loader_version", targetLoaderVersion
 
 	filesMatching("fabric.mod.json") {
 		expand "version": modVersion
+		// The loader floor has to follow the loader this JAR is actually built against. Shipping the
+		// newest loader requirement on every JAR locks players out of the older Minecraft targets,
+		// where that loader was never released.
 		filter { line -> line
 				.replace('"minecraft": ">=1.21 <=26.2"', '"minecraft": "' + targetMinecraftDependency + '"')
+				.replace('"fabricloader": ">=0.19.3"', '"fabricloader": ">=' + targetLoaderVersion + '"')
 				.replace('"java": ">=21"', '"java": ">=' + targetJavaVersion + '"')
 				.replace('"modmenu": ">=20.0.1"', '"modmenu": ">=' + targetModMenuVersion + '"') }
 	}
@@ -440,6 +499,13 @@ processResources {
 
 if (usesRemapping) {
 	processClientResources {
+		// Same reason as generateLegacyClientSources: the filter below rewrites the Mixin config
+		// per Minecraft target and Gradle cannot see inside the closure, so the flags it reads have
+		// to be declared or the task stays up to date across a version switch and ships the previous
+		// target's Mixin list.
+		inputs.property 'minecraftVersion', project.minecraft_version.toString()
+		inputs.property 'usesOldCrystalRenderer', usesOldCrystalRenderer
+
 		filesMatching('crystal_tweaks.client.mixins.json') {
 			filter { line ->
 				if (line.contains('"compatibilityLevel": "JAVA_25"')) {
@@ -449,6 +515,9 @@ if (usesRemapping) {
 						line.contains('"CrystalAnimationMixin",')
 								|| line.contains('"ModelMixin",')
 								|| line.contains('"ModelPartMixin",'))) {
+					return ''
+				}
+				if (line.contains('"MinecraftPickInvoker",')) {
 					return ''
 				}
 				if (line.contains('"CrystalAttackPacketMixin",')) {
