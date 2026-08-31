@@ -18,6 +18,8 @@
 - Every JAR now declares the Fabric Loader version it was actually built against. All targets except
   26.2 previously shipped a `>=0.19.3` requirement that their Minecraft version never had a release
   for, which blocked the mod from loading.
+- Every JAR now declares exactly one Minecraft version in `fabric.mod.json`, preventing Modrinth
+  from detecting a single build as compatible with the full 1.21-to-1.21.11 range.
 
 ### Changed
 

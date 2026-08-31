@@ -25,8 +25,7 @@ if (matrixEntry != null) {
 			loader_version      : matrixValues[0],
 			fabric_version      : matrixValues[1],
 			modmenu_version     : matrixValues[2],
-			java_version        : matrixValues[3],
-			minecraft_dependency: project.minecraft_version.toString()
+			java_version        : matrixValues[3]
 	].each { key, value ->
 		if (!commandLineProperties.containsKey(key)) {
 			project.ext.setProperty(key, value)
@@ -472,7 +471,10 @@ if (project.hasProperty("skip_modmenu")) {
 }
 
 def modVersion = project.version
-def targetMinecraftDependency = project.findProperty("minecraft_dependency") ?: project.minecraft_version.toString()
+// Every distributable is intentionally tied to exactly one Minecraft version. Modrinth reads this
+// value from fabric.mod.json, so accepting an override or a range here would make one JAR appear
+// compatible with versions it was never compiled against.
+def targetMinecraftDependency = project.minecraft_version.toString()
 def targetJavaVersion = (project.findProperty("java_version") ?: "25").toString().toInteger()
 def targetModMenuVersion = project.modmenu_version.toString()
 def targetLoaderVersion = project.loader_version.toString()
@@ -485,15 +487,14 @@ processResources {
 	inputs.property "loader_version", targetLoaderVersion
 
 	filesMatching("fabric.mod.json") {
-		expand "version": modVersion
-		// The loader floor has to follow the loader this JAR is actually built against. Shipping the
-		// newest loader requirement on every JAR locks players out of the older Minecraft targets,
-		// where that loader was never released.
-		filter { line -> line
-				.replace('"minecraft": ">=1.21 <=26.2"', '"minecraft": "' + targetMinecraftDependency + '"')
-				.replace('"fabricloader": ">=0.19.3"', '"fabricloader": ">=' + targetLoaderVersion + '"')
-				.replace('"java": ">=21"', '"java": ">=' + targetJavaVersion + '"')
-				.replace('"modmenu": ">=20.0.1"', '"modmenu": ">=' + targetModMenuVersion + '"') }
+		// Explicit placeholders keep every JAR metadata entry exact and prevent Modrinth from detecting
+		// unrelated Minecraft versions from a broad source range.
+		expand(
+				version: modVersion,
+				minecraft_dependency: targetMinecraftDependency,
+				loader_version: targetLoaderVersion,
+				java_version: targetJavaVersion,
+				modmenu_version: targetModMenuVersion)
 	}
 }
 
