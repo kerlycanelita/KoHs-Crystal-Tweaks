@@ -27,6 +27,7 @@ public final class CrystalVisualConfig {
     private static volatile String customSoundFileName = "";
     private static volatile float soundVolume = 1.0F;
     private static volatile float soundSpeed = 1.0F;
+    private static volatile boolean ghostCrystals;
     private static volatile boolean loaded;
 
     private CrystalVisualConfig() {
@@ -62,6 +63,11 @@ public final class CrystalVisualConfig {
                     customSoundFileName = stringValue(sounds, "file", "");
                     soundVolume = clamp(floatValue(sounds, "volume", 1.0F), 0.0F, 2.0F);
                     soundSpeed = clamp(floatValue(sounds, "speed", 1.0F), 0.5F, 2.0F);
+
+                    JsonObject gameplay = root.has("gameplay") && root.get("gameplay").isJsonObject()
+                            ? root.getAsJsonObject("gameplay")
+                            : new JsonObject();
+                    ghostCrystals = booleanValue(gameplay, "ghostCrystals", false);
                 } catch (Exception exception) {
                     CrystalTweaksClient.LOGGER.warn(
                             "Could not read crystal visual settings from {}; using neutral colors",
@@ -91,8 +97,14 @@ public final class CrystalVisualConfig {
                 root.add("visuals", visuals);
 
                 root.remove("tweaks");
-                // 2.2.7 briefly stored an instant-break toggle here; the behaviour is core now.
-                root.remove("gameplay");
+
+                JsonObject gameplay = root.has("gameplay") && root.get("gameplay").isJsonObject()
+                        ? root.getAsJsonObject("gameplay")
+                        : new JsonObject();
+                // 2.2.7 briefly stored an instant-break toggle here; that behaviour is core now.
+                gameplay.remove("predictCrystalBreak");
+                gameplay.addProperty("ghostCrystals", ghostCrystals);
+                root.add("gameplay", gameplay);
 
                 JsonObject sounds = root.has("sounds") && root.get("sounds").isJsonObject()
                         ? root.getAsJsonObject("sounds")
@@ -206,6 +218,24 @@ public final class CrystalVisualConfig {
     public static void setSoundSpeed(float speed) {
         load();
         soundSpeed = clamp(speed, 0.5F, 2.0F);
+    }
+
+    /**
+     * Draws a stand-in crystal while the server's real one is still in flight. Purely visual: it is
+     * never an entity, so nothing Vanilla checks and no packet can see it.
+     *
+     * <p>Off until the player turns it on. It changes what the world looks like rather than only how
+     * quickly it catches up, and some servers ask that nothing be drawn that the server has not sent
+     * yet, so opting in is the player's call to make.</p>
+     */
+    public static boolean ghostCrystals() {
+        load();
+        return ghostCrystals;
+    }
+
+    public static void setGhostCrystals(boolean enabled) {
+        load();
+        ghostCrystals = enabled;
     }
 
     public static Path soundsDirectory() {

@@ -22,16 +22,13 @@ import net.minecraft.world.phys.Vec3;
  * after the genuine Vanilla packet has already been handed to the connection. It only hides the
  * crystal from the local world so the break feels immediate.</p>
  *
- * <p>Because the server stays authoritative, a prediction that the server would refuse leaves an
- * entity the client can no longer see while the server still tracks it, which then silently blocks
- * every later placement on that base. The guards below only predict a break the server is certain
- * to accept, so the prediction is core behaviour rather than an option.</p>
+ * <p>The server stays authoritative: the crystal is only skipped while drawing, so a prediction the
+ * server refuses simply becomes visible again instead of leaving an entity the client cannot see.
+ * The guards below still keep the prediction to hits the server is expected to accept.</p>
  *
- * <p>Hiding the crystal invalidates the crosshair target Vanilla computed earlier in this tick, so
- * the pick is re-run afterwards. Without that, {@code Minecraft.startUseItem} still sees the removed
- * crystal as an {@code EntityHitResult}, takes the entity branch, fails the removed-entity range
- * check and falls through to a plain use-in-air. The placement is dropped entirely and the four tick
- * {@code rightClickDelay} is spent anyway, which is felt as a two hundred millisecond stall.</p>
+ * <p>Nothing is removed from the world and the crosshair is never touched, so the hit result
+ * Vanilla computed for this tick stays valid and the next click produces exactly the packet an
+ * unmodified client would send.</p>
  */
 public final class CrystalAttackOptimizer {
     private CrystalAttackOptimizer() {
@@ -65,8 +62,7 @@ public final class CrystalAttackOptimizer {
             return;
         }
 
-        crystal.remove(Entity.RemovalReason.KILLED);
-        refreshCrosshairTarget(minecraft);
+        CrystalBreakPrediction.markBroken(crystal, System.nanoTime());
     }
 
     /**
@@ -85,21 +81,6 @@ public final class CrystalAttackOptimizer {
 
         double reach = player.entityInteractionRange();
         return crystal.getBoundingBox().distanceToSqr(player.getEyePosition()) < reach * reach;
-    }
-
-    /**
-     * Repeats Vanilla's own crosshair pick for the current tick now that the crystal is gone.
-     *
-     * <p>This changes neither the player's rotation nor the ray it is cast along; it only lets
-     * Vanilla re-answer the question it already answered this tick, against a world the player just
-     * changed. Interaction ranges, entity selection and {@code crosshairPickEntity} all stay in
-     * Vanilla's hands.</p>
-     */
-    private static void refreshCrosshairTarget(Minecraft minecraft) {
-        if (minecraft.player == null || minecraft.level == null) {
-            return;
-        }
-        minecraft.gameRenderer.pick(1.0F);
     }
 
     private static boolean isAttack(ServerboundInteractPacket packet) {

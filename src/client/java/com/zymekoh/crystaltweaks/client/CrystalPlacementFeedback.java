@@ -1,6 +1,8 @@
 package com.zymekoh.crystaltweaks.client;
 
+import com.zymekoh.crystaltweaks.core.CrystalBreakPrediction;
 import com.zymekoh.crystaltweaks.core.CrystalPlacementTracker;
+import com.zymekoh.crystaltweaks.core.GhostCrystalTracker;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -13,6 +15,7 @@ import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
 /**
@@ -76,13 +79,20 @@ public final class CrystalPlacementFeedback {
             return;
         }
 
-        TRACKER.record(base, packet.getSequence(), System.nanoTime());
+        long now = System.nanoTime();
+        TRACKER.record(base, packet.getSequence(), now);
+        if (CrystalVisualConfig.ghostCrystals()) {
+            GhostCrystalTracker.add(base, now);
+        }
     }
 
     private static boolean isVanillaPlacementCandidate(Minecraft minecraft, BlockPos base) {
-        if (!minecraft.level.getWorldBorder().isWithinBounds(base)
-                || (!minecraft.level.getBlockState(base).is(Blocks.OBSIDIAN)
-                && !minecraft.level.getBlockState(base).is(Blocks.BEDROCK))) {
+        if (!minecraft.level.getWorldBorder().isWithinBounds(base)) {
+            return false;
+        }
+
+        BlockState baseState = minecraft.level.getBlockState(base);
+        if (!baseState.is(Blocks.OBSIDIAN) && !baseState.is(Blocks.BEDROCK)) {
             return false;
         }
 
@@ -107,6 +117,11 @@ public final class CrystalPlacementFeedback {
         }
 
         BlockPos base = BlockPos.containing(entity.getX(), entity.getY() - 1.0D, entity.getZ());
-        TRACKER.confirm(base, System.nanoTime());
+        // The round trip this measures is the one the break prediction has to outlast, so feed it
+        // through instead of discarding it.
+        GhostCrystalTracker.confirm(base);
+        TRACKER.confirm(base, System.nanoTime()).ifPresent(
+                latencyNanos -> CrystalBreakPrediction.reportMeasuredLatency(
+                        Math.round(latencyNanos / 1_000_000.0D)));
     }
 }

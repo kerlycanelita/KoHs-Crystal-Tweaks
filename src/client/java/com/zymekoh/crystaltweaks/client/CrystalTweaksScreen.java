@@ -1,6 +1,7 @@
 package com.zymekoh.crystaltweaks.client;
 
 import com.zymekoh.crystaltweaks.client.sound.CrystalSoundManager;
+import com.zymekoh.crystaltweaks.core.GhostCrystalSupport;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
@@ -52,6 +53,7 @@ public final class CrystalTweaksScreen extends Screen {
     private PurpleCloseButton coreButton;
     private PurpleCloseButton soundToggle;
     private PurpleCloseButton soundFileButton;
+    private PurpleCloseButton ghostCrystalToggle;
     private PurpleCloseButton conflictMonitorButton;
     private EditBox hexBox;
     private ColorPickerWidget colorPicker;
@@ -228,6 +230,7 @@ public final class CrystalTweaksScreen extends Screen {
         this.coreButton = null;
         this.soundToggle = null;
         this.soundFileButton = null;
+        this.ghostCrystalToggle = null;
         this.conflictMonitorButton = null;
         this.hexBox = null;
         this.colorPicker = null;
@@ -367,9 +370,28 @@ public final class CrystalTweaksScreen extends Screen {
     }
 
     private void addTweaksControls() {
+        int row = 0;
+        if (GhostCrystalSupport.isAvailable()) {
+            this.ghostCrystalToggle = addContent(new PurpleCloseButton(
+                    this.optionsX,
+                    this.contentY,
+                    this.optionsWidth,
+                    this.controlHeight,
+                    ghostCrystalToggleMessage(),
+                    ignored -> toggleGhostCrystals()));
+            this.ghostCrystalToggle.setTooltip(Tooltip.create(Component.literal(this.spanish
+                    ? "Dibuja un cristal provisional mientras llega el del servidor, para que colocar "
+                            + "no dependa de tu ping. Es solo visual: no es una entidad, no se puede "
+                            + "golpear ni mirar, y no cambia ningun paquete."
+                    : "Draws a stand-in crystal while the server's real one is in flight, so placing "
+                            + "does not depend on your ping. Purely visual: it is not an entity, cannot "
+                            + "be hit or looked at, and changes no packet.")));
+            row = 1;
+        }
+
         this.conflictMonitorButton = addContent(new PurpleCloseButton(
                 this.optionsX,
-                this.contentY,
+                this.contentY + rowStep() * row,
                 this.optionsWidth,
                 this.controlHeight,
                 Component.literal(this.spanish ? "Monitor de conflictos" : "Conflict Monitor"),
@@ -532,6 +554,20 @@ public final class CrystalTweaksScreen extends Screen {
     private Component soundToggleMessage() {
         String label = this.spanish ? "Sonido personalizado" : "Custom sound";
         String state = CrystalVisualConfig.customSoundEnabled()
+                ? (this.spanish ? "ACTIVO" : "ON")
+                : (this.spanish ? "INACTIVO" : "OFF");
+        return Component.literal(label + ": " + state);
+    }
+
+    private void toggleGhostCrystals() {
+        CrystalVisualConfig.setGhostCrystals(!CrystalVisualConfig.ghostCrystals());
+        CrystalVisualConfig.save();
+        this.ghostCrystalToggle.setMessage(ghostCrystalToggleMessage());
+    }
+
+    private Component ghostCrystalToggleMessage() {
+        String label = this.spanish ? "Cristales fantasma" : "Ghost crystals";
+        String state = CrystalVisualConfig.ghostCrystals()
                 ? (this.spanish ? "ACTIVO" : "ON")
                 : (this.spanish ? "INACTIVO" : "OFF");
         return Component.literal(label + ": " + state);

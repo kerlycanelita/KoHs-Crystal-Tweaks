@@ -32,7 +32,7 @@ Raising it without rebuilding locks players out of the mod on that Minecraft ver
 
 1. Bump `mod_version` in `gradle.properties`.
 2. Add the release section to `CHANGELOG.md`.
-3. Update `LEGITIMACY_AUDIT.md` if any client/server behavior changed.
+3. Update `docs/LEGITIMACY_AUDIT.md` if any client/server behavior changed.
 4. Build everything:
 
    ```powershell

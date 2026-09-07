@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://modrinth.com/mod/kohs-crystal-tweaks"><img alt="Modrinth" src="https://img.shields.io/badge/Modrinth-Download-00AF5C?logo=modrinth&amp;logoColor=white"></a>
-  <a href="WIKI.md"><img alt="Wiki" src="https://img.shields.io/badge/Documentation-Wiki-7C3AED?logo=gitbook&amp;logoColor=white"></a>
+  <a href="docs/WIKI.md"><img alt="Wiki" src="https://img.shields.io/badge/Documentation-Wiki-7C3AED?logo=gitbook&amp;logoColor=white"></a>
   <a href="https://discord.gg/9t2VxEF7UU"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&amp;logoColor=white"></a>
   <a href="https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/issues/new"><img alt="Report an issue" src="https://img.shields.io/badge/GitHub-Report_an_Issue-D73A49?logo=github&amp;logoColor=white"></a>
 </p>
@@ -30,7 +30,7 @@ Crystal Tweaks brings End Crystal visual and sound controls into one compact con
 - Spanish localization for Minecraft language codes beginning with `es`; English for every other locale.
 - Optional Mod Menu integration.
 
-See the [Crystal Tweaks Wiki](WIKI.md) for installation, configuration, preview controls, compatibility notes, and troubleshooting.
+See the [Crystal Tweaks Wiki](docs/WIKI.md) for installation, configuration, preview controls, compatibility notes, and troubleshooting.
 
 ## Requirements
 
@@ -66,7 +66,7 @@ Its one predictive behavior is hiding a crystal you just hit before the server c
 which is latency compensation for an action you already performed. It is constrained to hits the
 server is expected to accept.
 
-See [LEGITIMACY_AUDIT.md](LEGITIMACY_AUDIT.md) for the full client/server boundary of every feature,
+See [docs/LEGITIMACY_AUDIT.md](docs/LEGITIMACY_AUDIT.md) for the full client/server boundary of every feature,
 including the two places where the mod does change what a later packet contains.
 
 ## Building
@@ -90,7 +90,7 @@ version.
 
 ## Support
 
-- [Read the wiki](WIKI.md)
+- [Read the wiki](docs/WIKI.md)
 - [Report a problem](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/issues/new)
 - [Join the Discord server](https://discord.gg/9t2VxEF7UU)
 - [Download from Modrinth](https://modrinth.com/mod/kohs-crystal-tweaks)

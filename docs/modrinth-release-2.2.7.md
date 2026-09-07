@@ -67,7 +67,7 @@ never had a release for. Each JAR now declares the loader it was actually built 
 Crystal Tweaks never fabricates, delays, reorders or duplicates a gameplay packet, and never changes
 reach, rotation, attack cooldown or click rate. Your aim and your click rate are entirely vanilla.
 The full client/server boundary, including the two places the mod does change what a later packet
-contains, is documented in `LEGITIMACY_AUDIT.md` in the repository.
+contains, is documented in `docs/LEGITIMACY_AUDIT.md` in the repository.
 
 Server rules differ. Check the rules of your server and ask staff when in doubt.
 
@@ -104,7 +104,7 @@ para su version de Minecraft. Ahora cada JAR declara el loader contra el que se 
 Crystal Tweaks nunca fabrica, retrasa, reordena ni duplica un paquete de juego, y nunca cambia el
 alcance, la rotacion, el cooldown de ataque ni el ritmo de clic. Tu punteria y tu cadencia son
 enteramente vanilla. La frontera cliente/servidor completa, incluidos los dos puntos donde el mod si
-cambia lo que contiene un paquete posterior, esta documentada en `LEGITIMACY_AUDIT.md`.
+cambia lo que contiene un paquete posterior, esta documentada en `docs/LEGITIMACY_AUDIT.md`.
 
 Las reglas cambian segun el servidor. Consulta las de tu servidor y pregunta al staff si dudas.
 

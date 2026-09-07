@@ -5,6 +5,8 @@ Two checks that nothing else performs:
 
 1. Every Mixin target actually exists in that Minecraft version's classes.
 2. The Mod Menu version suggested by the JAR actually supports that Minecraft version.
+3. Only rendering and audio Mixins are allowed to cancel. A cancellable injection anywhere on the
+   path from a click to its packet is how a mod silently swallows an input, so that is refused.
 
 Mixin resolves @Mixin / @Inject / @Invoker / @Accessor targets at runtime, not at compile
 time, so a JAR whose targets do not exist compiles cleanly and then aborts the game on
@@ -86,6 +88,9 @@ def members_of(jar, internal_name):
     return names
 
 
+# Cancelling one of these cannot lose an input: the worst it can do is skip a draw or a sound.
+CANCEL_ALLOWED = ('Renderer', 'Model', 'SoundBufferLibrary', 'SoundEngine')
+
 ANNOT = re.compile(r'org\.spongepowered\.asm\.mixin\.([\w.]+)\(([^\n]*(?:\n\s+[^\n]*)*?)\n\s*\)',
                    re.M)
 
@@ -97,6 +102,8 @@ def parse_mixin_class(class_file):
     targets = re.findall(r'Mixin\(\s*value=\[class L([\w/$]+);', text)
     if not targets:
         targets = re.findall(r'Lorg/spongepowered/asm/mixin/Mixin;[\s\S]{0,200}?L([\w/$]+);', text)
+
+    cancels = 'cancellable=true' in text.replace(' ', '')
 
     members = []
     for kind, body in re.findall(
@@ -110,7 +117,7 @@ def parse_mixin_class(class_file):
             m = re.search(r'method=(?:\[)?"([^"]+)"', body)
             if m:
                 members.append((kind, m.group(1)))
-    return targets, members
+    return targets, members, cancels
 
 
 MODMENU = os.path.expanduser(
@@ -186,10 +193,18 @@ def check_jar(path):
             local = os.path.join(tmp, name + '.class')
             with open(local, 'wb') as fh:
                 fh.write(z.read(entry))
-            targets, members = parse_mixin_class(local)
+            targets, members, cancels = parse_mixin_class(local)
             if not targets:
                 problems.append(f'{name}: no @Mixin target could be read')
                 continue
+            # In the intermediary namespace the target class name is obfuscated, so fall back to
+            # this project's own Mixin class name, which is never remapped.
+            searchable = list(targets) + [name]
+            if cancels and not any(a in t for t in searchable for a in CANCEL_ALLOWED):
+                problems.append(
+                    f'{name}: cancels a Vanilla method on {", ".join(targets)}, which is not a '
+                    f'rendering or audio class; a cancellable injection there can swallow an input')
+
             for t in targets:
                 if t not in index:
                     problems.append(f'{name}: target class {t} does not exist in Minecraft {mc}')

@@ -371,9 +371,13 @@ if (usesRemapping || usesModernRegistrySplit) {
 		from('src/client/java') {
 			if (usesRemapping) {
 				exclude 'com/zymekoh/crystaltweaks/core/CrystalAttackOptimizer.java'
-				// Minecraft.pick(float) only exists from 26.1 onwards. The 1.x targets reach the same
-				// Vanilla code through the public GameRenderer.pick(float), so they need no invoker.
-				exclude 'com/zymekoh/crystaltweaks/mixin/client/MinecraftPickInvoker.java'
+				// The ghost crystal renderer needs the level render events added in 26.1. The 1.x
+				// targets drop it, and GhostCrystalSupport then reports it as unavailable so the
+				// configuration screen never offers a toggle that would do nothing.
+				exclude 'com/zymekoh/crystaltweaks/client/GhostCrystalRenderer.java'
+				filesMatching('**/CrystalVisualInitializer.java') {
+					filter { line -> line.replace('        GhostCrystalRenderer.initialize();', '') }
+				}
 			}
 			if (usesOldCrystalRenderer) {
 				exclude 'com/zymekoh/crystaltweaks/client/CrystalLayerTint.java'
@@ -516,9 +520,6 @@ if (usesRemapping) {
 						line.contains('"CrystalAnimationMixin",')
 								|| line.contains('"ModelMixin",')
 								|| line.contains('"ModelPartMixin",'))) {
-					return ''
-				}
-				if (line.contains('"MinecraftPickInvoker",')) {
 					return ''
 				}
 				if (line.contains('"CrystalAttackPacketMixin",')) {
