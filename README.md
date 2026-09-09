@@ -5,7 +5,7 @@
 <h1 align="center">Crystal Tweaks</h1>
 
 <p align="center">
-  A client-side Fabric mod for customizable End Crystals, responsive previews, and refined local interactions.
+  A client-side Fabric mod for customizable End Crystal visuals, sounds, and responsive previews.
 </p>
 
 <p align="center">
@@ -17,15 +17,20 @@
 
 ## About
 
-Crystal Tweaks brings End Crystal visual and sound controls into one compact configuration screen. It includes an interactive crystal preview, responsive layouts for high GUI scales, and local interaction refinements intended to make crystal behavior feel immediate on the client.
+Crystal Tweaks brings End Crystal visual and sound controls into one compact configuration screen. The 2.2.9 update adds a full Glow editor, a separate appearance profile for other players' crystals, and automatic coexistence with other crystal optimizers.
 
 ## Highlights
 
 - Independent colors for the outer layer, inner layer, and crystal core.
+- Glow editor with `0%`–`300%` power, colored reflections, custom glow color, and a smooth afterglow trail.
+- Glow that respects walls instead of using an outline drawn through terrain.
+- Separate colors, glow, and animation speeds for crystals that were not placed by you (with approximate identification).
+- Automatic optimizer conflict handling: interaction helpers step aside while visuals, sounds, and the preview stay active.
 - Rotation and floating speed controls from `0%` to `300%`.
 - Custom local explosion sounds with volume and playback-speed controls.
 - Interactive preview using the player's mapped Attack and Use Item controls.
 - Responsive translucent interface with animated purple particles.
+- Optional ghost crystals (off by default), scroll hints, and a local conflict monitor.
 - Local Conflict Monitor for qualified, exact Mixin class-and-method overlaps.
 - Spanish localization for Minecraft language codes beginning with `es`; English for every other locale.
 - Optional Mod Menu integration.
