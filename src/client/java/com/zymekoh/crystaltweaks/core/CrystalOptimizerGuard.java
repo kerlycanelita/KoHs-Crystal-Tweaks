@@ -19,11 +19,13 @@ public final class CrystalOptimizerGuard {
      * this list only shortens the path for the ones already known by name.
      */
     private static final String[] KNOWN_OPTIMIZER_IDS = {
+            "marlowcrystal",
             "marlows_crystal_optimizer",
             "crystaloptimizer",
             "crystal_optimizer",
             "fastcrystal",
             "crystaloptimize",
+            "nocrystalbreak",
     };
 
     /**

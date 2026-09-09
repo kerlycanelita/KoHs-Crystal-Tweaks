@@ -1,81 +1,46 @@
 package com.zymekoh.crystaltweaks.mixin.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.zymekoh.crystaltweaks.client.CrystalAppearance;
+import com.zymekoh.crystaltweaks.client.CrystalAfterglow;
+import com.zymekoh.crystaltweaks.client.CrystalAfterglowState;
+import com.zymekoh.crystaltweaks.client.CrystalGlowMath;
+import com.zymekoh.crystaltweaks.client.CrystalAppearanceAccess;
+import com.zymekoh.crystaltweaks.client.CrystalGlowAccess;
+import com.zymekoh.crystaltweaks.client.CrystalGlowRenderer;
+import com.zymekoh.crystaltweaks.client.CrystalOwnership;
 import com.zymekoh.crystaltweaks.client.CrystalVisualConfig;
-import net.minecraft.client.model.object.crystal.EndCrystalModel;
+import java.util.List;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EndCrystalRenderer;
 import net.minecraft.client.renderer.entity.state.EndCrystalRenderState;
-import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
-import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.resources.Identifier;
+import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * Draws a second, translucent pass over the crystal so it reads as glowing.
- *
- * <p>Raising the light the crystal is drawn with is not enough: that value tops out at full
- * brightness, which in daylight is where the crystal already is, so the slider would do nothing
- * outside a dark room.</p>
- *
- * <p>The glowing outline Vanilla uses for the Glowing effect is deliberately not used either. That
- * outline draws through terrain, which would turn a visual setting into seeing crystals through
- * walls. This pass is depth tested like any other model, so a block still hides it.</p>
- */
 @Mixin(EndCrystalRenderer.class)
 public abstract class EndCrystalGlowMixin {
-    @Unique
-    private static final Identifier CRYSTAL_TWEAKS$TEXTURE =
-            Identifier.withDefaultNamespace("textures/entity/end_crystal/end_crystal.png");
+    @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/boss/enderdragon/EndCrystal;Lnet/minecraft/client/renderer/entity/state/EndCrystalRenderState;F)V", at = @At("TAIL"))
+    private void crystalTweaks$extractAppearance(EndCrystal entity, EndCrystalRenderState state, float partialTick, CallbackInfo ci) {
+        CrystalAppearance look = CrystalVisualConfig.visuals(CrystalOwnership.useOtherProfile(entity)).copy();
+        ((CrystalAppearanceAccess) state).crystalTweaks$appearance(look);
+        int emissiveBlockLight = CrystalGlowMath.blockLight(look.glowPowerPercent);
+        state.lightCoords = (state.lightCoords & 0xFFFF0000)
+                | Math.max(state.lightCoords & 0xFFFF, emissiveBlockLight);
+        ((CrystalGlowAccess) state).crystalTweaks$surfaces(look.glowPowerPercent > 0
+                && look.glowReflectionsPercent > 0 && state.distanceToCameraSq < 1024
+                ? CrystalGlowRenderer.surfaces(entity) : List.of());
+        CrystalAfterglow.observe(entity, state);
+    }
 
-    /** The packed light coordinates Vanilla uses for a fully lit entity. */
-    @Unique
-    private static final int CRYSTAL_TWEAKS$FULL_BRIGHT = 15728880;
-
-    @Shadow
-    @org.spongepowered.asm.mixin.Final
-    private EndCrystalModel model;
-
-    @Inject(
-            method = "submit(Lnet/minecraft/client/renderer/entity/state/EndCrystalRenderState;"
-                    + "Lcom/mojang/blaze3d/vertex/PoseStack;"
-                    + "Lnet/minecraft/client/renderer/SubmitNodeCollector;"
-                    + "Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
-            at = @At("TAIL")
-    )
-    private void crystalTweaks$submitGlow(
-            EndCrystalRenderState state,
-            PoseStack poseStack,
-            SubmitNodeCollector collector,
-            CameraRenderState camera,
-            CallbackInfo callback
-    ) {
-        int percent = CrystalVisualConfig.glowPowerPercent();
-        if (percent <= 0) {
-            return;
-        }
-
-        int rgb = CrystalVisualConfig.customGlowColor()
-                ? CrystalVisualConfig.glowColor() & 0xFFFFFF
-                : 0xFFFFFF;
-        // The pass is additive-looking rather than additive, so the slider drives its opacity.
-        int alpha = Math.max(1, Math.min(255, percent * 255 / 100));
-        int color = alpha << 24 | rgb;
-
-        collector.submitModel(
-                this.model,
-                state,
-                poseStack,
-                RenderTypes.entityTranslucentEmissive(CRYSTAL_TWEAKS$TEXTURE),
-                CRYSTAL_TWEAKS$FULL_BRIGHT,
-                OverlayTexture.NO_OVERLAY,
-                color,
-                null);
+    // HEAD preserves the unmodified entity origin (Vanilla later translates it for dragon beams).
+    @Inject(method = "submit(Lnet/minecraft/client/renderer/entity/state/EndCrystalRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V", at = @At("HEAD"))
+    private void crystalTweaks$submitGlow(EndCrystalRenderState state, PoseStack poses, SubmitNodeCollector collector, CameraRenderState camera, CallbackInfo ci) {
+        // The synthetic GUI afterglow is handled by EndCrystalRendererMixin without drawing a model.
+        if (state instanceof CrystalAfterglowState) return;
+        CrystalGlowRenderer.submit(state, poses, collector, camera);
     }
 }

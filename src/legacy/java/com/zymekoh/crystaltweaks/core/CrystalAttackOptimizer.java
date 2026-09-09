@@ -35,6 +35,12 @@ public final class CrystalAttackOptimizer {
     }
 
     public static void handleOutgoingPacket(Packet<?> packet) {
+        // Checked before anything else, including the thread hop: while another optimizer is
+        // driving crystals this must not even queue a task on the client thread.
+        if (!CrystalOptimizerGuard.optimizationsAllowed()) {
+            return;
+        }
+
         if (!(packet instanceof ServerboundInteractPacket interactPacket) || !isAttack(interactPacket)) {
             return;
         }
@@ -49,10 +55,6 @@ public final class CrystalAttackOptimizer {
     }
 
     private static void predictCrystalBreak(int entityId) {
-        if (!CrystalOptimizerGuard.optimizationsAllowed()) {
-            return;
-        }
-
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         if (minecraft.level == null || player == null) {

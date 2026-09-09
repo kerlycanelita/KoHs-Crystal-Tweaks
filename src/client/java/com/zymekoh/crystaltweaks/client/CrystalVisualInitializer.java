@@ -22,6 +22,7 @@ public final class CrystalVisualInitializer implements ClientModInitializer {
         GhostCrystalRenderer.initialize();
 
         ClientEntityEvents.ENTITY_UNLOAD.register((entity, level) -> {
+            CrystalAfterglow.onRemoved(entity);
             CrystalSoundManager.onEntityUnloaded(entity);
             // The server confirmed the break, so the local hide mark is no longer needed.
             CrystalBreakPrediction.forget(entity);
@@ -33,11 +34,13 @@ public final class CrystalVisualInitializer implements ClientModInitializer {
             GhostCrystalTracker.cleanup(now);
         });
         ClientPlayConnectionEvents.JOIN.register((listener, sender, client) -> {
+            CrystalAfterglow.reset();
             CrystalSoundManager.resetTracking();
             CrystalBreakPrediction.reset();
             GhostCrystalTracker.reset();
         });
         ClientPlayConnectionEvents.DISCONNECT.register((listener, client) -> {
+            CrystalAfterglow.reset();
             CrystalSoundManager.resetTracking();
             CrystalBreakPrediction.reset();
             GhostCrystalTracker.reset();

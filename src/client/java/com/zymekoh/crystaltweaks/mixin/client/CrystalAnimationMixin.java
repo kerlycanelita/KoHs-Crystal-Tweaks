@@ -1,7 +1,8 @@
 package com.zymekoh.crystaltweaks.mixin.client;
 
 import com.mojang.math.Axis;
-import com.zymekoh.crystaltweaks.client.CrystalVisualConfig;
+import com.zymekoh.crystaltweaks.client.CrystalAppearance;
+import com.zymekoh.crystaltweaks.client.CrystalAppearanceAccess;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.object.crystal.EndCrystalModel;
 import net.minecraft.client.renderer.entity.EndCrystalRenderer;
@@ -15,7 +16,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(EndCrystalModel.class)
-public abstract class CrystalAnimationMixin {
+public abstract class CrystalAnimationMixin implements CrystalAppearanceAccess {
+    @Unique private CrystalAppearance crystalTweaks$appearance;
+
+    @Override public CrystalAppearance crystalTweaks$appearance() { return crystalTweaks$appearance; }
+    @Override public void crystalTweaks$appearance(CrystalAppearance appearance) { crystalTweaks$appearance = appearance; }
     @Unique
     private static final float CRYSTAL_TWEAKS_SINE_45 = (float) Math.sin(Math.PI / 4.0D);
 
@@ -36,8 +41,9 @@ public abstract class CrystalAnimationMixin {
             EndCrystalRenderState state,
             CallbackInfo callback
     ) {
-        int rotationPercent = CrystalVisualConfig.rotationSpeedPercent();
-        int floatingPercent = CrystalVisualConfig.floatingSpeedPercent();
+        this.crystalTweaks$appearance = CrystalAppearanceAccess.of(state);
+        int rotationPercent = this.crystalTweaks$appearance.rotationSpeedPercent;
+        int floatingPercent = this.crystalTweaks$appearance.floatingSpeedPercent;
         if (rotationPercent == 100 && floatingPercent == 100) {
             return;
         }

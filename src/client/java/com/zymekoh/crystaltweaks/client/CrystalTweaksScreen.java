@@ -18,6 +18,7 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.ConfirmScreen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.entity.state.EndCrystalRenderState;
@@ -38,8 +39,11 @@ public final class CrystalTweaksScreen extends Screen {
     private static final long PREVIEW_RESPAWN_MILLIS = 3_000L;
 
     private final Screen parent;
+    private final boolean enemyEditor;
+    private final boolean glowEditor;
     private final boolean spanish;
     private final EndCrystalRenderState previewState = new EndCrystalRenderState();
+    private final AfterglowTimeline<CrystalAfterglowState> previewAfterglows = new AfterglowTimeline<>(4);
     private final List<AbstractWidget> contentWidgets = new ArrayList<>();
     private final Map<AbstractWidget, Integer> contentBaseY = new IdentityHashMap<>();
 
@@ -83,6 +87,7 @@ public final class CrystalTweaksScreen extends Screen {
     private int optionsX;
     private int optionsWidth;
     private int previewX;
+    private int previewY;
     private int previewWidth;
     private int previewHeight;
     private int previewNoteHeight;
@@ -94,7 +99,14 @@ public final class CrystalTweaksScreen extends Screen {
     private PreviewPhase previewPhase = PreviewPhase.APPEARING;
 
     public CrystalTweaksScreen(Screen parent) {
+        this(parent, false, false);
+    }
+
+    private CrystalTweaksScreen(Screen parent, boolean enemy, boolean glow) {
         super(Component.literal("Crystal Tweaks KoHs"));
+        this.enemyEditor = enemy;
+        this.glowEditor = glow;
+        if (glow) this.selectedLayer = Layer.GLOW;
         this.parent = parent;
         this.spanish = usesSpanish();
         this.previewState.entityType = EntityType.END_CRYSTAL;
@@ -117,7 +129,7 @@ public final class CrystalTweaksScreen extends Screen {
         this.contentWidgets.clear();
         this.contentBaseY.clear();
         calculateLayout();
-        addTabs();
+        if (!this.glowEditor && !this.enemyEditor) addTabs();
         addFooter();
         addActiveTabContent();
     }
@@ -132,7 +144,7 @@ public final class CrystalTweaksScreen extends Screen {
         this.panelHeight = Math.min(255, availableHeight);
         this.panelX = (this.width - this.panelWidth) / 2;
         this.panelY = (this.height - this.panelHeight) / 2;
-        int desiredHeader = this.panelHeight < 190 ? 42 : 50;
+        int desiredHeader = this.glowEditor || this.enemyEditor ? 25 : this.panelHeight < 190 ? 42 : 50;
         int desiredFooter = this.panelHeight < 190 ? 25 : 31;
         this.headerHeight = Math.min(desiredHeader, Math.max(1, this.panelHeight / 2));
         this.footerHeight = Math.min(
@@ -168,6 +180,30 @@ public final class CrystalTweaksScreen extends Screen {
         this.previewHeight = this.previewWidth > 0
                 ? Math.max(1, this.contentHeight - this.previewNoteHeight)
                 : 0;
+        this.previewY = this.contentY;
+        if (this.glowEditor) {
+            GlowEditorLayout layout = GlowEditorLayout.fit(this.contentX, this.contentY, this.contentWidth, this.contentHeight);
+            this.previewNoteHeight = 0;
+            this.previewHeight = layout.previewHeight();
+            this.previewWidth = layout.previewWidth();
+            this.previewX = layout.previewX();
+            this.contentY = layout.optionsY();
+            this.contentHeight = layout.optionsHeight();
+            this.optionsWidth = layout.optionsWidth();
+            this.optionsX = layout.optionsX();
+        }
+    }
+
+    private CrystalAppearance visuals() {
+        return CrystalVisualConfig.visuals(this.enemyEditor);
+    }
+
+    private void openGlowEditor() {
+        this.minecraft.setScreen(new CrystalTweaksScreen(this, this.enemyEditor, true));
+    }
+
+    private void openEnemyEditor() {
+        this.minecraft.setScreen(new CrystalTweaksScreen(this, true, false));
     }
 
     private void addTabs() {
@@ -241,7 +277,7 @@ public final class CrystalTweaksScreen extends Screen {
         this.colorPicker = null;
         this.logicalContentBottom = 0;
         switch (this.activeTab) {
-            case VISUALS -> addVisualControls();
+            case VISUALS -> { if (this.glowEditor) addGlowControls(); else addVisualControls(); }
             case SOUNDS -> addSoundControls();
             case TWEAKS -> addTweaksControls();
         }
@@ -278,7 +314,7 @@ public final class CrystalTweaksScreen extends Screen {
                 layerWidth,
                 this.controlHeight,
                 Component.empty(),
-                ignored -> selectLayer(Layer.GLOW)));
+                ignored -> openGlowEditor()));
 
         int hexY = this.contentY + rowStep();
         int hexWidth = Math.min(94, this.optionsWidth);
@@ -311,8 +347,8 @@ public final class CrystalTweaksScreen extends Screen {
                 this.controlHeight,
                 0.0D,
                 300.0D,
-                CrystalVisualConfig.rotationSpeedPercent(),
-                value -> CrystalVisualConfig.setRotationSpeedPercent((int) Math.round(value)),
+                visuals().rotationSpeedPercent,
+                value -> visuals().rotationSpeedPercent = (int) Math.round(value),
                 value -> animationSpeedLabel(
                         this.spanish ? "Giro" : "Rotation",
                         (int) Math.round(value))));
@@ -323,52 +359,68 @@ public final class CrystalTweaksScreen extends Screen {
                 this.controlHeight,
                 0.0D,
                 300.0D,
-                CrystalVisualConfig.floatingSpeedPercent(),
-                value -> CrystalVisualConfig.setFloatingSpeedPercent((int) Math.round(value)),
+                visuals().floatingSpeedPercent,
+                value -> visuals().floatingSpeedPercent = (int) Math.round(value),
                 value -> animationSpeedLabel(
                         this.spanish ? "Flotación" : "Floating",
                         (int) Math.round(value))));
-        if (this.selectedLayer == Layer.GLOW) {
-            addGlowControls(rotationY);
-        }
+        PurpleCloseButton enemy = addContent(new PurpleCloseButton(
+                this.optionsX, rotationY + rowStep() * 2, this.optionsWidth, this.controlHeight,
+                Component.literal(this.enemyEditor
+                        ? (this.spanish ? "Personalizar ajenos: " : "Enemy customization: ")
+                            + (CrystalVisualConfig.enemyCustomEnabled()
+                                ? (this.spanish ? "ACTIVO" : "ON") : (this.spanish ? "INACTIVO" : "OFF"))
+                        : (this.spanish ? "Personalizar cristales ajenos..." : "Enemy crystal custom...")),
+                ignored -> {
+                    if (this.enemyEditor) {
+                        CrystalVisualConfig.setEnemyCustomEnabled(!CrystalVisualConfig.enemyCustomEnabled());
+                        rebuildActiveContent();
+                    } else openEnemyEditor();
+                }));
+        enemy.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "Identificación aproximada: se relacionan tus intentos de colocación con las apariciones. Los cristales sin coincidencia, incluidos los desconocidos, usan este perfil; el servidor no envía su propietario."
+                : "Approximate attribution: matches your placement attempts to spawns. Unmatched crystals, including unknown owners, use this profile; the server does not send ownership.")));
         selectLayer(this.selectedLayer);
     }
 
-    /**
-     * Everything the glow does lives under its own layer button, so the crystal's look is set in one
-     * place instead of split between two tabs.
-     */
-    private void addGlowControls(int firstRowY) {
-        addContent(new CompactSlider(
-                this.optionsX,
-                firstRowY + rowStep() * 2,
-                this.optionsWidth,
-                this.controlHeight,
-                0.0D,
-                100.0D,
-                CrystalVisualConfig.glowPowerPercent(),
-                value -> {
-                    CrystalVisualConfig.setGlowPowerPercent((int) Math.round(value));
-                    CrystalVisualConfig.save();
-                },
-                value -> String.format(
-                        Locale.ROOT,
-                        "%s: %d%%",
-                        this.spanish ? "Potencia" : "Power",
-                        (int) Math.round(value))));
-
+    /** Dedicated glow window: no layer paint controls or rotation sliders. */
+    private void addGlowControls() {
+        int y = this.contentY;
+        addContent(new CompactSlider(this.optionsX, y, this.optionsWidth, this.controlHeight,
+                0, 300, visuals().glowPowerPercent,
+                value -> visuals().glowPowerPercent = (int) Math.round(value),
+                value -> (this.spanish ? "Potencia del glow: " : "Glow power: ") + Math.round(value) + "%"));
+        CompactSlider reflections = addContent(new CompactSlider(
+                this.optionsX, y + rowStep(), this.optionsWidth, this.controlHeight,
+                0, 300, visuals().glowReflectionsPercent,
+                value -> visuals().glowReflectionsPercent = (int) Math.round(value),
+                value -> (this.spanish ? "Reflejos de glow: " : "Glow reflections: ") + Math.round(value) + "%"));
+        reflections.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "Luz de color simulada en las caras superiores de bloques cercanos. Requiere potencia de glow; no modifica la iluminación del mundo ni añade reflejos de trazado de rayos."
+                : "Simulated colored light on nearby block tops. Requires glow power; does not change world lighting or add ray-traced reflections.")));
         this.glowColorToggle = addContent(new PurpleCloseButton(
-                this.optionsX,
-                firstRowY + rowStep() * 3,
-                this.optionsWidth,
-                this.controlHeight,
-                glowColorToggleMessage(),
-                ignored -> toggleGlowColor()));
+                this.optionsX, y + rowStep() * 2, this.optionsWidth, this.controlHeight,
+                glowColorToggleMessage(), ignored -> toggleGlowColor()));
         this.glowColorToggle.setTooltip(Tooltip.create(Component.literal(this.spanish
-                ? "Pinta todo el cristal con el color de esta capa. Mientras este activo se ignoran "
-                        + "los colores de Exterior, Interior y Nucleo."
-                : "Paints the whole crystal in this layer's color. While it is on, the Outer, Inner "
-                        + "and Core colors are ignored.")));
+                ? "Al activarlo se pide confirmación: este color sustituye visualmente los colores por capa, sin borrarlos."
+                : "Enabling asks for confirmation: this color visually overrides layer colors without deleting them.")));
+        this.hexBox = addContent(new EditBox(this.font, this.optionsX, y + rowStep() * 3,
+                Math.min(94, this.optionsWidth), this.controlHeight,
+                Component.literal(this.spanish ? "Color de glow hexadecimal" : "Glow hex color")));
+        this.hexBox.setMaxLength(7);
+        this.hexBox.setResponder(this::onHexChanged);
+        // Take the height from the space the four rows above leave behind, rather than a fixed cap
+        // that does not know how tall the column ended up being.
+        int glowPickerHeight = Mth.clamp(this.contentHeight - rowStep() * 4, 14, 42);
+        this.colorPicker = addContent(new ColorPickerWidget(this.optionsX, y + rowStep() * 4,
+                this.optionsWidth, glowPickerHeight,
+                Component.literal(this.spanish ? "Color de glow" : "Glow color"),
+                selectedColor(), this::onPickerChanged));
+        this.updatingControls = true;
+        this.hexBox.setValue(CrystalVisualConfig.toHex(selectedColor()));
+        this.updatingControls = false;
+        this.hexBox.active = visuals().customGlowColor;
+        this.colorPicker.active = visuals().customGlowColor;
     }
 
     private void addSoundControls() {
@@ -529,15 +581,7 @@ public final class CrystalTweaksScreen extends Screen {
     }
 
     private void selectLayer(Layer layer) {
-        boolean glowChanged = (this.selectedLayer == Layer.GLOW) != (layer == Layer.GLOW);
         this.selectedLayer = layer;
-        if (glowChanged) {
-            // The glow brings its own controls, so the tab has to be laid out again. Widgets are
-            // dropped first, exactly as switching tabs does, or the old ones stay registered.
-            rebuildContent();
-            addActiveTabContent();
-            return;
-        }
         int color = selectedColor();
         this.updatingControls = true;
         this.colorPicker.setColor(color);
@@ -575,10 +619,11 @@ public final class CrystalTweaksScreen extends Screen {
     }
 
     private void updateLayerMessages() {
+        if (this.outerButton == null) return;
         this.outerButton.setMessage(layerMessage(Layer.OUTER, this.spanish ? "Exterior" : "Outer"));
         this.innerButton.setMessage(layerMessage(Layer.INNER, this.spanish ? "Interior" : "Inner"));
         this.coreButton.setMessage(layerMessage(Layer.CORE, this.spanish ? "Núcleo" : "Core"));
-        this.glowButton.setMessage(layerMessage(Layer.GLOW, this.spanish ? "Brillo" : "Glow"));
+        this.glowButton.setMessage(Component.literal("Glow..."));
     }
 
     private Component layerMessage(Layer layer, String name) {
@@ -587,19 +632,19 @@ public final class CrystalTweaksScreen extends Screen {
 
     private void setSelectedColor(int color) {
         switch (this.selectedLayer) {
-            case OUTER -> CrystalVisualConfig.setOuterColor(color);
-            case INNER -> CrystalVisualConfig.setInnerColor(color);
-            case CORE -> CrystalVisualConfig.setCoreColor(color);
-            case GLOW -> CrystalVisualConfig.setGlowColor(color);
+            case OUTER -> visuals().outerColor = color;
+            case INNER -> visuals().innerColor = color;
+            case CORE -> visuals().coreColor = color;
+            case GLOW -> visuals().glowColor = color;
         }
     }
 
     private int selectedColor() {
         return switch (this.selectedLayer) {
-            case OUTER -> CrystalVisualConfig.outerColor();
-            case INNER -> CrystalVisualConfig.innerColor();
-            case CORE -> CrystalVisualConfig.coreColor();
-            case GLOW -> CrystalVisualConfig.glowColor();
+            case OUTER -> visuals().outerColor;
+            case INNER -> visuals().innerColor;
+            case CORE -> visuals().coreColor;
+            case GLOW -> visuals().glowColor;
         };
     }
 
@@ -660,7 +705,7 @@ public final class CrystalTweaksScreen extends Screen {
             message = this.spanish
                     ? "Optimizacion en pausa: " + other + " ya optimiza cristales"
                     : "Optimization paused: " + other + " already optimizes crystals";
-        } else if (CrystalVisualConfig.customGlowColor()) {
+        } else if (visuals().customGlowColor) {
             // Say it where the ignored colors are actually being chosen.
             message = this.spanish
                     ? "Color de brillo activo: se ignoran Exterior, Interior y Nucleo"
@@ -678,14 +723,23 @@ public final class CrystalTweaksScreen extends Screen {
     }
 
     private void toggleGlowColor() {
-        CrystalVisualConfig.setCustomGlowColor(!CrystalVisualConfig.customGlowColor());
-        CrystalVisualConfig.save();
-        this.glowColorToggle.setMessage(glowColorToggleMessage());
+        if (visuals().customGlowColor) {
+            visuals().customGlowColor = false;
+            rebuildActiveContent();
+            return;
+        }
+        this.minecraft.setScreen(new ConfirmScreen(confirmed -> {
+            if (confirmed) visuals().customGlowColor = true;
+            this.minecraft.setScreen(this);
+        }, Component.literal(this.spanish ? "¿Usar color de glow personalizado?" : "Use custom glowing color?"),
+                Component.literal(this.spanish
+                        ? "Se omitirán los colores Exterior, Interior y Núcleo de este perfil. No se borrarán: al desactivar esta opción volverán a aplicarse."
+                        : "This overrides the Outer, Inner and Core colors of this profile. They are preserved and will return when you disable this option.")));
     }
 
     private Component glowColorToggleMessage() {
-        String label = this.spanish ? "Color de brillo propio" : "Custom glow color";
-        String state = CrystalVisualConfig.customGlowColor()
+        String label = this.spanish ? "Elegir color de glow" : "Select custom glowing color";
+        String state = visuals().customGlowColor
                 ? (this.spanish ? "ACTIVO" : "ON")
                 : (this.spanish ? "INACTIVO" : "OFF");
         return Component.literal(label + ": " + state);
@@ -750,9 +804,19 @@ public final class CrystalTweaksScreen extends Screen {
     private void resetActiveTab() {
         switch (this.activeTab) {
             case VISUALS -> {
-                CrystalVisualConfig.resetColors();
-                CrystalVisualConfig.setRotationSpeedPercent(100);
-                CrystalVisualConfig.setFloatingSpeedPercent(100);
+                if (this.glowEditor) {
+                    visuals().glowPowerPercent = 0;
+                    visuals().glowReflectionsPercent = 0;
+                    visuals().customGlowColor = false;
+                    visuals().glowColor = -1;
+                    rebuildActiveContent();
+                    return;
+                }
+                visuals().outerColor = -1;
+                visuals().innerColor = -1;
+                visuals().coreColor = -1;
+                visuals().rotationSpeedPercent = 100;
+                visuals().floatingSpeedPercent = 100;
                 rebuildActiveContent();
             }
             case SOUNDS -> {
@@ -796,7 +860,7 @@ public final class CrystalTweaksScreen extends Screen {
         }
         drawPanelParticles(graphics, now);
         drawHeader(graphics);
-        drawOptimizerWarning(graphics);
+        if (!this.glowEditor && !this.enemyEditor) drawOptimizerWarning(graphics);
         if (this.activeTab == Tab.VISUALS) {
             drawVisualSelection(graphics);
         } else if (this.activeTab == Tab.SOUNDS) {
@@ -837,7 +901,9 @@ public final class CrystalTweaksScreen extends Screen {
                 + 0.5F * (float) Math.sin(System.currentTimeMillis() / 280.0F)));
         graphics.centeredText(
                 this.font,
-                Component.literal("Crystal Tweaks KoHs"),
+                Component.literal(this.glowEditor ? (this.spanish ? "Editor de glow" : "Glow editor")
+                        + (this.enemyEditor ? (this.spanish ? " · Ajenos" : " · Enemy") : "")
+                        : this.enemyEditor ? (this.spanish ? "Cristales ajenos" : "Enemy crystal custom") : "Crystal Tweaks KoHs"),
                 this.panelX + this.panelWidth / 2,
                 this.panelY + 6,
                 0xFF000000 | glow << 16 | 225 << 8 | 255);
@@ -940,22 +1006,34 @@ public final class CrystalTweaksScreen extends Screen {
         }
         graphics.fillGradient(
                 this.previewX,
-                this.contentY,
+                this.previewY,
                 this.previewX + this.previewWidth,
-                this.contentY + this.previewHeight,
+                this.previewY + this.previewHeight,
                 0x15150720,
                 0x0807030C);
         drawOutline(graphics,
                 this.previewX,
-                this.contentY,
+                this.previewY,
                 this.previewWidth,
                 this.previewHeight,
                 0x997C3CA0);
         long now = System.currentTimeMillis();
         updatePreviewPhase(now);
         this.previewState.ageInTicks = previewAnimationAge(now);
-        int renderTop = this.contentY + 3;
-        int renderBottom = this.contentY + this.previewHeight - 3;
+        if ((Object) this.previewState instanceof CrystalAppearanceAccess access) {
+            CrystalAppearance look = visuals().copy();
+            if (this.previewPhase == PreviewPhase.EXPLODING || this.previewPhase == PreviewPhase.HIDDEN) {
+                look.glowPowerPercent = 0; // The detached light fades at full size, not with the shrinking model.
+            }
+            access.crystalTweaks$appearance(look);
+        }
+        if ((Object) this.previewState instanceof CrystalGlowAccess glow) {
+            glow.crystalTweaks$surfaces(this.glowEditor
+                    ? List.of(new CrystalGlowRenderer.Surface(-1.4F, -0.02F, -1.4F, 1.4F, 1.4F))
+                    : List.of());
+        }
+        int renderTop = this.previewY + 3;
+        int renderBottom = this.previewY + this.previewHeight - 3;
         int renderSize = Math.max(1, Math.min(this.previewWidth - 6, renderBottom - renderTop));
         int x = this.previewX + (this.previewWidth - renderSize) / 2;
         int y = renderTop + Math.max(0, (renderBottom - renderTop - renderSize) / 2);
@@ -967,7 +1045,7 @@ public final class CrystalTweaksScreen extends Screen {
         if (previewScale > 0.01F) {
             graphics.entity(
                     this.previewState,
-                    renderSize * 0.43F * previewScale,
+                    renderSize * glowPreviewScale(visuals()) * previewScale,
                     new Vector3f(0.0F, 1.0F, 0.0F),
                     rotation,
                     new Quaternionf(),
@@ -976,6 +1054,14 @@ public final class CrystalTweaksScreen extends Screen {
                     x + renderSize,
                     y + renderSize);
         }
+        for (AfterglowTimeline.Sample<CrystalAfterglowState> tail : this.previewAfterglows.samples(System.nanoTime())) {
+            CrystalAfterglowState light = tail.value();
+            light.opacity = tail.opacity();
+            graphics.entity(light,
+                    renderSize * glowPreviewScale(CrystalAppearanceAccess.of(light)),
+                    new Vector3f(0.0F, 1.0F, 0.0F), rotation, new Quaternionf(),
+                    x, y, x + renderSize, y + renderSize);
+        }
         drawPreviewEffectParticles(graphics, now, x + renderSize / 2, y + renderSize / 2, renderSize);
 
         if (this.previewNoteHeight > 0 && this.activeTab == Tab.VISUALS) {
@@ -983,7 +1069,7 @@ public final class CrystalTweaksScreen extends Screen {
                     ? "El tinte se aplica sobre la textura activa."
                     : "Tint is applied over the active texture.");
             List<FormattedCharSequence> lines = this.font.split(note, Math.max(20, this.previewWidth - 6));
-            int noteY = this.contentY + this.previewHeight + 2;
+            int noteY = this.previewY + this.previewHeight + 2;
             for (FormattedCharSequence line : lines) {
                 graphics.text(this.font, line, this.previewX + 3, noteY, 0xFFC6B5CC, false);
                 noteY += this.font.lineHeight;
@@ -1077,6 +1163,11 @@ public final class CrystalTweaksScreen extends Screen {
 
     private void explodePreview(long now) {
         CrystalSoundManager.playPreviewExplosion();
+        if (visuals().glowPowerPercent > 0) {
+            CrystalAfterglowState light = CrystalAfterglow.snapshot(this.previewState);
+            ((CrystalAppearanceAccess) light).crystalTweaks$appearance(visuals().copy());
+            this.previewAfterglows.start(java.util.UUID.randomUUID(), light, System.nanoTime());
+        }
         this.previewPhase = PreviewPhase.EXPLODING;
         this.previewPhaseStartedAt = now;
         this.previewRespawnAt = now + PREVIEW_RESPAWN_MILLIS;
@@ -1107,8 +1198,8 @@ public final class CrystalTweaksScreen extends Screen {
                 && this.previewWidth > 0
                 && event.x() >= this.previewX
                 && event.x() <= this.previewX + this.previewWidth
-                && event.y() >= this.contentY
-                && event.y() <= this.contentY + this.previewHeight) {
+                && event.y() >= this.previewY
+                && event.y() <= this.previewY + this.previewHeight) {
             handlePreviewInput(attackInput);
             return true;
         }
@@ -1117,6 +1208,7 @@ public final class CrystalTweaksScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
+        if (this.hexBox != null && this.hexBox.isFocused()) return super.keyPressed(event);
         if (this.minecraft != null && this.previewWidth > 0) {
             if (this.minecraft.options.keyAttack.matches(event)) {
                 handlePreviewInput(true);
@@ -1134,17 +1226,58 @@ public final class CrystalTweaksScreen extends Screen {
         return Math.max(0L, now - this.openedAt) / 50.0F;
     }
 
+    private static float glowPreviewScale(CrystalAppearance look) {
+        return look.glowPowerPercent <= 0 ? 0.43F
+                : Math.min(0.30F, 0.47F / CrystalGlowMath.radius(CrystalGlowMath.power(look.glowPowerPercent)));
+    }
+
     private void drawScrollbar(GuiGraphicsExtractor graphics) {
         if (this.maxScroll <= 0 || this.logicalContentBottom <= 0) {
             return;
         }
-        int trackX = this.optionsX + this.optionsWidth - 2;
+        int trackX = this.optionsX + this.optionsWidth - 3;
         int trackHeight = this.contentHeight;
         int thumbHeight = Math.max(9, trackHeight * trackHeight / this.logicalContentBottom);
         int travel = Math.max(1, trackHeight - thumbHeight);
         int thumbY = this.contentY + Math.round(travel * currentScroll() / (float) this.maxScroll);
-        graphics.fill(trackX, this.contentY, trackX + 2, this.contentY + trackHeight, 0x522B1236);
-        graphics.fill(trackX, thumbY, trackX + 2, thumbY + thumbHeight, 0xE2C06BE8);
+        graphics.fill(trackX, this.contentY, trackX + 3, this.contentY + trackHeight, 0x7A2B1236);
+        graphics.fill(trackX, thumbY, trackX + 3, thumbY + thumbHeight, 0xF2C06BE8);
+        drawScrollHints(graphics);
+    }
+
+    /**
+     * Marks the edges the content continues past.
+     *
+     * <p>A three pixel bar at the far right is easy to miss, so a control below the fold reads as
+     * simply not existing. Fading the edge the content runs past, with an arrow pointing that way,
+     * says there is more without stealing room from the controls.</p>
+     */
+    private void drawScrollHints(GuiGraphicsExtractor graphics) {
+        int left = this.optionsX;
+        int right = this.optionsX + this.optionsWidth;
+        int top = this.contentY;
+        int bottom = this.contentY + this.contentHeight;
+        int fade = Math.min(11, Math.max(4, this.contentHeight / 8));
+
+        if (currentScroll() > 0) {
+            graphics.fillGradient(left, top, right, top + fade, 0xB2150A20, 0x00150A20);
+            graphics.centeredText(
+                    this.font,
+                    Component.literal("▴"),
+                    (left + right) / 2,
+                    top - 1,
+                    0xFFE0B6F2);
+        }
+
+        if (currentScroll() < this.maxScroll) {
+            graphics.fillGradient(left, bottom - fade, right, bottom, 0x00150A20, 0xC6150A20);
+            graphics.centeredText(
+                    this.font,
+                    Component.literal("▾"),
+                    (left + right) / 2,
+                    bottom - this.font.lineHeight,
+                    0xFFE0B6F2);
+        }
     }
 
     @Override

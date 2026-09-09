@@ -58,6 +58,7 @@ public final class CrystalPlacementFeedback {
 
     public static void resetState() {
         TRACKER.reset();
+        CrystalOwnership.reset();
     }
 
     public static long lastLatencyMillis() {
@@ -76,13 +77,27 @@ public final class CrystalPlacementFeedback {
 
         ItemStack usedStack = minecraft.player.getItemInHand(packet.getHand());
         BlockPos base = packet.getHitResult().getBlockPos();
+        // Ownership is a colour lookup, not a prediction, so it stays on under a conflict: it is
+        // what tells the renderer whose crystal this is, and no other mod is writing to it.
+        CrystalOwnership.observeWorld(minecraft.level);
+        if (usedStack.is(Items.END_CRYSTAL)) {
+            CrystalOwnership.record(base, System.nanoTime());
+        }
+
+        // Everything below predicts. When another optimizer is present nothing of ours may run,
+        // not even the bookkeeping: the entity scan below costs a query on every placement packet,
+        // and a latency sample taken while someone else drives the timing is worse than none.
+        if (!CrystalOptimizerGuard.optimizationsAllowed()) {
+            return;
+        }
+
         if (!usedStack.is(Items.END_CRYSTAL) || !isVanillaPlacementCandidate(minecraft, base)) {
             return;
         }
 
         long now = System.nanoTime();
         TRACKER.record(base, packet.getSequence(), now);
-        if (CrystalVisualConfig.ghostCrystals() && CrystalOptimizerGuard.optimizationsAllowed()) {
+        if (CrystalVisualConfig.ghostCrystals()) {
             GhostCrystalTracker.add(base, now);
         }
     }
@@ -116,6 +131,7 @@ public final class CrystalPlacementFeedback {
         if (!(entity instanceof EndCrystal)) {
             return;
         }
+        CrystalOwnership.loaded((EndCrystal) entity);
 
         BlockPos base = BlockPos.containing(entity.getX(), entity.getY() - 1.0D, entity.getZ());
         // The round trip this measures is the one the break prediction has to outlast, so feed it

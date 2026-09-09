@@ -1,11 +1,13 @@
 {
   "required": true,
-  "priority": 20000,
+  "priority": 1000,
   "minVersion": "0.8",
   "package": "com.zymekoh.crystaltweaks.mixin.client",
   "compatibilityLevel": "JAVA_25",
   "client": [
     "CrystalAnimationMixin",
+    "CrystalAfterglowRendererMixin",
+    "CrystalRenderStateMixin",
     "CrystalAttackPacketMixin",
     "EndCrystalGlowMixin",
     "EndCrystalRendererMixin",

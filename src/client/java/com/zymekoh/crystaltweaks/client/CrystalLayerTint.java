@@ -28,20 +28,28 @@ public final class CrystalLayerTint {
         if (model == null) {
             return originalColor;
         }
-        // A glow is one color by definition, so it takes over from the three layer colors rather
-        // than trying to blend with them. The settings screen warns before this is switched on.
-        if (CrystalVisualConfig.customGlowColor()
+        CrystalAppearance appearance = CrystalAppearanceAccess.of(model);
+        if (part == model.cube && appearance.glowPowerPercent > 0) {
+            int tint = appearance.customGlowColor ? appearance.glowColor : appearance.coreColor;
+            int hot = CrystalGlowMath.hotColor(tint);
+            float amount = Math.min(1, CrystalGlowMath.power(appearance.glowPowerPercent));
+            int r = Math.round(((tint >> 16) & 255) * (1 - amount) + ((hot >> 16) & 255) * amount);
+            int g = Math.round(((tint >> 8) & 255) * (1 - amount) + ((hot >> 8) & 255) * amount);
+            int b = Math.round((tint & 255) * (1 - amount) + (hot & 255) * amount);
+            return (originalColor & 0xFF000000) | r << 16 | g << 8 | b;
+        }
+        if (appearance.customGlowColor
                 && (part == model.outerGlass || part == model.innerGlass || part == model.cube)) {
-            return CrystalVisualConfig.glowColor();
+            return (originalColor & 0xFF000000) | (appearance.glowColor & 0xFFFFFF);
         }
         if (part == model.outerGlass) {
-            return CrystalVisualConfig.outerColor();
+            return (originalColor & 0xFF000000) | (appearance.outerColor & 0xFFFFFF);
         }
         if (part == model.innerGlass) {
-            return CrystalVisualConfig.innerColor();
+            return (originalColor & 0xFF000000) | (appearance.innerColor & 0xFFFFFF);
         }
         if (part == model.cube) {
-            return CrystalVisualConfig.coreColor();
+            return (originalColor & 0xFF000000) | (appearance.coreColor & 0xFFFFFF);
         }
         return originalColor;
     }

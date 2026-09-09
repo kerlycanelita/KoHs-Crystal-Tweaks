@@ -28,6 +28,10 @@ if (-not (Test-Path $Path)) {
     throw "No JAR directory at $Path. Run tools\build-all.ps1 first."
 }
 
+$modVersion = (Get-Content (Join-Path $repositoryRoot 'gradle.properties') |
+    Where-Object { $_ -match '^mod_version=' } |
+    ForEach-Object { ($_ -split '=', 2)[1].Trim() })
+
 $matrix = @{}
 Get-Content (Join-Path $repositoryRoot 'gradle\versions.properties') |
     Where-Object { $_ -match '^\s*[^#\s]' -and $_ -match '=' } |
@@ -110,6 +114,12 @@ foreach ($jar in Get-ChildItem $Path -Filter '*.jar' | Sort-Object Name) {
         if ($entryNames -notcontains "$mixinPackagePath/$mixinName.class") {
             $issues += "mixin config lists $mixinName but the class is not in the JAR"
         }
+    }
+
+    # The JAR name must match the version the project is on. build\libs keeps every JAR ever built,
+    # so a script that copies a hard-coded file name silently ships a stale artifact after a bump.
+    if ($jar.Name -notmatch "-$([regex]::Escape($modVersion))\.jar$") {
+        $issues += "file is not version $modVersion; build\libs keeps old JARs and one was picked up"
     }
 
     $checked++

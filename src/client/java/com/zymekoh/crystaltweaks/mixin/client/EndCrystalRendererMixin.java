@@ -1,6 +1,14 @@
 package com.zymekoh.crystaltweaks.mixin.client;
 
 import com.zymekoh.crystaltweaks.core.CrystalBreakPrediction;
+import com.zymekoh.crystaltweaks.client.CrystalAfterglow;
+import com.zymekoh.crystaltweaks.client.CrystalAfterglowState;
+import com.zymekoh.crystaltweaks.client.CrystalGlowRenderer;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.entity.state.EndCrystalRenderState;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.client.renderer.culling.Frustum;
 import net.minecraft.client.renderer.entity.EndCrystalRenderer;
 import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
@@ -17,6 +25,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(EndCrystalRenderer.class)
 public abstract class EndCrystalRendererMixin {
+    @Inject(method = "submit(Lnet/minecraft/client/renderer/entity/state/EndCrystalRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V", at = @At("HEAD"), cancellable = true)
+    private void crystalTweaks$previewLightOnly(EndCrystalRenderState state, PoseStack poses, SubmitNodeCollector collector, CameraRenderState camera, CallbackInfo ci) {
+        // Only our synthetic preview state is cancellable; real entities never enter this branch.
+        if (state instanceof CrystalAfterglowState afterglow) {
+            CrystalGlowRenderer.submit(state, poses, collector, camera, afterglow.opacity);
+            ci.cancel();
+        }
+    }
     @Inject(
             method = "shouldRender(Lnet/minecraft/world/entity/boss/enderdragon/EndCrystal;"
                     + "Lnet/minecraft/client/renderer/culling/Frustum;DDD)Z",
@@ -32,6 +48,7 @@ public abstract class EndCrystalRendererMixin {
             CallbackInfoReturnable<Boolean> callback
     ) {
         if (CrystalBreakPrediction.isHidden(crystal)) {
+            CrystalAfterglow.onHidden(crystal);
             callback.setReturnValue(false);
         }
     }

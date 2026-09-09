@@ -18,20 +18,23 @@ public final class CrystalVisualConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final int DEFAULT_COLOR = 0xFFFFFFFF;
     private static final Object LOCK = new Object();
-    private static volatile int outerColor = DEFAULT_COLOR;
-    private static volatile int innerColor = DEFAULT_COLOR;
-    private static volatile int coreColor = DEFAULT_COLOR;
-    private static volatile int rotationSpeedPercent = 100;
-    private static volatile int floatingSpeedPercent = 100;
     private static volatile boolean customSoundEnabled;
     private static volatile String customSoundFileName = "";
     private static volatile float soundVolume = 1.0F;
     private static volatile float soundSpeed = 1.0F;
     private static volatile boolean ghostCrystals;
-    private static volatile int glowPowerPercent;
-    private static volatile boolean customGlowColor;
-    private static volatile int glowColor = DEFAULT_COLOR;
     private static volatile boolean loaded;
+    private static final CrystalAppearance playerVisuals = new CrystalAppearance();
+    private static CrystalAppearance enemyVisuals = new CrystalAppearance();
+    private static boolean enemyCustomEnabled;
+
+    public static CrystalAppearance visuals(boolean enemy) {
+        load();
+        return enemy ? enemyVisuals : playerVisuals;
+    }
+
+    public static boolean enemyCustomEnabled() { load(); return enemyCustomEnabled; }
+    public static void setEnemyCustomEnabled(boolean enabled) { load(); enemyCustomEnabled = enabled; }
 
     private CrystalVisualConfig() {
     }
@@ -53,11 +56,11 @@ public final class CrystalVisualConfig {
                     JsonObject visuals = root.has("visuals") && root.get("visuals").isJsonObject()
                             ? root.getAsJsonObject("visuals")
                             : new JsonObject();
-                    outerColor = parseColor(visuals, "outerColor", DEFAULT_COLOR);
-                    innerColor = parseColor(visuals, "innerColor", DEFAULT_COLOR);
-                    coreColor = parseColor(visuals, "coreColor", DEFAULT_COLOR);
-                    rotationSpeedPercent = clamp(intValue(visuals, "rotationSpeedPercent", 100), 0, 300);
-                    floatingSpeedPercent = clamp(intValue(visuals, "floatingSpeedPercent", 100), 0, 300);
+                    playerVisuals.outerColor = parseColor(visuals, "outerColor", DEFAULT_COLOR);
+                    playerVisuals.innerColor = parseColor(visuals, "innerColor", DEFAULT_COLOR);
+                    playerVisuals.coreColor = parseColor(visuals, "coreColor", DEFAULT_COLOR);
+                    playerVisuals.rotationSpeedPercent = clamp(intValue(visuals, "rotationSpeedPercent", 100), 0, 300);
+                    playerVisuals.floatingSpeedPercent = clamp(intValue(visuals, "floatingSpeedPercent", 100), 0, 300);
 
                     JsonObject sounds = root.has("sounds") && root.get("sounds").isJsonObject()
                             ? root.getAsJsonObject("sounds")
@@ -75,9 +78,19 @@ public final class CrystalVisualConfig {
                     JsonObject glow = root.has("glow") && root.get("glow").isJsonObject()
                             ? root.getAsJsonObject("glow")
                             : new JsonObject();
-                    glowPowerPercent = clamp(intValue(glow, "powerPercent", 0), 0, 100);
-                    customGlowColor = booleanValue(glow, "customColor", false);
-                    glowColor = parseColor(glow, "color", DEFAULT_COLOR);
+                    playerVisuals.glowReflectionsPercent = clamp(intValue(glow, "reflectionsPercent", 0), 0, 300);
+                    JsonObject enemy = root.has("enemyVisuals") && root.get("enemyVisuals").isJsonObject()
+                            ? root.getAsJsonObject("enemyVisuals") : new JsonObject();
+                    enemyCustomEnabled = booleanValue(enemy, "enabled", false);
+                    try {
+                        enemyVisuals = GSON.fromJson(enemy, CrystalAppearance.class).copy();
+                    } catch (RuntimeException invalidEnemySettings) {
+                        enemyVisuals = new CrystalAppearance();
+                        CrystalTweaksClient.LOGGER.warn("Invalid enemy visual settings; resetting only that profile");
+                    }
+                    playerVisuals.glowPowerPercent = clamp(intValue(glow, "powerPercent", 0), 0, 300);
+                    playerVisuals.customGlowColor = booleanValue(glow, "customColor", false);
+                    playerVisuals.glowColor = parseColor(glow, "color", DEFAULT_COLOR);
                 } catch (Exception exception) {
                     CrystalTweaksClient.LOGGER.warn(
                             "Could not read crystal visual settings from {}; using neutral colors",
@@ -99,11 +112,11 @@ public final class CrystalVisualConfig {
                 JsonObject visuals = root.has("visuals") && root.get("visuals").isJsonObject()
                         ? root.getAsJsonObject("visuals")
                         : new JsonObject();
-                visuals.addProperty("outerColor", toHex(outerColor));
-                visuals.addProperty("innerColor", toHex(innerColor));
-                visuals.addProperty("coreColor", toHex(coreColor));
-                visuals.addProperty("rotationSpeedPercent", rotationSpeedPercent);
-                visuals.addProperty("floatingSpeedPercent", floatingSpeedPercent);
+                visuals.addProperty("outerColor", toHex(playerVisuals.outerColor));
+                visuals.addProperty("innerColor", toHex(playerVisuals.innerColor));
+                visuals.addProperty("coreColor", toHex(playerVisuals.coreColor));
+                visuals.addProperty("rotationSpeedPercent", playerVisuals.rotationSpeedPercent);
+                visuals.addProperty("floatingSpeedPercent", playerVisuals.floatingSpeedPercent);
                 root.add("visuals", visuals);
 
                 root.remove("tweaks");
@@ -119,9 +132,13 @@ public final class CrystalVisualConfig {
                 JsonObject glow = root.has("glow") && root.get("glow").isJsonObject()
                         ? root.getAsJsonObject("glow")
                         : new JsonObject();
-                glow.addProperty("powerPercent", glowPowerPercent);
-                glow.addProperty("customColor", customGlowColor);
-                glow.addProperty("color", toHex(glowColor));
+                glow.addProperty("reflectionsPercent", playerVisuals.glowReflectionsPercent);
+                JsonObject enemy = GSON.toJsonTree(enemyVisuals.copy()).getAsJsonObject();
+                enemy.addProperty("enabled", enemyCustomEnabled);
+                root.add("enemyVisuals", enemy);
+                glow.addProperty("powerPercent", playerVisuals.glowPowerPercent);
+                glow.addProperty("customColor", playerVisuals.customGlowColor);
+                glow.addProperty("color", toHex(playerVisuals.glowColor));
                 root.add("glow", glow);
 
                 JsonObject sounds = root.has("sounds") && root.get("sounds").isJsonObject()
@@ -144,58 +161,58 @@ public final class CrystalVisualConfig {
 
     public static int outerColor() {
         load();
-        return outerColor;
+        return playerVisuals.outerColor;
     }
 
     public static int innerColor() {
         load();
-        return innerColor;
+        return playerVisuals.innerColor;
     }
 
     public static int coreColor() {
         load();
-        return coreColor;
+        return playerVisuals.coreColor;
     }
 
     public static void setOuterColor(int color) {
         load();
-        outerColor = opaque(color);
+        playerVisuals.outerColor = opaque(color);
     }
 
     public static void setInnerColor(int color) {
         load();
-        innerColor = opaque(color);
+        playerVisuals.innerColor = opaque(color);
     }
 
     public static void setCoreColor(int color) {
         load();
-        coreColor = opaque(color);
+        playerVisuals.coreColor = opaque(color);
     }
 
     public static void resetColors() {
-        outerColor = DEFAULT_COLOR;
-        innerColor = DEFAULT_COLOR;
-        coreColor = DEFAULT_COLOR;
+        playerVisuals.outerColor = DEFAULT_COLOR;
+        playerVisuals.innerColor = DEFAULT_COLOR;
+        playerVisuals.coreColor = DEFAULT_COLOR;
     }
 
     public static int rotationSpeedPercent() {
         load();
-        return rotationSpeedPercent;
+        return playerVisuals.rotationSpeedPercent;
     }
 
     public static void setRotationSpeedPercent(int percent) {
         load();
-        rotationSpeedPercent = clamp(percent, 0, 300);
+        playerVisuals.rotationSpeedPercent = clamp(percent, 0, 300);
     }
 
     public static int floatingSpeedPercent() {
         load();
-        return floatingSpeedPercent;
+        return playerVisuals.floatingSpeedPercent;
     }
 
     public static void setFloatingSpeedPercent(int percent) {
         load();
-        floatingSpeedPercent = clamp(percent, 0, 300);
+        playerVisuals.floatingSpeedPercent = clamp(percent, 0, 300);
     }
 
     public static boolean customSoundEnabled() {
@@ -256,39 +273,39 @@ public final class CrystalVisualConfig {
         ghostCrystals = enabled;
     }
 
-    /** 0 keeps Vanilla lighting; 100 draws the crystal at full brightness. */
+    /** 100 retains the original glow scale; values up to 300 amplify additive light only. */
     public static int glowPowerPercent() {
         load();
-        return glowPowerPercent;
+        return playerVisuals.glowPowerPercent;
     }
 
     public static void setGlowPowerPercent(int percent) {
         load();
-        glowPowerPercent = clamp(percent, 0, 100);
+        playerVisuals.glowPowerPercent = clamp(percent, 0, 300);
     }
 
     /**
      * When on, the whole crystal is drawn in {@link #glowColor()} and the per-layer colors are
-     * ignored. One glow cannot be three colors at once, so this deliberately takes over.
+     * ignored without deleting them. Disabling the override restores the selected layer colors.
      */
     public static boolean customGlowColor() {
         load();
-        return customGlowColor;
+        return playerVisuals.customGlowColor;
     }
 
     public static void setCustomGlowColor(boolean enabled) {
         load();
-        customGlowColor = enabled;
+        playerVisuals.customGlowColor = enabled;
     }
 
     public static int glowColor() {
         load();
-        return glowColor;
+        return playerVisuals.glowColor;
     }
 
     public static void setGlowColor(int color) {
         load();
-        glowColor = opaque(color);
+        playerVisuals.glowColor = opaque(color);
     }
 
     public static Path soundsDirectory() {

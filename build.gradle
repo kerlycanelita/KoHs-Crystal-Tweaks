@@ -88,7 +88,9 @@ def cameraStateTransform = { String line -> line
 				'net.minecraft.client.renderer.state.CameraRenderState')
 		.replace(
 				'Lnet/minecraft/client/renderer/state/level/CameraRenderState;',
-				'Lnet/minecraft/client/renderer/state/CameraRenderState;') }
+				'Lnet/minecraft/client/renderer/state/CameraRenderState;')
+		.replace('net.minecraft.client.renderer.state.level.LevelRenderState', 'net.minecraft.client.renderer.state.LevelRenderState')
+		.replace('Lnet/minecraft/client/renderer/state/level/LevelRenderState;', 'Lnet/minecraft/client/renderer/state/LevelRenderState;') }
 
 def preIdentifierTransform = { String line -> line
 		.replace('.getIdentifier()', '.getLocation()')
@@ -400,7 +402,7 @@ if (usesRemapping || usesModernRegistrySplit) {
 				}
 			}
 			if (usesRemapping) {
-				filesMatching('**/EndCrystalGlowMixin.java') {
+				filesMatching(['**/EndCrystalGlowMixin.java', '**/CrystalGlowRenderer.java', '**/CrystalAfterglow.java', '**/CrystalAfterglowRendererMixin.java', '**/EndCrystalRendererMixin.java']) {
 					filter { line -> cameraStateTransform(line) }
 				}
 			}
