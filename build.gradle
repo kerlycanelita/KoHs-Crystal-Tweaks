@@ -81,6 +81,15 @@ def legacyGuiTransform = { String line -> line
 								: 'graphics.submitEntityRenderState(')
 		.replace('this.minecraft.gui.extractDeferredSubtitles();', '') }
 
+// CameraRenderState moved into a `level` subpackage in 26.1; the 1.x targets still use the old one.
+def cameraStateTransform = { String line -> line
+		.replace(
+				'net.minecraft.client.renderer.state.level.CameraRenderState',
+				'net.minecraft.client.renderer.state.CameraRenderState')
+		.replace(
+				'Lnet/minecraft/client/renderer/state/level/CameraRenderState;',
+				'Lnet/minecraft/client/renderer/state/CameraRenderState;') }
+
 def preIdentifierTransform = { String line -> line
 		.replace('.getIdentifier()', '.getLocation()')
 		.replace('net.minecraft.resources.Identifier', 'net.minecraft.resources.ResourceLocation')
@@ -388,6 +397,11 @@ if (usesRemapping || usesModernRegistrySplit) {
 			if (usesPreIdentifierNames) {
 				filesMatching('**/*.java') {
 					filter { line -> preIdentifierTransform(line) }
+				}
+			}
+			if (usesRemapping) {
+				filesMatching('**/EndCrystalGlowMixin.java') {
+					filter { line -> cameraStateTransform(line) }
 				}
 			}
 			filesMatching([

@@ -1,54 +1,81 @@
 package com.zymekoh.crystaltweaks.mixin.client;
 
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.zymekoh.crystaltweaks.client.CrystalVisualConfig;
+import net.minecraft.client.model.object.crystal.EndCrystalModel;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EndCrystalRenderer;
 import net.minecraft.client.renderer.entity.state.EndCrystalRenderState;
-import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
+import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.resources.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Raises how brightly a crystal is drawn, without touching the light in the world.
+ * Draws a second, translucent pass over the crystal so it reads as glowing.
  *
- * <p>Vanilla already stores the light a crystal is drawn with on its render state. Sliding this up
- * blends that value towards full brightness, so the crystal reads as glowing while every block
- * around it keeps exactly the light the server gave it.</p>
+ * <p>Raising the light the crystal is drawn with is not enough: that value tops out at full
+ * brightness, which in daylight is where the crystal already is, so the slider would do nothing
+ * outside a dark room.</p>
+ *
+ * <p>The glowing outline Vanilla uses for the Glowing effect is deliberately not used either. That
+ * outline draws through terrain, which would turn a visual setting into seeing crystals through
+ * walls. This pass is depth tested like any other model, so a block still hides it.</p>
  */
 @Mixin(EndCrystalRenderer.class)
 public abstract class EndCrystalGlowMixin {
+    @Unique
+    private static final Identifier CRYSTAL_TWEAKS$TEXTURE =
+            Identifier.withDefaultNamespace("textures/entity/end_crystal/end_crystal.png");
+
     /** The packed light coordinates Vanilla uses for a fully lit entity. */
-    private static final int FULL_BRIGHT = 15728880;
+    @Unique
+    private static final int CRYSTAL_TWEAKS$FULL_BRIGHT = 15728880;
+
+    @Shadow
+    @org.spongepowered.asm.mixin.Final
+    private EndCrystalModel model;
 
     @Inject(
-            method = "extractRenderState(Lnet/minecraft/world/entity/boss/enderdragon/EndCrystal;"
-                    + "Lnet/minecraft/client/renderer/entity/state/EndCrystalRenderState;F)V",
+            method = "submit(Lnet/minecraft/client/renderer/entity/state/EndCrystalRenderState;"
+                    + "Lcom/mojang/blaze3d/vertex/PoseStack;"
+                    + "Lnet/minecraft/client/renderer/SubmitNodeCollector;"
+                    + "Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
             at = @At("TAIL")
     )
-    private void crystalTweaks$applyGlowPower(
-            EndCrystal crystal,
+    private void crystalTweaks$submitGlow(
             EndCrystalRenderState state,
-            float partialTick,
+            PoseStack poseStack,
+            SubmitNodeCollector collector,
+            CameraRenderState camera,
             CallbackInfo callback
     ) {
         int percent = CrystalVisualConfig.glowPowerPercent();
         if (percent <= 0) {
             return;
         }
-        if (percent >= 100) {
-            state.lightCoords = FULL_BRIGHT;
-            return;
-        }
 
-        // Blend block and sky light separately: they are packed into the same int and mixing them
-        // as one number would brighten the sky channel from a torch.
-        int block = state.lightCoords & 0xFFFF;
-        int sky = state.lightCoords >> 16 & 0xFFFF;
-        int targetBlock = FULL_BRIGHT & 0xFFFF;
-        int targetSky = FULL_BRIGHT >> 16 & 0xFFFF;
-        int blendedBlock = block + (targetBlock - block) * percent / 100;
-        int blendedSky = sky + (targetSky - sky) * percent / 100;
-        state.lightCoords = blendedSky << 16 | blendedBlock;
+        int rgb = CrystalVisualConfig.customGlowColor()
+                ? CrystalVisualConfig.glowColor() & 0xFFFFFF
+                : 0xFFFFFF;
+        // The pass is additive-looking rather than additive, so the slider drives its opacity.
+        int alpha = Math.max(1, Math.min(255, percent * 255 / 100));
+        int color = alpha << 24 | rgb;
+
+        collector.submitModel(
+                this.model,
+                state,
+                poseStack,
+                RenderTypes.entityTranslucentEmissive(CRYSTAL_TWEAKS$TEXTURE),
+                CRYSTAL_TWEAKS$FULL_BRIGHT,
+                OverlayTexture.NO_OVERLAY,
+                color,
+                null);
     }
 }

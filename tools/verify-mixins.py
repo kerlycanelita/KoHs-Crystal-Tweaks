@@ -91,6 +91,30 @@ def members_of(jar, internal_name):
 # Cancelling one of these cannot lose an input: the worst it can do is skip a draw or a sound.
 CANCEL_ALLOWED = ('Renderer', 'Model', 'SoundBufferLibrary', 'SoundEngine')
 
+_descriptor_cache = {}
+
+
+def descriptors_of(jar, internal_name):
+    """Return {name(argDescriptors)returnDescriptor} for every method, as Mixin writes them."""
+    key = (jar, internal_name)
+    if key in _descriptor_cache:
+        return _descriptor_cache[key]
+    out = subprocess.run(['javap', '-p', '-s', '-cp', jar, internal_name.replace('/', '.')],
+                         capture_output=True, text=True)
+    result = set()
+    pending = None
+    for line in out.stdout.splitlines():
+        stripped = line.strip()
+        m = re.search(r'([A-Za-z_$][\w$]*)\s*\(', stripped)
+        if m and not stripped.startswith('descriptor:'):
+            pending = m.group(1)
+        elif stripped.startswith('descriptor:') and pending:
+            result.add(pending + stripped.split('descriptor:', 1)[1].strip())
+            pending = None
+    _descriptor_cache[key] = result
+    return result
+
+
 ANNOT = re.compile(r'org\.spongepowered\.asm\.mixin\.([\w.]+)\(([^\n]*(?:\n\s+[^\n]*)*?)\n\s*\)',
                    re.M)
 
@@ -211,11 +235,18 @@ def check_jar(path):
                     continue
                 jar, _ = index[t]
                 have = members_of(jar, t)
+                descriptors = descriptors_of(jar, t)
                 for kind, member in members:
                     bare = member.split('(')[0]
                     if bare not in have:
                         problems.append(
                             f'{name}: @{kind} target "{bare}" not found in {t} (Minecraft {mc})')
+                    elif '(' in member and member not in descriptors:
+                        # Matching the name is not enough: an @Inject whose descriptor does not
+                        # exist resolves to nothing and the injection silently never runs.
+                        problems.append(
+                            f'{name}: @{kind} target "{member}" has no matching signature in {t} '
+                            f'(Minecraft {mc})')
             os.remove(local)
         try:
             os.rmdir(tmp)

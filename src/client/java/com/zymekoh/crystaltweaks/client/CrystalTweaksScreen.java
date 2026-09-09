@@ -328,7 +328,47 @@ public final class CrystalTweaksScreen extends Screen {
                 value -> animationSpeedLabel(
                         this.spanish ? "Flotación" : "Floating",
                         (int) Math.round(value))));
+        if (this.selectedLayer == Layer.GLOW) {
+            addGlowControls(rotationY);
+        }
         selectLayer(this.selectedLayer);
+    }
+
+    /**
+     * Everything the glow does lives under its own layer button, so the crystal's look is set in one
+     * place instead of split between two tabs.
+     */
+    private void addGlowControls(int firstRowY) {
+        addContent(new CompactSlider(
+                this.optionsX,
+                firstRowY + rowStep() * 2,
+                this.optionsWidth,
+                this.controlHeight,
+                0.0D,
+                100.0D,
+                CrystalVisualConfig.glowPowerPercent(),
+                value -> {
+                    CrystalVisualConfig.setGlowPowerPercent((int) Math.round(value));
+                    CrystalVisualConfig.save();
+                },
+                value -> String.format(
+                        Locale.ROOT,
+                        "%s: %d%%",
+                        this.spanish ? "Potencia" : "Power",
+                        (int) Math.round(value))));
+
+        this.glowColorToggle = addContent(new PurpleCloseButton(
+                this.optionsX,
+                firstRowY + rowStep() * 3,
+                this.optionsWidth,
+                this.controlHeight,
+                glowColorToggleMessage(),
+                ignored -> toggleGlowColor()));
+        this.glowColorToggle.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "Pinta todo el cristal con el color de esta capa. Mientras este activo se ignoran "
+                        + "los colores de Exterior, Interior y Nucleo."
+                : "Paints the whole crystal in this layer's color. While it is on, the Outer, Inner "
+                        + "and Core colors are ignored.")));
     }
 
     private void addSoundControls() {
@@ -402,39 +442,6 @@ public final class CrystalTweaksScreen extends Screen {
             row = 1;
         }
 
-        addContent(new CompactSlider(
-                this.optionsX,
-                this.contentY + rowStep() * row,
-                this.optionsWidth,
-                this.controlHeight,
-                0.0D,
-                100.0D,
-                CrystalVisualConfig.glowPowerPercent(),
-                value -> {
-                    CrystalVisualConfig.setGlowPowerPercent((int) Math.round(value));
-                    CrystalVisualConfig.save();
-                },
-                value -> String.format(
-                        Locale.ROOT,
-                        "%s: %d%%",
-                        this.spanish ? "Potencia del brillo" : "Glow power",
-                        (int) Math.round(value))));
-        row++;
-
-        this.glowColorToggle = addContent(new PurpleCloseButton(
-                this.optionsX,
-                this.contentY + rowStep() * row,
-                this.optionsWidth,
-                this.controlHeight,
-                glowColorToggleMessage(),
-                ignored -> toggleGlowColor()));
-        this.glowColorToggle.setTooltip(Tooltip.create(Component.literal(this.spanish
-                ? "Pinta todo el cristal con el color de la capa Brillo. Mientras este activo se "
-                        + "ignoran los colores de Exterior, Interior y Nucleo elegidos en Visuales."
-                : "Paints the whole crystal in the Glow layer color. While it is on, the Outer, "
-                        + "Inner and Core colors chosen in Visuals are ignored.")));
-        row++;
-
         this.conflictMonitorButton = addContent(new PurpleCloseButton(
                 this.optionsX,
                 this.contentY + rowStep() * row,
@@ -467,13 +474,18 @@ public final class CrystalTweaksScreen extends Screen {
             return;
         }
         this.activeTab = tab;
+        rebuildContent();
+        updateTabState();
+        addActiveTabContent();
+    }
+
+    /** Drops the widgets the current tab put on screen so a rebuild does not stack duplicates. */
+    private void rebuildContent() {
         for (AbstractWidget widget : this.contentWidgets) {
             removeWidget(widget);
         }
         this.contentWidgets.clear();
         this.contentBaseY.clear();
-        updateTabState();
-        addActiveTabContent();
     }
 
     private void updateTabState() {
@@ -517,7 +529,15 @@ public final class CrystalTweaksScreen extends Screen {
     }
 
     private void selectLayer(Layer layer) {
+        boolean glowChanged = (this.selectedLayer == Layer.GLOW) != (layer == Layer.GLOW);
         this.selectedLayer = layer;
+        if (glowChanged) {
+            // The glow brings its own controls, so the tab has to be laid out again. Widgets are
+            // dropped first, exactly as switching tabs does, or the old ones stay registered.
+            rebuildContent();
+            addActiveTabContent();
+            return;
+        }
         int color = selectedColor();
         this.updatingControls = true;
         this.colorPicker.setColor(color);
