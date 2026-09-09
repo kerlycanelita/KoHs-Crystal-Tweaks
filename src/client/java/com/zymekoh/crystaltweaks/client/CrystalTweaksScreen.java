@@ -1,6 +1,7 @@
 package com.zymekoh.crystaltweaks.client;
 
 import com.zymekoh.crystaltweaks.client.sound.CrystalSoundManager;
+import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
 import com.zymekoh.crystaltweaks.core.GhostCrystalSupport;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -51,9 +52,11 @@ public final class CrystalTweaksScreen extends Screen {
     private PurpleCloseButton outerButton;
     private PurpleCloseButton innerButton;
     private PurpleCloseButton coreButton;
+    private PurpleCloseButton glowButton;
     private PurpleCloseButton soundToggle;
     private PurpleCloseButton soundFileButton;
     private PurpleCloseButton ghostCrystalToggle;
+    private PurpleCloseButton glowColorToggle;
     private PurpleCloseButton conflictMonitorButton;
     private EditBox hexBox;
     private ColorPickerWidget colorPicker;
@@ -194,7 +197,7 @@ public final class CrystalTweaksScreen extends Screen {
                 y,
                 tabWidth,
                 this.controlHeight,
-                Component.literal(this.spanish ? "Ajustes avanzados" : "Advanced Tweaks"),
+                tweaksTabMessage(),
                 ignored -> switchTab(Tab.TWEAKS)));
         updateTabState();
     }
@@ -228,9 +231,11 @@ public final class CrystalTweaksScreen extends Screen {
         this.outerButton = null;
         this.innerButton = null;
         this.coreButton = null;
+        this.glowButton = null;
         this.soundToggle = null;
         this.soundFileButton = null;
         this.ghostCrystalToggle = null;
+        this.glowColorToggle = null;
         this.conflictMonitorButton = null;
         this.hexBox = null;
         this.colorPicker = null;
@@ -245,7 +250,7 @@ public final class CrystalTweaksScreen extends Screen {
 
     private void addVisualControls() {
         int gap = this.optionsWidth < 250 ? 2 : 5;
-        int layerWidth = Math.max(1, (this.optionsWidth - gap * 2) / 3);
+        int layerWidth = Math.max(1, (this.optionsWidth - gap * 3) / 4);
         this.outerButton = addContent(new PurpleCloseButton(
                 this.optionsX,
                 this.contentY,
@@ -267,6 +272,13 @@ public final class CrystalTweaksScreen extends Screen {
                 this.controlHeight,
                 Component.empty(),
                 ignored -> selectLayer(Layer.CORE)));
+        this.glowButton = addContent(new PurpleCloseButton(
+                this.optionsX + (layerWidth + gap) * 3,
+                this.contentY,
+                layerWidth,
+                this.controlHeight,
+                Component.empty(),
+                ignored -> selectLayer(Layer.GLOW)));
 
         int hexY = this.contentY + rowStep();
         int hexWidth = Math.min(94, this.optionsWidth);
@@ -386,8 +398,42 @@ public final class CrystalTweaksScreen extends Screen {
                     : "Draws a stand-in crystal while the server's real one is in flight, so placing "
                             + "does not depend on your ping. Purely visual: it is not an entity, cannot "
                             + "be hit or looked at, and changes no packet.")));
+            this.ghostCrystalToggle.active = CrystalOptimizerGuard.optimizationsAllowed();
             row = 1;
         }
+
+        addContent(new CompactSlider(
+                this.optionsX,
+                this.contentY + rowStep() * row,
+                this.optionsWidth,
+                this.controlHeight,
+                0.0D,
+                100.0D,
+                CrystalVisualConfig.glowPowerPercent(),
+                value -> {
+                    CrystalVisualConfig.setGlowPowerPercent((int) Math.round(value));
+                    CrystalVisualConfig.save();
+                },
+                value -> String.format(
+                        Locale.ROOT,
+                        "%s: %d%%",
+                        this.spanish ? "Potencia del brillo" : "Glow power",
+                        (int) Math.round(value))));
+        row++;
+
+        this.glowColorToggle = addContent(new PurpleCloseButton(
+                this.optionsX,
+                this.contentY + rowStep() * row,
+                this.optionsWidth,
+                this.controlHeight,
+                glowColorToggleMessage(),
+                ignored -> toggleGlowColor()));
+        this.glowColorToggle.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "Pinta todo el cristal con el color de la capa Brillo. Mientras este activo se "
+                        + "ignoran los colores de Exterior, Interior y Nucleo elegidos en Visuales."
+                : "Paints the whole crystal in the Glow layer color. While it is on, the Outer, "
+                        + "Inner and Core colors chosen in Visuals are ignored.")));
+        row++;
 
         this.conflictMonitorButton = addContent(new PurpleCloseButton(
                 this.optionsX,
@@ -434,6 +480,7 @@ public final class CrystalTweaksScreen extends Screen {
         this.visualsTab.active = this.activeTab != Tab.VISUALS;
         this.soundsTab.active = this.activeTab != Tab.SOUNDS;
         this.tweaksTab.active = this.activeTab != Tab.TWEAKS;
+        this.tweaksTab.setMessage(tweaksTabMessage());
         if (this.resetButton != null) {
             this.resetButton.active = this.activeTab != Tab.TWEAKS;
         }
@@ -511,6 +558,7 @@ public final class CrystalTweaksScreen extends Screen {
         this.outerButton.setMessage(layerMessage(Layer.OUTER, this.spanish ? "Exterior" : "Outer"));
         this.innerButton.setMessage(layerMessage(Layer.INNER, this.spanish ? "Interior" : "Inner"));
         this.coreButton.setMessage(layerMessage(Layer.CORE, this.spanish ? "Núcleo" : "Core"));
+        this.glowButton.setMessage(layerMessage(Layer.GLOW, this.spanish ? "Brillo" : "Glow"));
     }
 
     private Component layerMessage(Layer layer, String name) {
@@ -522,6 +570,7 @@ public final class CrystalTweaksScreen extends Screen {
             case OUTER -> CrystalVisualConfig.setOuterColor(color);
             case INNER -> CrystalVisualConfig.setInnerColor(color);
             case CORE -> CrystalVisualConfig.setCoreColor(color);
+            case GLOW -> CrystalVisualConfig.setGlowColor(color);
         }
     }
 
@@ -530,6 +579,7 @@ public final class CrystalTweaksScreen extends Screen {
             case OUTER -> CrystalVisualConfig.outerColor();
             case INNER -> CrystalVisualConfig.innerColor();
             case CORE -> CrystalVisualConfig.coreColor();
+            case GLOW -> CrystalVisualConfig.glowColor();
         };
     }
 
@@ -568,6 +618,54 @@ public final class CrystalTweaksScreen extends Screen {
     private Component ghostCrystalToggleMessage() {
         String label = this.spanish ? "Cristales fantasma" : "Ghost crystals";
         String state = CrystalVisualConfig.ghostCrystals()
+                ? (this.spanish ? "ACTIVO" : "ON")
+                : (this.spanish ? "INACTIVO" : "OFF");
+        return Component.literal(label + ": " + state);
+    }
+
+    private Component tweaksTabMessage() {
+        String label = this.spanish ? "Ajustes avanzados" : "Advanced Tweaks";
+        return Component.literal(
+                CrystalOptimizerGuard.conflictDetected() ? label + " ○" : label);
+    }
+
+    /**
+     * Says plainly that the optimizations stood down and who for. Silence here would read as the mod
+     * being broken rather than deliberately yielding.
+     */
+    private void drawOptimizerWarning(GuiGraphicsExtractor graphics) {
+        String message;
+        if (CrystalOptimizerGuard.conflictDetected()) {
+            String other = CrystalOptimizerGuard.conflictingModName();
+            message = this.spanish
+                    ? "Optimizacion en pausa: " + other + " ya optimiza cristales"
+                    : "Optimization paused: " + other + " already optimizes crystals";
+        } else if (CrystalVisualConfig.customGlowColor()) {
+            // Say it where the ignored colors are actually being chosen.
+            message = this.spanish
+                    ? "Color de brillo activo: se ignoran Exterior, Interior y Nucleo"
+                    : "Custom glow color on: Outer, Inner and Core are ignored";
+        } else {
+            return;
+        }
+        String clipped = this.font.plainSubstrByWidth(message, Math.max(1, this.panelWidth - 20));
+        graphics.centeredText(
+                this.font,
+                Component.literal(clipped),
+                this.panelX + this.panelWidth / 2,
+                this.panelY + this.headerHeight - this.controlHeight - 15,
+                0xFFFFC48A);
+    }
+
+    private void toggleGlowColor() {
+        CrystalVisualConfig.setCustomGlowColor(!CrystalVisualConfig.customGlowColor());
+        CrystalVisualConfig.save();
+        this.glowColorToggle.setMessage(glowColorToggleMessage());
+    }
+
+    private Component glowColorToggleMessage() {
+        String label = this.spanish ? "Color de brillo propio" : "Custom glow color";
+        String state = CrystalVisualConfig.customGlowColor()
                 ? (this.spanish ? "ACTIVO" : "ON")
                 : (this.spanish ? "INACTIVO" : "OFF");
         return Component.literal(label + ": " + state);
@@ -678,6 +776,7 @@ public final class CrystalTweaksScreen extends Screen {
         }
         drawPanelParticles(graphics, now);
         drawHeader(graphics);
+        drawOptimizerWarning(graphics);
         if (this.activeTab == Tab.VISUALS) {
             drawVisualSelection(graphics);
         } else if (this.activeTab == Tab.SOUNDS) {
@@ -778,6 +877,7 @@ public final class CrystalTweaksScreen extends Screen {
             case OUTER -> this.outerButton;
             case INNER -> this.innerButton;
             case CORE -> this.coreButton;
+            case GLOW -> this.glowButton;
         };
         if (selected.visible) {
             drawOutline(graphics,
@@ -1184,7 +1284,8 @@ public final class CrystalTweaksScreen extends Screen {
     private enum Layer {
         OUTER,
         INNER,
-        CORE
+        CORE,
+        GLOW
     }
 
     private enum PreviewPhase {

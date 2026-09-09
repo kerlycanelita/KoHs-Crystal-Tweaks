@@ -18,7 +18,9 @@ public final class ObsidianPlacementGuard {
         initialized = true;
 
         AttackBlockCallback.EVENT.register((player, level, hand, position, direction) -> {
-            if (level.isClientSide()
+            // Safe crystal stands down too: another optimizer may want that click.
+            if (CrystalOptimizerGuard.optimizationsAllowed()
+                    && level.isClientSide()
                     && level.getBlockState(position).is(Blocks.OBSIDIAN)
                     && player.getItemInHand(hand).is(Items.END_CRYSTAL)) {
                 return InteractionResult.FAIL;

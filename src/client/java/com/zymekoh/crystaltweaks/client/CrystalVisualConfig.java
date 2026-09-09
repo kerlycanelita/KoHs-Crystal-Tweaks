@@ -28,6 +28,9 @@ public final class CrystalVisualConfig {
     private static volatile float soundVolume = 1.0F;
     private static volatile float soundSpeed = 1.0F;
     private static volatile boolean ghostCrystals;
+    private static volatile int glowPowerPercent;
+    private static volatile boolean customGlowColor;
+    private static volatile int glowColor = DEFAULT_COLOR;
     private static volatile boolean loaded;
 
     private CrystalVisualConfig() {
@@ -68,6 +71,13 @@ public final class CrystalVisualConfig {
                             ? root.getAsJsonObject("gameplay")
                             : new JsonObject();
                     ghostCrystals = booleanValue(gameplay, "ghostCrystals", false);
+
+                    JsonObject glow = root.has("glow") && root.get("glow").isJsonObject()
+                            ? root.getAsJsonObject("glow")
+                            : new JsonObject();
+                    glowPowerPercent = clamp(intValue(glow, "powerPercent", 0), 0, 100);
+                    customGlowColor = booleanValue(glow, "customColor", false);
+                    glowColor = parseColor(glow, "color", DEFAULT_COLOR);
                 } catch (Exception exception) {
                     CrystalTweaksClient.LOGGER.warn(
                             "Could not read crystal visual settings from {}; using neutral colors",
@@ -105,6 +115,14 @@ public final class CrystalVisualConfig {
                 gameplay.remove("predictCrystalBreak");
                 gameplay.addProperty("ghostCrystals", ghostCrystals);
                 root.add("gameplay", gameplay);
+
+                JsonObject glow = root.has("glow") && root.get("glow").isJsonObject()
+                        ? root.getAsJsonObject("glow")
+                        : new JsonObject();
+                glow.addProperty("powerPercent", glowPowerPercent);
+                glow.addProperty("customColor", customGlowColor);
+                glow.addProperty("color", toHex(glowColor));
+                root.add("glow", glow);
 
                 JsonObject sounds = root.has("sounds") && root.get("sounds").isJsonObject()
                         ? root.getAsJsonObject("sounds")
@@ -236,6 +254,41 @@ public final class CrystalVisualConfig {
     public static void setGhostCrystals(boolean enabled) {
         load();
         ghostCrystals = enabled;
+    }
+
+    /** 0 keeps Vanilla lighting; 100 draws the crystal at full brightness. */
+    public static int glowPowerPercent() {
+        load();
+        return glowPowerPercent;
+    }
+
+    public static void setGlowPowerPercent(int percent) {
+        load();
+        glowPowerPercent = clamp(percent, 0, 100);
+    }
+
+    /**
+     * When on, the whole crystal is drawn in {@link #glowColor()} and the per-layer colors are
+     * ignored. One glow cannot be three colors at once, so this deliberately takes over.
+     */
+    public static boolean customGlowColor() {
+        load();
+        return customGlowColor;
+    }
+
+    public static void setCustomGlowColor(boolean enabled) {
+        load();
+        customGlowColor = enabled;
+    }
+
+    public static int glowColor() {
+        load();
+        return glowColor;
+    }
+
+    public static void setGlowColor(int color) {
+        load();
+        glowColor = opaque(color);
     }
 
     public static Path soundsDirectory() {

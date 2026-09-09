@@ -49,6 +49,10 @@ public final class CrystalAttackOptimizer {
     }
 
     private static void predictCrystalBreak(int entityId) {
+        if (!CrystalOptimizerGuard.optimizationsAllowed()) {
+            return;
+        }
+
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         if (minecraft.level == null || player == null) {

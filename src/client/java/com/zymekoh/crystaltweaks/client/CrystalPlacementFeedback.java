@@ -1,6 +1,7 @@
 package com.zymekoh.crystaltweaks.client;
 
 import com.zymekoh.crystaltweaks.core.CrystalBreakPrediction;
+import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
 import com.zymekoh.crystaltweaks.core.CrystalPlacementTracker;
 import com.zymekoh.crystaltweaks.core.GhostCrystalTracker;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
@@ -81,7 +82,7 @@ public final class CrystalPlacementFeedback {
 
         long now = System.nanoTime();
         TRACKER.record(base, packet.getSequence(), now);
-        if (CrystalVisualConfig.ghostCrystals()) {
+        if (CrystalVisualConfig.ghostCrystals() && CrystalOptimizerGuard.optimizationsAllowed()) {
             GhostCrystalTracker.add(base, now);
         }
     }

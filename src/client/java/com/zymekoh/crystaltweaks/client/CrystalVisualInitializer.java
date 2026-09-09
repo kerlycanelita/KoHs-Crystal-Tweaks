@@ -1,5 +1,6 @@
 package com.zymekoh.crystaltweaks.client;
 
+import com.zymekoh.crystaltweaks.client.compat.OptimizerConflictDetector;
 import com.zymekoh.crystaltweaks.client.sound.CrystalSoundManager;
 import com.zymekoh.crystaltweaks.core.CrystalBreakPrediction;
 import com.zymekoh.crystaltweaks.core.GhostCrystalTracker;
@@ -14,6 +15,7 @@ public final class CrystalVisualInitializer implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         CrystalVisualConfig.load();
+        OptimizerConflictDetector.detectInBackground();
         ObsidianPlacementGuard.initialize();
         CrystalPlacementFeedback.initialize();
         CrystalSoundManager.initialize();

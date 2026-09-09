@@ -28,6 +28,12 @@ public final class CrystalLayerTint {
         if (model == null) {
             return originalColor;
         }
+        // A glow is one color by definition, so it takes over from the three layer colors rather
+        // than trying to blend with them. The settings screen warns before this is switched on.
+        if (CrystalVisualConfig.customGlowColor()
+                && (part == model.outerGlass || part == model.innerGlass || part == model.cube)) {
+            return CrystalVisualConfig.glowColor();
+        }
         if (part == model.outerGlass) {
             return CrystalVisualConfig.outerColor();
         }
