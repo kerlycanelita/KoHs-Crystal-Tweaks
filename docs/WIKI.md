@@ -1,6 +1,6 @@
 # Crystal Tweaks Wiki
 
-[Back to README](README.md) · [Modrinth](https://modrinth.com/mod/kohs-crystal-tweaks) · [Discord](https://discord.gg/9t2VxEF7UU) · [Report an issue](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/issues/new)
+[Back to README](../README.md) · [Modrinth](https://modrinth.com/mod/kohs-crystal-tweaks) · [Discord](https://discord.gg/9t2VxEF7UU) · [Report an issue](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/issues/new)
 
 Welcome to the Crystal Tweaks documentation. This guide covers installation, configuration, the interactive preview, compatibility, and common troubleshooting steps.
 
@@ -135,7 +135,7 @@ Multiplayer policies vary between servers. Check the server's published rules an
 
 ### Minecraft reports an incompatible version
 
-Verify that the Crystal Tweaks filename matches the exact Minecraft version used by the instance. Also confirm that Fabric Loader, Fabric API, and Java meet the requirements shown in the [README](README.md#requirements).
+Verify that the Crystal Tweaks filename matches the exact Minecraft version used by the instance. Also confirm that Fabric Loader, Fabric API, and Java meet the requirements shown in the [README](../README.md#requirements).
 
 ### The configuration button is missing
 

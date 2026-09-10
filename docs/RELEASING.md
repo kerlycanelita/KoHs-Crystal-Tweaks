@@ -5,7 +5,7 @@ mapped API, so every target is a separate Gradle invocation.
 
 ## The build matrix
 
-[`gradle/versions.properties`](gradle/versions.properties) is the single source of truth:
+[`gradle/versions.properties`](../gradle/versions.properties) is the single source of truth:
 
 ```properties
 <minecraft> = <fabric_loader>, <fabric_api>, <mod_menu>, <java_release>

@@ -1,25 +1,21 @@
-<p align="center">
-  <img src="src/main/resources/assets/crystal_tweaks/icon.png" alt="Crystal Tweaks icon" width="180">
-</p>
+# Crystal Tweaks
 
-<h1 align="center">Crystal Tweaks</h1>
-
-<p align="center">
-  A client-side Fabric mod for customizable End Crystal visuals, sounds, and responsive previews.
-</p>
+[![GitHub](https://img.shields.io/badge/GitHub-Crystal--Tweaks-6f2cff?style=for-the-badge&logo=github)](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks)
+[![Modrinth](https://img.shields.io/badge/Modrinth-Download-00AF5C?style=for-the-badge&logo=modrinth&logoColor=white)](https://modrinth.com/mod/kohs-crystal-tweaks)
+[![Issues](https://img.shields.io/badge/Report-Issues-a855f7?style=for-the-badge&logo=githubissues)](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/issues)
+[![Discord](https://img.shields.io/badge/Join-Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/9t2VxEF7UU)
 
 <p align="center">
-  <a href="https://modrinth.com/mod/kohs-crystal-tweaks"><img alt="Modrinth" src="https://img.shields.io/badge/Modrinth-Download-00AF5C?logo=modrinth&amp;logoColor=white"></a>
-  <a href="docs/WIKI.md"><img alt="Wiki" src="https://img.shields.io/badge/Documentation-Wiki-7C3AED?logo=gitbook&amp;logoColor=white"></a>
-  <a href="https://discord.gg/9t2VxEF7UU"><img alt="Discord" src="https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&amp;logoColor=white"></a>
-  <a href="https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/issues/new"><img alt="Report an issue" src="https://img.shields.io/badge/GitHub-Report_an_Issue-D73A49?logo=github&amp;logoColor=white"></a>
+  <img src="src/main/resources/assets/crystal_tweaks/icon.png" alt="Crystal Tweaks icon" width="220">
 </p>
+
+**Customizable End Crystal visuals, sounds, and responsive previews.**
 
 ## About
 
-Crystal Tweaks brings End Crystal visual and sound controls into one compact configuration screen. The 2.2.9 update adds a full Glow editor, a separate appearance profile for other players' crystals, and automatic coexistence with other crystal optimizers.
+Crystal Tweaks brings End Crystal visual and sound controls into one compact configuration screen. Version 2.2.10 keeps the Glow editor and separate appearance profiles, and strengthens compatibility checks so interaction helpers stay disabled until a successful scan and while another optimizer is detected.
 
-## Highlights
+## What it changes
 
 - Independent colors for the outer layer, inner layer, and crystal core.
 - Glow editor with `0%`–`300%` power, colored reflections, custom glow color, and a smooth afterglow trail.
@@ -48,7 +44,7 @@ See the [Crystal Tweaks Wiki](docs/WIKI.md) for installation, configuration, pre
 
 ## Supported Minecraft versions
 
-Crystal Tweaks provides separate JARs for:
+The source build matrix contains these exact Minecraft targets:
 
 ```text
 1.21, 1.21.1, 1.21.2, 1.21.3, 1.21.4, 1.21.5,
@@ -56,7 +52,7 @@ Crystal Tweaks provides separate JARs for:
 26.1, 26.1.1, 26.1.2, and 26.2
 ```
 
-Each JAR declares one exact Minecraft version. Always download the file matching the instance where it will be installed.
+The 2.2.10 release notes cover **1.21.11, 26.1, 26.1.1, 26.1.2, and 26.2**. Earlier targets remain in the source matrix; use the release available for your exact game version. Each JAR declares one exact Minecraft version.
 
 ## Compatibility and multiplayer
 
@@ -71,7 +67,7 @@ Its one predictive behavior is hiding a crystal you just hit before the server c
 which is latency compensation for an action you already performed. It is constrained to hits the
 server is expected to accept.
 
-See [docs/LEGITIMACY_AUDIT.md](docs/LEGITIMACY_AUDIT.md) for the full client/server boundary of every feature,
+See [docs/audits/LEGITIMACY_AUDIT.md](docs/audits/LEGITIMACY_AUDIT.md) for the full client/server boundary of every feature,
 including the two places where the mod does change what a later packet contains.
 
 ## Building
@@ -99,6 +95,19 @@ version.
 - [Report a problem](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/issues/new)
 - [Join the Discord server](https://discord.gg/9t2VxEF7UU)
 - [Download from Modrinth](https://modrinth.com/mod/kohs-crystal-tweaks)
+
+## Repository layout
+
+| Location | Contents |
+| --- | --- |
+| `src/` | Shared client sources and the version-specific rendering adapters. |
+| `gradle/` | Wrapper and the exact Minecraft dependency matrix. |
+| `docs/` | Wiki, release workflow, audits and version notes. |
+| `tools/` | Build, artifact, Mixin and appearance checks. |
+| `versions/`, `dist/` | Local generated JAR collections; excluded from Git. |
+
+Start with the [documentation index](docs/README.md). Build output and local
+Minecraft instances remain outside Git; keep installable JARs out of the source tree.
 
 ## License
 
