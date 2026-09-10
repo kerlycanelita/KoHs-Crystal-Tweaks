@@ -1,141 +1,194 @@
 <#
 .SYNOPSIS
-    Publishes one Modrinth version per Minecraft target, files included.
-
+    Validates and publishes one exact-target Modrinth release per Minecraft version.
 .DESCRIPTION
-    Reads the token from the MODRINTH_TOKEN environment variable. The token is never written to a
-    file, never passed on the command line, and never printed: a command line is visible to every
-    process on the machine and ends up in shell history.
-
-    Set it for the current window only, so it disappears when you close it:
-
-        $env:MODRINTH_TOKEN = 'mrp_...'
-        .\tools\publish-modrinth.ps1 -WhatIf
-        .\tools\publish-modrinth.ps1
-
-    Run with -WhatIf first. It performs every check and prints exactly what would be created without
-    sending anything.
-
-.PARAMETER Only
-    Publish just these Minecraft versions instead of every JAR found.
-
-.PARAMETER Channel
-    release, beta or alpha. Defaults to release.
-
-.PARAMETER WhatIf
-    Validate and print the plan without creating anything.
+    Reads MODRINTH_TOKEN from the process environment. Never stores or prints it.
+    Run with -WhatIf first. All files and dependencies are checked before uploading.
 #>
 [CmdletBinding()]
 param(
     [string[]] $Only,
     [ValidateSet('release', 'beta', 'alpha')]
     [string] $Channel = 'release',
+    [string] $JarDirectory,
     [switch] $WhatIf
 )
 
 $ErrorActionPreference = 'Stop'
-
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+Add-Type -AssemblyName System.Net.Http
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
-$projectSlug = 'kohs-crystal-tweaks'
-$versionsDirectory = Join-Path $repositoryRoot 'versions'
-$changelogFile = Join-Path $repositoryRoot 'docs\modrinth-changelog-2.2.9.md'
-
+if (-not $JarDirectory) { $JarDirectory = Join-Path $repositoryRoot 'versions' }
+$JarDirectory = (Resolve-Path -LiteralPath $JarDirectory).Path
 $token = $env:MODRINTH_TOKEN
-if ([string]::IsNullOrWhiteSpace($token)) {
-    throw "MODRINTH_TOKEN is not set. Run:  `$env:MODRINTH_TOKEN = 'mrp_...'"
+if (-not $WhatIf -and [string]::IsNullOrWhiteSpace($token)) {
+    throw 'MODRINTH_TOKEN must be set in the process environment before publication.'
 }
-
-$modVersion = (Get-Content (Join-Path $repositoryRoot 'gradle.properties') |
+$modVersion = (Get-Content -LiteralPath (Join-Path $repositoryRoot 'gradle.properties') |
     Where-Object { $_ -match '^mod_version=' } |
     ForEach-Object { ($_ -split '=', 2)[1].Trim() })
+$changelogFile = Join-Path $repositoryRoot "docs\releases\modrinth-changelog-$modVersion.md"
+if (-not (Test-Path -LiteralPath $changelogFile)) { throw "Missing changelog: $changelogFile" }
+# Cast removes PowerShell's provider properties before JSON serialization.
+$changelog = [string](Get-Content -Encoding UTF8 -LiteralPath $changelogFile -Raw)
+if ([string]::IsNullOrWhiteSpace($changelog)) { throw 'Changelog is empty.' }
 
-# Loaders and the Fabric API dependency come from the same matrix the build uses, so a published
-# version can never claim support the JAR was not built for.
-$matrix = @{}
-Get-Content (Join-Path $repositoryRoot 'gradle\versions.properties') |
-    Where-Object { $_ -match '^\s*[^#\s]' -and $_ -match '=' } |
-    ForEach-Object {
-        $parts = $_ -split '=', 2
-        $values = $parts[1] -split ',' | ForEach-Object { $_.Trim() }
-        $matrix[$parts[0].Trim()] = @{ Loader = $values[0]; FabricApi = $values[1]; ModMenu = $values[2] }
-    }
+$client = [System.Net.Http.HttpClient]::new()
+$client.Timeout = [TimeSpan]::FromSeconds(90)
+$client.DefaultRequestHeaders.UserAgent.ParseAdd('CrystalTweaks-Release/1.0')
+if ($token) { $client.DefaultRequestHeaders.TryAddWithoutValidation('Authorization', $token) | Out-Null }
 
-$targets = Get-ChildItem $versionsDirectory -Filter "crystal-tweaks-*-$modVersion.jar" -File |
-    ForEach-Object {
-        if ($_.Name -match "^crystal-tweaks-(.+)-$([regex]::Escape($modVersion))\.jar$") {
-            [pscustomobject]@{ Minecraft = $Matches[1]; Path = $_.FullName; Name = $_.Name }
+function Get-Api([string] $route) {
+    $response = $client.GetAsync("https://api.modrinth.com/v2/$route").GetAwaiter().GetResult()
+    try {
+        $body = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+        if (-not $response.IsSuccessStatusCode) {
+            throw "Modrinth GET $route failed (HTTP $([int]$response.StatusCode))."
+        }
+        return ($body | ConvertFrom-Json)
+    } finally { $response.Dispose() }
+}
+
+function Find-Dependency([string] $slug, [string] $minecraft, [string] $version) {
+    $games = [uri]::EscapeDataString((ConvertTo-Json -InputObject @($minecraft) -Compress))
+    $loaders = [uri]::EscapeDataString('["fabric"]')
+    $available = @(Get-Api "project/$slug/version?game_versions=$games&loaders=$loaders")
+    $match = $available | Where-Object {
+        $_.version_number -eq $version -and $_.game_versions -contains $minecraft -and $_.loaders -contains 'fabric'
+    } | Select-Object -First 1
+    if (-not $match) { throw "No matching $slug $version release for Minecraft $minecraft." }
+    return $match
+}
+
+try {
+    $project = Get-Api 'project/kohs-crystal-tweaks'
+    if ($project.id -ne 'dwVY5imH') { throw 'Unexpected Modrinth project.' }
+    $existing = @(Get-Api "project/$($project.id)/version")
+    $matrix = @{}
+    Get-Content -LiteralPath (Join-Path $repositoryRoot 'gradle\versions.properties') |
+        Where-Object { $_ -match '^\s*[^#\s]' -and $_ -match '=' } |
+        ForEach-Object {
+            $parts = $_ -split '=', 2
+            $matrix[$parts[0].Trim()] = @($parts[1] -split ',' | ForEach-Object { $_.Trim() })
+        }
+
+    $jars = @(Get-ChildItem -LiteralPath $JarDirectory -File -Filter "crystal-tweaks-*-$modVersion.jar")
+    $plan = @()
+    foreach ($jar in $jars) {
+        $archive = [IO.Compression.ZipFile]::OpenRead($jar.FullName)
+        try {
+            $entry = $archive.GetEntry('fabric.mod.json')
+            if (-not $entry) { throw "Missing fabric.mod.json: $($jar.Name)" }
+            $reader = [IO.StreamReader]::new($entry.Open())
+            try { $metadata = $reader.ReadToEnd() | ConvertFrom-Json }
+            finally { $reader.Dispose() }
+        } finally { $archive.Dispose() }
+        $minecraft = $metadata.depends.minecraft
+        if ($minecraft -isnot [string] -or -not $matrix.ContainsKey($minecraft)) {
+            throw "Minecraft dependency is not one exact supported version: $($jar.Name)"
+        }
+        if ($Only -and $Only -notcontains $minecraft) { continue }
+        if ($metadata.id -ne 'crystal_tweaks' -or $metadata.version -ne $modVersion -or
+            $jar.Name -ne "crystal-tweaks-$minecraft-$modVersion.jar") {
+            throw "JAR name and metadata do not match: $($jar.Name)"
+        }
+        $row = $matrix[$minecraft]
+        if ($metadata.depends.fabricloader -ne ">=$($row[0])" -or
+            $metadata.depends.java -ne ">=$($row[3])" -or
+            -not $metadata.depends.'fabric-api' -or $metadata.environment -ne 'client') {
+            throw "JAR dependencies do not match the build matrix: $($jar.Name)"
+        }
+        if ($plan.Minecraft -contains $minecraft) { throw "Duplicate target: $minecraft" }
+        $hash = (Get-FileHash -LiteralPath $jar.FullName -Algorithm SHA512).Hash.ToLowerInvariant()
+        $same = @($existing | Where-Object {
+            $_.version_number -eq $modVersion -and $_.game_versions -contains $minecraft
+        })
+        if ($same.Count -gt 1) { throw "Multiple $modVersion releases for $minecraft; resolve before publishing." }
+        $existingId = $null
+        if ($same.Count -eq 1) {
+            $remote = $same[0]
+            $primary = @($remote.files | Where-Object primary)
+            if ($remote.game_versions.Count -ne 1 -or $remote.loaders.Count -ne 1 -or
+                $remote.loaders[0] -ne 'fabric' -or $remote.status -ne 'listed' -or
+                $primary.Count -ne 1 -or $primary[0].hashes.sha512 -ne $hash) {
+                throw "$modVersion for $minecraft already exists with different content or metadata. Use a new patch version."
+            }
+            $existingId = $remote.id
+        }
+        $api = Find-Dependency 'fabric-api' $minecraft $row[1]
+        $menu = Find-Dependency 'modmenu' $minecraft $row[2]
+        $data = [ordered]@{
+            name = "Crystal Tweaks $modVersion - Minecraft $minecraft"
+            version_number = $modVersion
+            changelog = $changelog
+            dependencies = @(
+                @{ project_id = $api.project_id; version_id = $api.id; dependency_type = 'required' },
+                @{ project_id = $menu.project_id; version_id = $menu.id; dependency_type = 'optional' }
+            )
+            game_versions = @($minecraft)
+            version_type = $Channel
+            loaders = @('fabric')
+            featured = $true
+            status = 'listed'
+            project_id = $project.id
+            file_parts = @('file')
+            primary_file = 'file'
+        }
+        $plan += [pscustomobject]@{
+            Minecraft = $minecraft; Path = $jar.FullName; Name = $jar.Name
+            Hash = $hash; Data = $data; ExistingId = $existingId
         }
     }
-
-if ($Only) { $targets = $targets | Where-Object { $Only -contains $_.Minecraft } }
-if (-not $targets) { throw "No $modVersion JARs found in $versionsDirectory" }
-
-$changelog = if (Test-Path $changelogFile) { Get-Content $changelogFile -Raw } else { '' }
-
-$headers = @{ Authorization = $token }
-$existing = @()
-try {
-    $existing = (Invoke-RestMethod -Uri "https://api.modrinth.com/v2/project/$projectSlug/version" `
-        -Headers $headers -Method Get) | ForEach-Object { $_.name }
-} catch {
-    throw "Could not reach Modrinth or the token was rejected: $($_.Exception.Message)"
-}
-
-Write-Host "Crystal Tweaks KoHs $modVersion -> $projectSlug  [$Channel]" -ForegroundColor Cyan
-Write-Host ""
-
-$published = 0
-foreach ($t in $targets | Sort-Object Minecraft) {
-    $versionName = "$modVersion+mc$($t.Minecraft)"
-    $entry = $matrix[$t.Minecraft]
-    if (-not $entry) {
-        Write-Host ("  SKIP {0,-16} not in gradle/versions.properties" -f $t.Minecraft) -ForegroundColor Red
-        continue
+    if (-not $plan.Count) { throw "No $modVersion JARs found." }
+    foreach ($mc in $Only) {
+        if ($plan.Minecraft -notcontains $mc) { throw "Missing requested target: $mc" }
     }
-    if ($existing -contains $versionName) {
-        Write-Host ("  SKIP {0,-16} already published" -f $versionName) -ForegroundColor DarkGray
-        continue
+    foreach ($item in $plan) {
+        $mode = if ($item.ExistingId) { 'SKIP: already verified' } else { 'READY' }
+        Write-Output "$mode $($item.Name) [Minecraft $($item.Minecraft), Fabric API required, Mod Menu optional]"
     }
-
-    $body = @{
-        name           = "Crystal Tweaks KoHs $versionName"
-        version_number = $versionName
-        changelog      = $changelog
-        dependencies   = @()
-        game_versions  = @($t.Minecraft)
-        version_type   = $Channel
-        loaders        = @('fabric')
-        featured       = $false
-        project_id     = $projectSlug
-        file_parts     = @('file')
-    }
-
     if ($WhatIf) {
-        Write-Host ("  PLAN {0,-16} {1}  (Fabric API {2}, Mod Menu {3}, loader >={4})" -f `
-            $versionName, $t.Name, $entry.FabricApi, $entry.ModMenu, $entry.Loader) -ForegroundColor Yellow
-        continue
+        Write-Output "Preflight passed for $($plan.Count) targets; nothing uploaded."
+        return
     }
 
-    $form = @{
-        data = ($body | ConvertTo-Json -Depth 5 -Compress)
-        file = Get-Item $t.Path
+    foreach ($item in $plan) {
+        if ($item.ExistingId) { continue }
+        if ((Get-FileHash -LiteralPath $item.Path -Algorithm SHA512).Hash.ToLowerInvariant() -ne $item.Hash) {
+            throw "File changed after preflight: $($item.Name)"
+        }
+        $form = [System.Net.Http.MultipartFormDataContent]::new()
+        $json = ConvertTo-Json -InputObject $item.Data -Depth 6 -Compress
+        $form.Add([System.Net.Http.StringContent]::new($json, [Text.Encoding]::UTF8, 'application/json'), 'data')
+        $stream = [IO.File]::OpenRead($item.Path)
+        $file = [System.Net.Http.StreamContent]::new($stream)
+        $file.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::Parse('application/java-archive')
+        $form.Add($file, 'file', $item.Name)
+        try {
+            $response = $client.PostAsync('https://api.modrinth.com/v2/version', $form).GetAwaiter().GetResult()
+            try {
+                $body = $response.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                if (-not $response.IsSuccessStatusCode) {
+                    throw "Upload failed for $($item.Name) (HTTP $([int]$response.StatusCode)): $body"
+                }
+                $created = $body | ConvertFrom-Json
+                $verified = Get-Api "version/$($created.id)"
+                $primary = @($verified.files | Where-Object primary)
+                if ($verified.status -ne 'listed' -or $verified.version_number -ne $modVersion -or
+                    $verified.game_versions.Count -ne 1 -or $verified.game_versions[0] -ne $item.Minecraft -or
+                    $primary.Count -ne 1 -or $primary[0].hashes.sha512 -ne $item.Hash) {
+                    throw "Post-upload verification failed for version $($created.id)."
+                }
+                foreach ($dependency in $item.Data.dependencies) {
+                    $found = @($verified.dependencies | Where-Object {
+                        $_.project_id -eq $dependency.project_id -and
+                        $_.version_id -eq $dependency.version_id -and
+                        $_.dependency_type -eq $dependency.dependency_type
+                    })
+                    if ($found.Count -ne 1) { throw "Dependency mismatch on version $($created.id)." }
+                }
+                Write-Output "PUBLISHED $($item.Name) https://modrinth.com/mod/kohs-crystal-tweaks/version/$($created.id)"
+            } finally { $response.Dispose() }
+        } finally { $form.Dispose(); $stream.Dispose() }
     }
-    try {
-        Invoke-RestMethod -Uri 'https://api.modrinth.com/v2/version' -Headers $headers `
-            -Method Post -Form $form | Out-Null
-        Write-Host ("  OK   {0,-16} {1}" -f $versionName, $t.Name) -ForegroundColor Green
-        $published++
-    } catch {
-        Write-Host ("  FAIL {0,-16} {1}" -f $versionName, $_.Exception.Message) -ForegroundColor Red
-    }
-    Start-Sleep -Milliseconds 400
-}
-
-Write-Host ""
-if ($WhatIf) {
-    Write-Host "Nothing was sent. Drop -WhatIf to publish." -ForegroundColor Yellow
-} else {
-    Write-Host "published: $published" -ForegroundColor Cyan
-    Write-Host "Dependencies are not set by this script: add Fabric API (required) and Mod Menu" -ForegroundColor Yellow
-    Write-Host "(optional) on each version page, using the versions above." -ForegroundColor Yellow
-}
+} finally { $client.Dispose() }
