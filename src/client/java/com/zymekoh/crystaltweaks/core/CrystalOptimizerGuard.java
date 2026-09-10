@@ -26,6 +26,10 @@ public final class CrystalOptimizerGuard {
             "fastcrystal",
             "crystaloptimize",
             "nocrystalbreak",
+            // The retired KoHs Crystal Tweaks drives crystals from its own Connection mixin. Naming it
+            // here turns a silent stand-down into a notice that says which JAR to remove.
+            "kohs_crystal_tweaks",
+            "kohscrystaltweaks",
     };
 
     /**
@@ -35,18 +39,26 @@ public final class CrystalOptimizerGuard {
             "clientsidecrystals",
     };
 
-    private enum Status { CHECKING, READY, CONFLICT, FAILED }
+    private enum Status { CHECKING, READY, INCOMPLETE, CONFLICT }
 
-    // Interaction helpers stay off until the complete compatibility scan succeeds.
+    // Interaction helpers stay off only while the answer is still unknown, which lasts as long as the
+    // JAR scan and no longer.
     private static volatile Status status = Status.CHECKING;
     private static volatile String detectedName = "";
 
     private CrystalOptimizerGuard() {
     }
 
-    /** True while the local interaction optimizations are allowed to run. */
+    /**
+     * True while the local interaction optimizations are allowed to run.
+     *
+     * <p>Only a mod actually found to be optimizing crystals turns these off. An unreadable JAR
+     * somewhere in the pack is not that finding: it says the scan could not answer, and standing
+     * down on no evidence disables the mod for players who have no conflict at all. So a scan that
+     * cannot complete leaves the optimizations running and reports itself in the settings screen.</p>
+     */
     public static boolean optimizationsAllowed() {
-        return status == Status.READY;
+        return status == Status.READY || status == Status.INCOMPLETE;
     }
 
     public static boolean conflictDetected() {
@@ -57,16 +69,17 @@ public final class CrystalOptimizerGuard {
         return status == Status.CHECKING;
     }
 
-    public static boolean scanFailed() {
-        return status == Status.FAILED;
+    /** True when the scan finished without covering every mod, so the answer is a best effort. */
+    public static boolean scanIncomplete() {
+        return status == Status.INCOMPLETE;
     }
 
     public static synchronized void completeScan() {
         if (status == Status.CHECKING) status = Status.READY;
     }
 
-    public static synchronized void reportScanFailure() {
-        if (status != Status.CONFLICT) status = Status.FAILED;
+    public static synchronized void reportScanIncomplete() {
+        if (status == Status.CHECKING) status = Status.INCOMPLETE;
     }
 
     /** Display name of the mod that caused the stand-down, for the warning in the settings screen. */

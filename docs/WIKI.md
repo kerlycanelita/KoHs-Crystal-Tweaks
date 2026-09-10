@@ -85,11 +85,20 @@ Sound replacement is local: it changes what the player hears without replacing t
 
 ## Advanced Tweaks
 
-The **Advanced Tweaks** tab holds the Conflict Monitor.
+The **Advanced Tweaks** tab holds the Conflict Monitor and the compatibility re-check.
 
 The Conflict Monitor scans installed mods locally and lists exact Mixin class-and-method overlaps
 with Crystal Tweaks. It reads local files only and never contacts a server. A clean result is not a
 guarantee: dynamic Mixin plugins and external bytecode agents are not visible to it.
+
+**Re-check compatibility** runs the optimizer detection again without restarting the game. Use it
+after removing the mod that put the interaction helpers on hold; the notice at the top of the screen
+updates as soon as the new result lands.
+
+The detection stands the interaction helpers down only for a mod actually found to be optimizing
+crystals: one that names itself an optimizer, or one whose Mixins land on the same interaction path
+*and* whose id, name or Mixin is about crystals. Sharing a network method is not enough on its own,
+and a scan that cannot read every mod says so instead of disabling anything.
 
 Instant crystal break is part of the mod's core and has no setting. It only runs for a hit the
 server is expected to accept: the crystal must be inside your interaction range, not already
@@ -152,6 +161,25 @@ Check that the file is WAV, OGG, or MP3, is no longer than five seconds, and rem
 ### Controls do not fit on the screen
 
 Scroll inside the active options panel. If necessary, temporarily reduce Minecraft's GUI scale and reopen the screen.
+
+### The optimizer does nothing
+
+Open the configuration screen and read the orange line above the controls. It names the state:
+
+- *Optimization paused: `<mod>` already optimizes crystals* — that mod is driving crystals, and
+  Crystal Tweaks has yielded the interaction path to it on purpose. Remove it and press **Re-check
+  compatibility** in Advanced Tweaks, or keep it and use its own optimizer.
+- *Interaction helpers paused: checking compatibility* — the scan is still running. It finishes in
+  the first seconds after the client starts.
+- *Interaction helpers active: compatibility check incomplete* — a mod could not be read. The
+  optimizer is running anyway; `latest.log` names the mod.
+
+No line at all means the helpers are active. If the break still feels like Vanilla, confirm the hit
+qualifies for prediction: inside your interaction range, crystal not already removed, and you alive,
+not spectating and able to deal damage.
+
+Before 2.2.11 an unreadable JAR anywhere in the pack, or any mod sharing `Connection.send`, was
+enough to keep every helper off for the session. Updating to 2.2.11 resolves that case.
 
 ### Crystal behavior is inconsistent
 

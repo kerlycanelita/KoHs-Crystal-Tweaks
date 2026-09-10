@@ -1,5 +1,29 @@
 # Changelog
 
+## 2.2.11
+
+### Fixed
+
+- The native optimizer no longer stays off when the compatibility scan cannot read every mod. 2.2.10
+  treated an unreadable JAR anywhere in the pack as grounds to disable break prediction, ghost
+  crystals, Safe Crystal and placement tracking for the whole session. Only a mod actually found to
+  be optimizing crystals turns them off now; an incomplete scan says so in the settings screen and
+  leaves the helpers running.
+- A mod that merely shares `Connection.send` is no longer mistaken for a crystal optimizer. The
+  stand-down test matched on the name of Crystal Tweaks' own Mixin, so protocol translators, network
+  performance mods and ping readouts all disabled the optimizer. The overlapping mod now has to be
+  about crystals, by its id, its name or the Mixin doing the overlapping.
+- A failed metadata read no longer skips the Mixin scan; it falls through to it instead of ending
+  detection.
+
+### Added
+
+- **Re-check compatibility** in Advanced Tweaks re-runs detection without restarting the game, for
+  when the conflicting mod has just been removed. The tab and the ghost crystal control follow the
+  new result as soon as it lands.
+- The retired `kohs_crystal_tweaks` is now a known optimizer id, so the notice names the JAR to
+  remove instead of leaving the cause unexplained.
+
 ## 2.2.10
 
 - Improved detection of Marlow's Crystal Optimizer and No Crystal Break before gameplay.

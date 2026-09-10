@@ -13,7 +13,7 @@
 
 ## About
 
-Crystal Tweaks brings End Crystal visual and sound controls into one compact configuration screen. Version 2.2.10 keeps the Glow editor and separate appearance profiles, and strengthens compatibility checks so interaction helpers stay disabled until a successful scan and while another optimizer is detected.
+Crystal Tweaks brings End Crystal visual and sound controls into one compact configuration screen. Version 2.2.11 keeps the Glow editor and separate appearance profiles, and narrows the compatibility check so the native optimizer stands down only for a mod actually found to be optimizing crystals, instead of for any scan that could not finish.
 
 ## What it changes
 
@@ -52,7 +52,7 @@ The source build matrix contains these exact Minecraft targets:
 26.1, 26.1.1, 26.1.2, and 26.2
 ```
 
-The 2.2.10 release notes cover **1.21.11, 26.1, 26.1.1, 26.1.2, and 26.2**. Earlier targets remain in the source matrix; use the release available for your exact game version. Each JAR declares one exact Minecraft version.
+The 2.2.11 release notes cover **1.21.11, 26.1, 26.1.1, 26.1.2, and 26.2**. Earlier targets remain in the source matrix; use the release available for your exact game version. Each JAR declares one exact Minecraft version.
 
 ## Compatibility and multiplayer
 

@@ -1,5 +1,6 @@
 package com.zymekoh.crystaltweaks.client;
 
+import com.zymekoh.crystaltweaks.client.compat.OptimizerConflictDetector;
 import com.zymekoh.crystaltweaks.client.sound.CrystalSoundManager;
 import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
 import com.zymekoh.crystaltweaks.core.GhostCrystalSupport;
@@ -62,9 +63,11 @@ public final class CrystalTweaksScreen extends Screen {
     private PurpleCloseButton ghostCrystalToggle;
     private PurpleCloseButton glowColorToggle;
     private PurpleCloseButton conflictMonitorButton;
+    private PurpleCloseButton rescanButton;
     private EditBox hexBox;
     private ColorPickerWidget colorPicker;
     private boolean updatingControls;
+    private boolean rescanReflectsPending;
     private boolean saved;
     private String soundStatus = "";
     private int soundStatusBaseY;
@@ -273,6 +276,7 @@ public final class CrystalTweaksScreen extends Screen {
         this.ghostCrystalToggle = null;
         this.glowColorToggle = null;
         this.conflictMonitorButton = null;
+        this.rescanButton = null;
         this.hexBox = null;
         this.colorPicker = null;
         this.logicalContentBottom = 0;
@@ -504,6 +508,53 @@ public final class CrystalTweaksScreen extends Screen {
         this.conflictMonitorButton.setTooltip(Tooltip.create(Component.literal(this.spanish
                 ? "Analiza localmente los mixins instalados y muestra coincidencias de clase y método que podrían interferir con Crystal Tweaks."
                 : "Locally scans installed mixins and shows matching classes and methods that could interfere with Crystal Tweaks.")));
+
+        this.rescanButton = addContent(new PurpleCloseButton(
+                this.optionsX,
+                this.contentY + rowStep() * (row + 1),
+                this.optionsWidth,
+                this.controlHeight,
+                rescanButtonMessage(),
+                ignored -> rescanCompatibility()));
+        this.rescanButton.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "Repite la comprobación de optimizadores sin reiniciar. Útil tras quitar el mod que dejó las ayudas en pausa."
+                : "Runs the optimizer check again without restarting. Useful after removing the mod that paused the helpers.")));
+        this.rescanReflectsPending = CrystalOptimizerGuard.scanPending();
+        this.rescanButton.active = !this.rescanReflectsPending;
+    }
+
+    private Component rescanButtonMessage() {
+        if (CrystalOptimizerGuard.scanPending()) {
+            return Component.literal(this.spanish ? "Comprobando…" : "Checking…");
+        }
+        return Component.literal(
+                this.spanish ? "Volver a comprobar compatibilidad" : "Re-check compatibility");
+    }
+
+    private void rescanCompatibility() {
+        OptimizerConflictDetector.rescan();
+        refreshOptimizerControls();
+    }
+
+    /**
+     * Keeps the Advanced Tweaks controls in step with a scan that finishes on another thread, so a
+     * re-scan reports its own result instead of waiting for the screen to be reopened.
+     */
+    private void refreshOptimizerControls() {
+        boolean pending = CrystalOptimizerGuard.scanPending();
+        if (this.rescanButton == null || pending == this.rescanReflectsPending) {
+            return;
+        }
+        this.rescanReflectsPending = pending;
+        this.rescanButton.setMessage(rescanButtonMessage());
+        this.rescanButton.active = !pending;
+        if (this.tweaksTab != null) {
+            this.tweaksTab.setMessage(tweaksTabMessage());
+        }
+        if (this.ghostCrystalToggle != null) {
+            this.ghostCrystalToggle.setMessage(ghostCrystalToggleMessage());
+            this.ghostCrystalToggle.active = CrystalOptimizerGuard.optimizationsAllowed();
+        }
     }
 
     private <T extends AbstractWidget> T addContent(T widget) {
@@ -712,10 +763,10 @@ public final class CrystalTweaksScreen extends Screen {
             message = this.spanish
                     ? "Ayudas en pausa: comprobando compatibilidad"
                     : "Interaction helpers paused: checking compatibility";
-        } else if (CrystalOptimizerGuard.scanFailed()) {
+        } else if (CrystalOptimizerGuard.scanIncomplete()) {
             message = this.spanish
-                    ? "Ayudas en pausa: no se pudo completar la comprobacion"
-                    : "Interaction helpers paused: compatibility check incomplete";
+                    ? "Ayudas activas: la comprobacion quedo incompleta"
+                    : "Interaction helpers active: compatibility check incomplete";
         } else if (visuals().customGlowColor) {
             // Say it where the ignored colors are actually being chosen.
             message = this.spanish
@@ -871,6 +922,7 @@ public final class CrystalTweaksScreen extends Screen {
         }
         drawPanelParticles(graphics, now);
         drawHeader(graphics);
+        refreshOptimizerControls();
         if (!this.glowEditor && !this.enemyEditor) drawOptimizerWarning(graphics);
         if (this.activeTab == Tab.VISUALS) {
             drawVisualSelection(graphics);
