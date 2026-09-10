@@ -682,6 +682,9 @@ public final class CrystalTweaksScreen extends Screen {
 
     private Component ghostCrystalToggleMessage() {
         String label = this.spanish ? "Cristales fantasma" : "Ghost crystals";
+        if (!CrystalOptimizerGuard.optimizationsAllowed()) {
+            return Component.literal(label + (this.spanish ? ": EN PAUSA" : ": PAUSED"));
+        }
         String state = CrystalVisualConfig.ghostCrystals()
                 ? (this.spanish ? "ACTIVO" : "ON")
                 : (this.spanish ? "INACTIVO" : "OFF");
@@ -705,6 +708,14 @@ public final class CrystalTweaksScreen extends Screen {
             message = this.spanish
                     ? "Optimizacion en pausa: " + other + " ya optimiza cristales"
                     : "Optimization paused: " + other + " already optimizes crystals";
+        } else if (CrystalOptimizerGuard.scanPending()) {
+            message = this.spanish
+                    ? "Ayudas en pausa: comprobando compatibilidad"
+                    : "Interaction helpers paused: checking compatibility";
+        } else if (CrystalOptimizerGuard.scanFailed()) {
+            message = this.spanish
+                    ? "Ayudas en pausa: no se pudo completar la comprobacion"
+                    : "Interaction helpers paused: compatibility check incomplete";
         } else if (visuals().customGlowColor) {
             // Say it where the ignored colors are actually being chosen.
             message = this.spanish

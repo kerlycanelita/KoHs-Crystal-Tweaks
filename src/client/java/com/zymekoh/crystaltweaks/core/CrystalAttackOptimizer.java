@@ -52,6 +52,11 @@ public final class CrystalAttackOptimizer {
     }
 
     private static void predictCrystalBreak(int entityId) {
+        // A conflict may have been detected while this task waited for the client thread.
+        if (!CrystalOptimizerGuard.optimizationsAllowed()) {
+            return;
+        }
+
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         if (minecraft.level == null || player == null) {

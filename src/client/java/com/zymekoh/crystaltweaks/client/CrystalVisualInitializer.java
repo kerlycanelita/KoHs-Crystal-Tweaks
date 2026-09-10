@@ -3,6 +3,7 @@ package com.zymekoh.crystaltweaks.client;
 import com.zymekoh.crystaltweaks.client.compat.OptimizerConflictDetector;
 import com.zymekoh.crystaltweaks.client.sound.CrystalSoundManager;
 import com.zymekoh.crystaltweaks.core.CrystalBreakPrediction;
+import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
 import com.zymekoh.crystaltweaks.core.GhostCrystalTracker;
 import com.zymekoh.crystaltweaks.core.ObsidianPlacementGuard;
 import net.fabricmc.api.ClientModInitializer;
@@ -25,13 +26,17 @@ public final class CrystalVisualInitializer implements ClientModInitializer {
             CrystalAfterglow.onRemoved(entity);
             CrystalSoundManager.onEntityUnloaded(entity);
             // The server confirmed the break, so the local hide mark is no longer needed.
-            CrystalBreakPrediction.forget(entity);
+            if (CrystalOptimizerGuard.optimizationsAllowed()) {
+                CrystalBreakPrediction.forget(entity);
+            }
         });
         ClientTickEvents.START_CLIENT_TICK.register(client -> {
             CrystalSoundManager.tick();
-            long now = System.nanoTime();
-            CrystalBreakPrediction.cleanup(now);
-            GhostCrystalTracker.cleanup(now);
+            if (CrystalOptimizerGuard.optimizationsAllowed()) {
+                long now = System.nanoTime();
+                CrystalBreakPrediction.cleanup(now);
+                GhostCrystalTracker.cleanup(now);
+            }
         });
         ClientPlayConnectionEvents.JOIN.register((listener, sender, client) -> {
             CrystalAfterglow.reset();

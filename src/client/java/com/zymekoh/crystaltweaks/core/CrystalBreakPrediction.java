@@ -51,6 +51,7 @@ public final class CrystalBreakPrediction {
     }
 
     public static void markBroken(EndCrystal crystal, long nowNanos) {
+        if (!CrystalOptimizerGuard.optimizationsAllowed()) return;
         if (HIDDEN.size() >= MAX_TRACKED) {
             cleanup(nowNanos);
             if (HIDDEN.size() >= MAX_TRACKED) {
@@ -61,6 +62,7 @@ public final class CrystalBreakPrediction {
     }
 
     public static boolean isHidden(EndCrystal crystal) {
+        if (!CrystalOptimizerGuard.optimizationsAllowed()) return false;
         // Called for every crystal in view, every frame. Almost always nothing is hidden, so this
         // check keeps the common case to one volatile read instead of a boxed map lookup.
         if (HIDDEN.isEmpty()) {
@@ -129,6 +131,7 @@ public final class CrystalBreakPrediction {
 
     /** Fed by the placement observer whenever a placement round trip completes. */
     public static void reportMeasuredLatency(long millis) {
+        if (!CrystalOptimizerGuard.optimizationsAllowed()) return;
         if (millis >= 0L) {
             measuredLatencyMillis = millis;
         }

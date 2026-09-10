@@ -37,7 +37,11 @@ public final class CrystalPlacementFeedback {
         initialized = true;
 
         ClientEntityEvents.ENTITY_LOAD.register((entity, level) -> onEntityLoaded(entity));
-        ClientTickEvents.END_CLIENT_TICK.register(client -> TRACKER.cleanup(System.nanoTime()));
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (CrystalOptimizerGuard.optimizationsAllowed()) {
+                TRACKER.cleanup(System.nanoTime());
+            }
+        });
         ClientPlayConnectionEvents.JOIN.register((listener, sender, client) -> resetState());
         ClientPlayConnectionEvents.DISCONNECT.register((listener, client) -> resetState());
     }
@@ -57,8 +61,13 @@ public final class CrystalPlacementFeedback {
     }
 
     public static void resetState() {
-        TRACKER.reset();
+        resetPredictionState();
         CrystalOwnership.reset();
+    }
+
+    /** Clears interaction bookkeeping while preserving the visual ownership profile. */
+    public static void resetPredictionState() {
+        TRACKER.reset();
     }
 
     public static long lastLatencyMillis() {
@@ -132,6 +141,10 @@ public final class CrystalPlacementFeedback {
             return;
         }
         CrystalOwnership.loaded((EndCrystal) entity);
+
+        if (!CrystalOptimizerGuard.optimizationsAllowed()) {
+            return;
+        }
 
         BlockPos base = BlockPos.containing(entity.getX(), entity.getY() - 1.0D, entity.getZ());
         // The round trip this measures is the one the break prediction has to outlast, so feed it

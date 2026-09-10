@@ -8,6 +8,10 @@ import java.util.UUID;
 /** Run using tools/test-glow.ps1; no Minecraft instance or network required. */
 public final class CrystalAppearanceTest {
     public static void main(String[] args) {
+        check(CrystalOptimizerGuard.scanPending() && !CrystalOptimizerGuard.optimizationsAllowed(),
+                "Interaction helpers start disabled while compatibility is unknown");
+        CrystalOptimizerGuard.completeScan();
+        check(CrystalOptimizerGuard.optimizationsAllowed(), "A completed clean scan enables helpers");
         CrystalAppearance player = new CrystalAppearance();
         CrystalAppearance enemy = new CrystalAppearance();
         player.outerColor = 0xFF123456;
@@ -56,11 +60,25 @@ public final class CrystalAppearanceTest {
         check(timeline.size() == 0, "Rejected prediction/reappearing crystal cancels afterglow");
         timeline.start(id, "old world", 0); timeline.clear(); check(timeline.size() == 0, "Disconnect clears light");
         check(CrystalOptimizerGuard.looksLikeOptimizer("marlowcrystal", ""), "Marlow detected by exact id");
+        check(CrystalOptimizerGuard.looksLikeOptimizer("nocrystalbreak", ""), "No Crystal Break detected by exact id");
+        check(CrystalOptimizerGuard.looksLikeOptimizer("unknown", "Crystal Optimizer"), "Unknown optimizer detected by name");
         check(!CrystalOptimizerGuard.looksLikeOptimizer("clientsidecrystals", "Clientside Crystals"), "Visual mods are not interaction optimizers");
         CrystalOptimizerGuard.reportConflict("Marlow");
         check(!CrystalOptimizerGuard.optimizationsAllowed(), "Interaction core yields");
+        CrystalOptimizerGuard.completeScan();
+        check(!CrystalOptimizerGuard.optimizationsAllowed(), "Late scan completion cannot override a conflict");
+        CrystalOptimizerGuard.reportScanFailure();
+        check(CrystalOptimizerGuard.conflictDetected() && CrystalOptimizerGuard.conflictingModName().equals("Marlow"),
+                "Scan failure must preserve the known conflicting mod");
         check(player.haloColor() == 0xFFFF0000 && CrystalGlowMath.power(300) == 3, "Visuals stay independent of optimizer guard");
         CrystalOptimizerGuard.clearConflict();
+        check(!CrystalOptimizerGuard.optimizationsAllowed(), "Clearing state requires another clean scan");
+        CrystalOptimizerGuard.reportScanFailure();
+        check(CrystalOptimizerGuard.scanFailed() && !CrystalOptimizerGuard.optimizationsAllowed(),
+                "Failed scan leaves every interaction helper disabled");
+        CrystalOptimizerGuard.completeScan();
+        check(!CrystalOptimizerGuard.optimizationsAllowed(), "Late completion cannot override scan failure");
+        check(player.haloColor() == 0xFFFF0000, "Visual settings remain available after scan failure");
         int layouts = 0;
         for (int width = 1; width <= 1920; width += 7) for (int height = 1; height <= 1080; height += 7) {
             var l = GlowEditorLayout.fit(17, 23, width, height);

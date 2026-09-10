@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.2.10
+
+- Improved detection of Marlow's Crystal Optimizer and No Crystal Break before gameplay.
+- Restored normal Mixin priority and skipped prediction bookkeeping when another optimizer is detected.
+- Rechecked queued attack predictions after returning to the client thread.
+- Keep all interaction helpers off until a clean compatibility scan completes, and off if the scan fails or is incomplete.
+- Guard both ghost rendering and prediction state against accidental activation during a conflict.
+- Serialized conflict shutdown with client prediction updates and cleared pending placement samples without resetting visual ownership.
+- Stopped placement latency confirmation and cleanup while the interaction helpers are disabled.
+- Retained the 2.2.9 Glow editor, afterglow, other-player appearances, colors, sounds and preview.
+- Published exact-target Fabric builds for 1.21.11, 26.1, 26.1.1, 26.1.2 and 26.2.
+
 ## 2.2.7
 
 ### Fixed

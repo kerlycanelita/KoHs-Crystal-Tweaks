@@ -35,7 +35,10 @@ public final class CrystalOptimizerGuard {
             "clientsidecrystals",
     };
 
-    private static volatile boolean detected;
+    private enum Status { CHECKING, READY, CONFLICT, FAILED }
+
+    // Interaction helpers stay off until the complete compatibility scan succeeds.
+    private static volatile Status status = Status.CHECKING;
     private static volatile String detectedName = "";
 
     private CrystalOptimizerGuard() {
@@ -43,11 +46,27 @@ public final class CrystalOptimizerGuard {
 
     /** True while the local interaction optimizations are allowed to run. */
     public static boolean optimizationsAllowed() {
-        return !detected;
+        return status == Status.READY;
     }
 
     public static boolean conflictDetected() {
-        return detected;
+        return status == Status.CONFLICT;
+    }
+
+    public static boolean scanPending() {
+        return status == Status.CHECKING;
+    }
+
+    public static boolean scanFailed() {
+        return status == Status.FAILED;
+    }
+
+    public static synchronized void completeScan() {
+        if (status == Status.CHECKING) status = Status.READY;
+    }
+
+    public static synchronized void reportScanFailure() {
+        if (status != Status.CONFLICT) status = Status.FAILED;
     }
 
     /** Display name of the mod that caused the stand-down, for the warning in the settings screen. */
@@ -55,13 +74,13 @@ public final class CrystalOptimizerGuard {
         return detectedName;
     }
 
-    public static void reportConflict(String modName) {
+    public static synchronized void reportConflict(String modName) {
         detectedName = modName == null ? "" : modName;
-        detected = true;
+        status = Status.CONFLICT;
     }
 
-    public static void clearConflict() {
-        detected = false;
+    public static synchronized void clearConflict() {
+        status = Status.CHECKING;
         detectedName = "";
     }
 

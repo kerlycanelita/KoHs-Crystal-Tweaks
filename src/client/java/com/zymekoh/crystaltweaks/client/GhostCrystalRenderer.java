@@ -1,6 +1,7 @@
 package com.zymekoh.crystaltweaks.client;
 
 import com.zymekoh.crystaltweaks.core.GhostCrystalSupport;
+import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
 import com.zymekoh.crystaltweaks.core.GhostCrystalTracker;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -41,7 +42,8 @@ public final class GhostCrystalRenderer {
     }
 
     private static void collectSubmits(LevelRenderContext context) {
-        if (!CrystalVisualConfig.ghostCrystals() || GhostCrystalTracker.isEmpty()) {
+        if (!CrystalOptimizerGuard.optimizationsAllowed()
+                || !CrystalVisualConfig.ghostCrystals() || GhostCrystalTracker.isEmpty()) {
             return;
         }
 
