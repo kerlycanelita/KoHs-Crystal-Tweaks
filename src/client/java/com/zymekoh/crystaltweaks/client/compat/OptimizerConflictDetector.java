@@ -5,7 +5,7 @@ import com.zymekoh.crystaltweaks.client.CrystalPlacementFeedback;
 import com.zymekoh.crystaltweaks.core.CrystalBreakPrediction;
 import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
 import com.zymekoh.crystaltweaks.core.GhostCrystalTracker;
-import java.util.Locale;
+import java.util.List;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.client.Minecraft;
@@ -91,29 +91,16 @@ public final class OptimizerConflictDetector {
     }
 
     /**
-     * Decides whether an overlap is another crystal optimizer or merely a neighbour on the wire.
-     *
-     * <p>{@code Connection.send} is one of the busiest Mixin targets in the ecosystem: performance
-     * mods, protocol translators and ping readouts all sit there without touching a crystal. Landing
-     * on the same method is therefore not enough. The mod also has to be about crystals, by its id,
-     * its name or the Mixin doing the overlapping, before this yields the interaction path to it.</p>
+     * Collects the overlap and asks the guard whether it is another crystal optimizer. The decision
+     * itself lives in {@link CrystalOptimizerGuard} so it can be exercised without a game client.
      */
     private static boolean optimizesCrystals(ConflictScanner.ConflictEntry entry) {
-        boolean touchesInteraction = entry.points().stream()
-                .anyMatch(point -> point.area() == ConflictScanner.ConflictArea.NETWORK_OBSERVER);
-        if (!touchesInteraction) {
-            return false;
-        }
-        if (mentionsCrystals(entry.modId()) || mentionsCrystals(entry.modName())) {
-            return true;
-        }
-        return entry.points().stream()
+        List<String> networkMixins = entry.points().stream()
                 .filter(point -> point.area() == ConflictScanner.ConflictArea.NETWORK_OBSERVER)
-                .anyMatch(point -> mentionsCrystals(point.foreignMixinClass()));
-    }
-
-    private static boolean mentionsCrystals(String value) {
-        return value != null && value.toLowerCase(Locale.ROOT).contains("crystal");
+                .map(ConflictScanner.ConflictPoint::foreignMixinClass)
+                .toList();
+        return CrystalOptimizerGuard.overlapOptimizesCrystals(
+                entry.modId(), entry.modName(), networkMixins);
     }
 
     private static void standDown(String modName, String reason) {

@@ -1,5 +1,6 @@
 package com.zymekoh.crystaltweaks.core;
 
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -95,6 +96,40 @@ public final class CrystalOptimizerGuard {
     public static synchronized void clearConflict() {
         status = Status.CHECKING;
         detectedName = "";
+    }
+
+    /**
+     * Decides whether a Mixin overlap is another crystal optimizer or merely a neighbour on the wire.
+     *
+     * <p>{@code Connection.send} is one of the busiest Mixin targets in the ecosystem: performance
+     * mods, protocol translators and ping readouts all sit there without ever touching a crystal.
+     * Landing on the same method is therefore not enough on its own. The mod also has to be about
+     * crystals, by its id, its name, or the Mixin class doing the overlapping.</p>
+     *
+     * @param networkMixinClasses the foreign Mixin classes that overlap this mod on the interaction
+     *                            path; empty when the overlap is somewhere else entirely
+     */
+    public static boolean overlapOptimizesCrystals(
+            String modId,
+            String modName,
+            List<String> networkMixinClasses
+    ) {
+        if (networkMixinClasses == null || networkMixinClasses.isEmpty()) {
+            return false;
+        }
+        if (mentionsCrystals(modId) || mentionsCrystals(modName)) {
+            return true;
+        }
+        for (String mixinClass : networkMixinClasses) {
+            if (mentionsCrystals(mixinClass)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean mentionsCrystals(String value) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains("crystal");
     }
 
     /** Matches a mod id or name that names itself a crystal optimizer. */

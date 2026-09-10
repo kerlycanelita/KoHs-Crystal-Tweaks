@@ -3,6 +3,7 @@ import com.zymekoh.crystaltweaks.client.GlowEditorLayout;
 import com.zymekoh.crystaltweaks.client.CrystalGlowMath;
 import com.zymekoh.crystaltweaks.client.AfterglowTimeline;
 import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
+import java.util.List;
 import java.util.UUID;
 
 /** Run using tools/test-glow.ps1; no Minecraft instance or network required. */
@@ -65,6 +66,32 @@ public final class CrystalAppearanceTest {
         check(CrystalOptimizerGuard.looksLikeOptimizer("unknown", "Crystal Optimizer"), "Unknown optimizer detected by name");
         check(!CrystalOptimizerGuard.looksLikeOptimizer("clientsidecrystals", "Clientside Crystals"), "Visual mods are not interaction optimizers");
         check(!CrystalOptimizerGuard.looksLikeOptimizer("krypton", "Krypton"), "Network performance mods are not crystal optimizers");
+        // The overlap rule, against the mods that actually sit on Connection.send in a real pack.
+        List<String> onSend = List.of("me.example.mixin.ConnectionMixin");
+        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("krypton", "Krypton", onSend),
+                "Krypton shares Connection.send without optimizing crystals");
+        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("viafabricplus", "ViaFabricPlus", onSend),
+                "A protocol translator is not a crystal optimizer");
+        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("betterping", "Better Ping Display", onSend),
+                "A ping readout is not a crystal optimizer");
+        check(CrystalOptimizerGuard.overlapOptimizesCrystals("marlowcrystal", "Marlow's Crystal Optimizer", onSend),
+                "A crystal optimizer on the same path is a conflict");
+        check(CrystalOptimizerGuard.overlapOptimizesCrystals(
+                        "kohs_crystal_tweaks",
+                        "KoHs Crystal Tweaks",
+                        List.of("dev.zymekoh.kohscrystaltweaks.mixin.ClientConnectionMixin")),
+                "The retired build is caught by id");
+        check(CrystalOptimizerGuard.overlapOptimizesCrystals(
+                        "unnamed",
+                        "Unnamed",
+                        List.of("com.example.mixin.EndCrystalAttackMixin")),
+                "A crystal Mixin gives away a mod whose name does not");
+        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("crystalskins", "Crystal Skins", List.of()),
+                "An overlap away from the interaction path is not a conflict, whatever the mod is called");
+        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("krypton", "Krypton", null),
+                "A missing overlap list must not be read as a conflict");
+        check(CrystalOptimizerGuard.overlapOptimizesCrystals("SOME_CRYSTAL_MOD", null, onSend),
+                "Detection is case-insensitive and survives a null name");
         CrystalOptimizerGuard.reportConflict("Marlow");
         check(!CrystalOptimizerGuard.optimizationsAllowed(), "Interaction core yields");
         CrystalOptimizerGuard.completeScan();
