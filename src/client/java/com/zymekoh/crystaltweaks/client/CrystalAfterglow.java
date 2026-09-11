@@ -89,10 +89,16 @@ public final class CrystalAfterglow {
             if (light.origin.distanceToSqr(camera.pos) > 4096) continue;
             poses.pushPose();
             poses.translate(light.origin.x - camera.pos.x, light.origin.y - camera.pos.y, light.origin.z - camera.pos.z);
-            // A destroyed/unloaded block must not leave a glowing rectangle floating in air.
-            light.state.crystalTweaks$surfaces(light.state.crystalTweaks$surfaces().stream()
+            // A destroyed/unloaded block must not leave a glowing rectangle floating in air. The
+            // filtered list is used for this frame only: writing it back tore the spill apart as the
+            // blast's block updates arrived, and a chunk that reloaded mid-fade never got its light
+            // back because the surface had already been dropped from the stored snapshot.
+            List<CrystalGlowRenderer.Surface> stored = light.state.crystalTweaks$surfaces();
+            light.state.crystalTweaks$surfaces(stored.stream()
                     .filter(surface -> survivingSurface(light.origin, surface)).toList());
-            CrystalGlowRenderer.submit(light.state, poses, collector, camera, sample.opacity());
+            CrystalGlowRenderer.submitFlash(
+                    light.state, poses, collector, camera, sample.opacity(), light.origin);
+            light.state.crystalTweaks$surfaces(stored);
             poses.popPose();
         }
     }

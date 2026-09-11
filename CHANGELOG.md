@@ -1,5 +1,43 @@
 # Changelog
 
+## 2.3.0
+
+### Changed
+
+- Safe Crystal now states its stand-down as one named decision instead of a condition folded into the
+  click handler. With Marlow's Crystal Optimizer, No Crystal Break or any other detected crystal
+  optimizer installed, the obsidian click reaches Vanilla untouched: that mod owns the crystal click,
+  and two mods deciding whether the same swing mines a block is how a player ends up unable to break
+  obsidian at all.
+- Performance mods are named explicitly and can never stand this mod down, whatever they overlap.
+  Krypton, Lithium, Sodium, C2ME, ImmediatelyFast, ScalableLux, FerriteCore, MoreCulling,
+  EntityCulling, ModernFix, LazyDFU, DynamicFPS, MemoryLeakFix, Noxesium, ViaFabricPlus and
+  ViaVersion sit on the same network and rendering paths this mod uses, and matching there says
+  nothing about crystals.
+
+### Added
+
+- Flash styles for a destroyed crystal, in the player's own glow colour: the original explosion plus
+  a skull, a Steve head and bolts thrown toward the players around the blast. Selected in the **Glow
+  editor**, beside the power, reflections and colour that drive it; drawing only, with no change to
+  the explosion, the damage or any packet.
+- Published for 1.21.11, 26.1, 26.1.1, 26.1.2 and 26.2.
+
+### Fixed
+
+- Your own crystals were drawn with the enemy profile while spamming. Each base remembered a single
+  placement, so placing, breaking and placing again on the same obsidian produced two crystals
+  against one record: the first consumed it and the second was read as someone else's. Attempts are
+  now queued per base and claimed oldest first, so every arrival matches the placement that caused
+  it.
+- The death flash's ground light tore apart as it faded. The surviving-surface filter was written
+  back into the stored snapshot every frame, so each block the blast destroyed permanently removed
+  its patch of light, and a chunk that reloaded mid-fade never got it back. The filter now applies to
+  the frame being drawn and leaves the snapshot intact.
+- The same explosion lit the ground only sometimes during a fight. When the per-tick terrain sampling
+  budget ran out, a crystal reported no lit surfaces at all and that empty answer was captured into
+  the flash. It now reuses its last result instead.
+
 ## 2.2.11
 
 ### Fixed

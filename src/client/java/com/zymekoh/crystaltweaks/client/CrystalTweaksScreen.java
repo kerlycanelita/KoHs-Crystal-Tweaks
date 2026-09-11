@@ -63,6 +63,7 @@ public final class CrystalTweaksScreen extends Screen {
     private PurpleCloseButton ghostCrystalToggle;
     private PurpleCloseButton glowColorToggle;
     private PurpleCloseButton conflictMonitorButton;
+    private PurpleCloseButton flashStyleButton;
     private PurpleCloseButton rescanButton;
     private EditBox hexBox;
     private ColorPickerWidget colorPicker;
@@ -276,6 +277,7 @@ public final class CrystalTweaksScreen extends Screen {
         this.ghostCrystalToggle = null;
         this.glowColorToggle = null;
         this.conflictMonitorButton = null;
+        this.flashStyleButton = null;
         this.rescanButton = null;
         this.hexBox = null;
         this.colorPicker = null;
@@ -402,21 +404,31 @@ public final class CrystalTweaksScreen extends Screen {
         reflections.setTooltip(Tooltip.create(Component.literal(this.spanish
                 ? "Luz de color simulada en las caras superiores de bloques cercanos. Requiere potencia de glow; no modifica la iluminación del mundo ni añade reflejos de trazado de rayos."
                 : "Simulated colored light on nearby block tops. Requires glow power; does not change world lighting or add ray-traced reflections.")));
-        this.glowColorToggle = addContent(new PurpleCloseButton(
+        // The flash is glow: same colour, same material, same power switch. It belongs beside the
+        // controls that drive it rather than in a tab about other mods.
+        this.flashStyleButton = addContent(new PurpleCloseButton(
                 this.optionsX, y + rowStep() * 2, this.optionsWidth, this.controlHeight,
+                flashStyleMessage(), ignored -> cycleFlashStyle()));
+        this.flashStyleButton.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "Forma del destello que deja un cristal al explotar, en este mismo color. Requiere potencia "
+                        + "de glow. Es solo dibujo: no cambia la explosión, el daño ni ningún paquete."
+                : "Shape of the flash a crystal leaves when it explodes, in this same color. Requires glow "
+                        + "power. Drawing only: it changes no explosion, no damage and no packet.")));
+        this.glowColorToggle = addContent(new PurpleCloseButton(
+                this.optionsX, y + rowStep() * 3, this.optionsWidth, this.controlHeight,
                 glowColorToggleMessage(), ignored -> toggleGlowColor()));
         this.glowColorToggle.setTooltip(Tooltip.create(Component.literal(this.spanish
                 ? "Al activarlo se pide confirmación: este color sustituye visualmente los colores por capa, sin borrarlos."
                 : "Enabling asks for confirmation: this color visually overrides layer colors without deleting them.")));
-        this.hexBox = addContent(new EditBox(this.font, this.optionsX, y + rowStep() * 3,
+        this.hexBox = addContent(new EditBox(this.font, this.optionsX, y + rowStep() * 4,
                 Math.min(94, this.optionsWidth), this.controlHeight,
                 Component.literal(this.spanish ? "Color de glow hexadecimal" : "Glow hex color")));
         this.hexBox.setMaxLength(7);
         this.hexBox.setResponder(this::onHexChanged);
-        // Take the height from the space the four rows above leave behind, rather than a fixed cap
+        // Take the height from the space the five rows above leave behind, rather than a fixed cap
         // that does not know how tall the column ended up being.
-        int glowPickerHeight = Mth.clamp(this.contentHeight - rowStep() * 4, 14, 42);
-        this.colorPicker = addContent(new ColorPickerWidget(this.optionsX, y + rowStep() * 4,
+        int glowPickerHeight = Mth.clamp(this.contentHeight - rowStep() * 5, 14, 42);
+        this.colorPicker = addContent(new ColorPickerWidget(this.optionsX, y + rowStep() * 5,
                 this.optionsWidth, glowPickerHeight,
                 Component.literal(this.spanish ? "Color de glow" : "Glow color"),
                 selectedColor(), this::onPickerChanged));
@@ -521,6 +533,18 @@ public final class CrystalTweaksScreen extends Screen {
                 : "Runs the optimizer check again without restarting. Useful after removing the mod that paused the helpers.")));
         this.rescanReflectsPending = CrystalOptimizerGuard.scanPending();
         this.rescanButton.active = !this.rescanReflectsPending;
+    }
+
+    private Component flashStyleMessage() {
+        String label = this.spanish ? "Destello" : "Flash";
+        return Component.literal(
+                label + ": " + CrystalVisualConfig.flashStyle().label(this.spanish).toUpperCase(Locale.ROOT));
+    }
+
+    private void cycleFlashStyle() {
+        CrystalVisualConfig.setFlashStyle(CrystalVisualConfig.flashStyle().next());
+        CrystalVisualConfig.save();
+        this.flashStyleButton.setMessage(flashStyleMessage());
     }
 
     private Component rescanButtonMessage() {

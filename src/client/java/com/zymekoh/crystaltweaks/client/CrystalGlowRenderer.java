@@ -37,7 +37,10 @@ public final class CrystalGlowRenderer {
         if (cached != null && now - cached.at < 250_000_000L
                 && cached.position.distanceToSqr(crystal.position()) < 0.0001) return cached.surfaces;
         // Bound terrain queries across all crystals. Never retain expired light on a removed surface.
-        if (sampledThisTick++ >= 8) return List.of();
+        // A crystal that loses the budget reuses its last result rather than reporting no spill at
+        // all: during a spam fight the budget runs out most ticks, and the empty answer was being
+        // snapshotted into death flashes, so the same explosion lit the ground only sometimes.
+        if (sampledThisTick++ >= 8) return cached != null ? cached.surfaces : List.of();
         List<Surface> surfaces = new ArrayList<>();
         Vec3 origin = crystal.position();
         Vec3 light = origin.add(0, 1, 0);
@@ -74,8 +77,25 @@ public final class CrystalGlowRenderer {
         submit(state, poses, collector, camera, 1F);
     }
 
+    /** A crystal still in the world always wears the burst; only the death flash takes a shape. */
     public static void submit(EndCrystalRenderState state, PoseStack poses,
             SubmitNodeCollector collector, CameraRenderState camera, float opacity) {
+        submit(state, poses, collector, camera, opacity, CrystalFlashStyle.EXPLOSION, null);
+    }
+
+    /**
+     * The flash a destroyed crystal leaves behind, in the shape the player selected.
+     *
+     * @param origin world position of the blast, used by the lightning style to aim its bolts
+     */
+    public static void submitFlash(EndCrystalRenderState state, PoseStack poses,
+            SubmitNodeCollector collector, CameraRenderState camera, float opacity, Vec3 origin) {
+        submit(state, poses, collector, camera, opacity, CrystalVisualConfig.flashStyle(), origin);
+    }
+
+    public static void submit(EndCrystalRenderState state, PoseStack poses,
+            SubmitNodeCollector collector, CameraRenderState camera, float opacity,
+            CrystalFlashStyle style, Vec3 origin) {
         CrystalAppearance look = CrystalAppearanceAccess.of(state);
         if (opacity <= 0) return;
         if (look.glowPowerPercent <= 0 || state.distanceToCameraSq > 4096) return;
@@ -89,6 +109,11 @@ public final class CrystalGlowRenderer {
         collector.submitCustomGeometry(poses, RenderTypes.dragonRays(), (pose, buffer) -> {
             Matrix4f matrix = pose.pose();
             float radius = CrystalGlowMath.radius(power);
+            if (style != CrystalFlashStyle.EXPLOSION) {
+                CrystalFlashShapes.submit(style, buffer, matrix, camera.orientation, color,
+                        CrystalGlowMath.hotColor(color), radius, power * opacity, origin);
+                return;
+            }
             // Preserve the original halo's gain at 100%; extra passes avoid byte-alpha overflow.
             disk(buffer, matrix, color, radius, 0.42F * power * opacity);
             disk(buffer, matrix, color, 0.54F, 0.7F * power * opacity);

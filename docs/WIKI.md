@@ -14,6 +14,7 @@ Welcome to the Crystal Tweaks documentation. This guide covers installation, con
 - [Interactive preview](#interactive-preview)
 - [Languages](#languages)
 - [Compatibility and multiplayer](#compatibility-and-multiplayer)
+- [Glow editor](#glow-editor)
 - [Troubleshooting](#troubleshooting)
 - [Building from source](#building-from-source)
 - [Getting support](#getting-support)
@@ -51,6 +52,26 @@ Three independent color controls are available:
 - **Core** changes the central cube.
 
 Colors are applied over the active End Crystal texture. Resource packs that heavily recolor or replace the crystal texture can change the final result, so mostly neutral textures are recommended.
+
+### Glow editor
+
+The **Glow** button in the Visuals tab opens the editor that owns everything the crystal's light
+does, in one place: power, reflections, the flash style, the custom-colour override, and the hex box
+and picker that choose the colour all five share.
+
+**Flash style** is the shape a crystal leaves behind when it explodes. It takes the same colour and
+the same additive material as the glow, and needs glow power above `0%` to be visible at all:
+
+- **Explosion** — the original burst of stacked discs and rotating facet rays.
+- **Skull** — a skull silhouette with hollow sockets, nose and teeth.
+- **Steve head** — the blocky player head.
+- **Lightning** — jagged bolts thrown toward the players around the blast. Their reach is the
+  flash's own radius, not the distance to anyone, so a bolt never measures out where a player is;
+  with nobody nearby it draws a ring instead.
+
+Every style is drawing and nothing else. None of them change the explosion, its damage, its radius or
+its sound, and none of them read or send anything the client was not already handling. Because they
+are visual, they keep working while another optimizer has the interaction helpers paused.
 
 ### Rotation speed
 
@@ -99,6 +120,20 @@ The detection stands the interaction helpers down only for a mod actually found 
 crystals: one that names itself an optimizer, or one whose Mixins land on the same interaction path
 *and* whose id, name or Mixin is about crystals. Sharing a network method is not enough on its own,
 and a scan that cannot read every mod says so instead of disabling anything.
+
+**What a detected optimizer turns off.** Every interaction helper, with no exception: break
+prediction, ghost crystals, placement tracking and **Safe Crystal**. That last one matters most in
+practice. Safe Crystal swallows the click that would mine the obsidian under your crystal, and the
+other optimizer wants that same click; with both deciding, the usual result is obsidian you cannot
+break at all. Saved settings cannot re-enable any of them during a conflict. Every visual feature
+keeps working, including the death flash and its styles.
+
+**What never turns anything off.** Performance mods. Krypton, Lithium, Sodium, C2ME, ImmediatelyFast,
+ScalableLux, FerriteCore, MoreCulling, EntityCulling, ModernFix, LazyDFU, DynamicFPS, MemoryLeakFix,
+Noxesium, ViaFabricPlus and ViaVersion are named in the detector so that no Mixin overlap can be read
+as a rival crystal optimizer. Several of them genuinely share this mod's targets — the network ones
+sit on the same `Connection.send`, the rendering ones on the same entity and model path — and before
+2.2.11 that overlap was enough to disable the optimizer for anyone running a performance pack.
 
 Instant crystal break is part of the mod's core and has no setting. It only runs for a hit the
 server is expected to accept: the crystal must be inside your interaction range, not already

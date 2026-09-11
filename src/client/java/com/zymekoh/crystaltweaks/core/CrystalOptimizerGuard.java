@@ -40,6 +40,35 @@ public final class CrystalOptimizerGuard {
             "clientsidecrystals",
     };
 
+    /**
+     * Mods that optimize the game rather than the crystal.
+     *
+     * <p>Several of them live exactly where this mod lives: {@code Connection.send} for the network
+     * ones, the entity and model path for the rendering ones. Overlapping there says nothing about
+     * crystals, and treating it as a rival was what silently killed the optimizer for players whose
+     * only crime was running a performance pack. They are named here so no amount of overlap, and no
+     * future loosening of the heuristics below, can ever stand this mod down for one of them.</p>
+     */
+    private static final String[] PERFORMANCE_IDS = {
+            "krypton",
+            "lithium",
+            "sodium",
+            "c2me",
+            "immediatelyfast",
+            "scalablelux",
+            "ferritecore",
+            "moreculling",
+            "entityculling",
+            "modernfix",
+            "lazydfu",
+            "dynamicfps",
+            "memoryleakfix",
+            "noxesium",
+            "viafabricplus",
+            "viafabric",
+            "viaversion",
+    };
+
     private enum Status { CHECKING, READY, INCOMPLETE, CONFLICT }
 
     // Interaction helpers stay off only while the answer is still unknown, which lasts as long as the
@@ -117,6 +146,9 @@ public final class CrystalOptimizerGuard {
         if (networkMixinClasses == null || networkMixinClasses.isEmpty()) {
             return false;
         }
+        if (optimizesTheGame(modId)) {
+            return false;
+        }
         if (mentionsCrystals(modId) || mentionsCrystals(modName)) {
             return true;
         }
@@ -132,9 +164,26 @@ public final class CrystalOptimizerGuard {
         return value != null && value.toLowerCase(Locale.ROOT).contains("crystal");
     }
 
+    /** True for a mod that speeds the game up rather than driving crystals. Exact ids only. */
+    public static boolean optimizesTheGame(String modId) {
+        if (modId == null) {
+            return false;
+        }
+        String id = modId.toLowerCase(Locale.ROOT);
+        for (String performance : PERFORMANCE_IDS) {
+            if (id.equals(performance)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Matches a mod id or name that names itself a crystal optimizer. */
     public static boolean looksLikeOptimizer(String modId, String modName) {
         String id = modId == null ? "" : modId.toLowerCase(Locale.ROOT);
+        if (optimizesTheGame(id)) {
+            return false;
+        }
         for (String visual : VISUAL_ONLY_IDS) {
             if (id.equals(visual)) {
                 return false;

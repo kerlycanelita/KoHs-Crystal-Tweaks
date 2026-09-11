@@ -23,6 +23,7 @@ public final class CrystalVisualConfig {
     private static volatile float soundVolume = 1.0F;
     private static volatile float soundSpeed = 1.0F;
     private static volatile boolean ghostCrystals;
+    private static volatile CrystalFlashStyle flashStyle = CrystalFlashStyle.EXPLOSION;
     private static volatile boolean loaded;
     private static final CrystalAppearance playerVisuals = new CrystalAppearance();
     private static CrystalAppearance enemyVisuals = new CrystalAppearance();
@@ -91,6 +92,8 @@ public final class CrystalVisualConfig {
                     playerVisuals.glowPowerPercent = clamp(intValue(glow, "powerPercent", 0), 0, 300);
                     playerVisuals.customGlowColor = booleanValue(glow, "customColor", false);
                     playerVisuals.glowColor = parseColor(glow, "color", DEFAULT_COLOR);
+                    flashStyle = CrystalFlashStyle.parse(
+                            stringValue(glow, "flashStyle", ""), CrystalFlashStyle.EXPLOSION);
                 } catch (Exception exception) {
                     CrystalTweaksClient.LOGGER.warn(
                             "Could not read crystal visual settings from {}; using neutral colors",
@@ -139,6 +142,7 @@ public final class CrystalVisualConfig {
                 glow.addProperty("powerPercent", playerVisuals.glowPowerPercent);
                 glow.addProperty("customColor", playerVisuals.customGlowColor);
                 glow.addProperty("color", toHex(playerVisuals.glowColor));
+                glow.addProperty("flashStyle", flashStyle.storageKey());
                 root.add("glow", glow);
 
                 JsonObject sounds = root.has("sounds") && root.get("sounds").isJsonObject()
@@ -296,6 +300,21 @@ public final class CrystalVisualConfig {
     public static void setCustomGlowColor(boolean enabled) {
         load();
         playerVisuals.customGlowColor = enabled;
+    }
+
+    /**
+     * Shape the flash of a destroyed crystal takes. Drawing only: the light, its colour and its
+     * duration are unchanged, and no style reads or reveals anything the client was not already
+     * rendering.
+     */
+    public static CrystalFlashStyle flashStyle() {
+        load();
+        return flashStyle;
+    }
+
+    public static void setFlashStyle(CrystalFlashStyle style) {
+        load();
+        flashStyle = style == null ? CrystalFlashStyle.EXPLOSION : style;
     }
 
     public static int glowColor() {

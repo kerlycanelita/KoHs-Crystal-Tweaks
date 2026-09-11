@@ -13,12 +13,13 @@
 
 ## About
 
-Crystal Tweaks brings End Crystal visual and sound controls into one compact configuration screen. Version 2.2.11 keeps the Glow editor and separate appearance profiles, and narrows the compatibility check so the native optimizer stands down only for a mod actually found to be optimizing crystals, instead of for any scan that could not finish.
+Crystal Tweaks brings End Crystal visual and sound controls into one compact configuration screen. Version 2.3.0 adds flash styles for a destroyed crystal and gathers every glow control into one editor, fixes your own crystals being drawn with the enemy profile while spamming, and keeps the native optimizer standing down only for a mod actually found to be optimizing crystals.
 
 ## What it changes
 
 - Independent colors for the outer layer, inner layer, and crystal core.
 - Glow editor with `0%`–`300%` power, colored reflections, custom glow color, and a smooth afterglow trail.
+- Flash styles for a destroyed crystal, in the same glow color: explosion, skull, Steve head, or bolts thrown toward nearby players.
 - Glow that respects walls instead of using an outline drawn through terrain.
 - Separate colors, glow, and animation speeds for crystals that were not placed by you (with approximate identification).
 - Automatic optimizer conflict handling: interaction helpers step aside while visuals, sounds, and the preview stay active.
@@ -52,7 +53,7 @@ The source build matrix contains these exact Minecraft targets:
 26.1, 26.1.1, 26.1.2, and 26.2
 ```
 
-The 2.2.11 release notes cover **1.21.11, 26.1, 26.1.1, 26.1.2, and 26.2**. Earlier targets remain in the source matrix; use the release available for your exact game version. Each JAR declares one exact Minecraft version.
+The 2.3.0 release notes cover **1.21.11, 26.1, 26.1.1, 26.1.2, and 26.2**. Earlier targets remain in the source matrix; use the release available for your exact game version. Each JAR declares one exact Minecraft version.
 
 ## Compatibility and multiplayer
 

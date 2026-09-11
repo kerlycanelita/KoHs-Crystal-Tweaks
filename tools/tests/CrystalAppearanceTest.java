@@ -90,6 +90,19 @@ public final class CrystalAppearanceTest {
                 "An overlap away from the interaction path is not a conflict, whatever the mod is called");
         check(!CrystalOptimizerGuard.overlapOptimizesCrystals("krypton", "Krypton", null),
                 "A missing overlap list must not be read as a conflict");
+        // Performance mods share this mod's Mixin targets and must never stand it down.
+        for (String performanceMod : new String[] {"krypton", "lithium", "sodium", "c2me",
+                "immediatelyfast", "scalablelux", "ferritecore", "moreculling", "entityculling",
+                "modernfix", "viafabricplus", "viaversion"}) {
+            check(CrystalOptimizerGuard.optimizesTheGame(performanceMod),
+                    performanceMod + " must be known as a game optimizer");
+            check(!CrystalOptimizerGuard.overlapOptimizesCrystals(performanceMod, performanceMod, onSend),
+                    performanceMod + " on Connection.send must not disable the crystal optimizer");
+            check(!CrystalOptimizerGuard.looksLikeOptimizer(performanceMod, performanceMod),
+                    performanceMod + " must not be detected by name");
+        }
+        check(!CrystalOptimizerGuard.optimizesTheGame("marlowcrystal"), "Marlow is not a game optimizer");
+        check(!CrystalOptimizerGuard.optimizesTheGame("kryptonite"), "Allowlist matches exact ids only");
         check(CrystalOptimizerGuard.overlapOptimizesCrystals("SOME_CRYSTAL_MOD", null, onSend),
                 "Detection is case-insensitive and survives a null name");
         CrystalOptimizerGuard.reportConflict("Marlow");
@@ -113,6 +126,14 @@ public final class CrystalAppearanceTest {
         CrystalOptimizerGuard.completeScan();
         check(CrystalOptimizerGuard.optimizationsAllowed() && !CrystalOptimizerGuard.scanIncomplete(),
                 "A clean re-scan restores the native optimizer");
+        // Safe Crystal reads exactly this flag, so the obsidian helper follows the same rule.
+        check(CrystalOptimizerGuard.optimizationsAllowed(),
+                "Safe Crystal keeps working when only performance mods are installed");
+        CrystalOptimizerGuard.reportConflict("Marlow's Crystal Optimizer");
+        check(!CrystalOptimizerGuard.optimizationsAllowed(),
+                "Safe Crystal and every other interaction helper stand down for Marlow");
+        CrystalOptimizerGuard.clearConflict();
+        CrystalOptimizerGuard.completeScan();
         check(player.haloColor() == 0xFFFF0000, "Visual settings remain available whatever the guard decides");
         int layouts = 0;
         for (int width = 1; width <= 1920; width += 7) for (int height = 1; height <= 1080; height += 7) {

@@ -9,6 +9,7 @@ out/
 .vscode/
 dist/
 versions/
+backup/
 .mixincheck/
 
 # Machine-local settings and diagnostics
