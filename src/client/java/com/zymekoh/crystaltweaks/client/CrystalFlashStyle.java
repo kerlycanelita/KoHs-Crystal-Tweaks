@@ -10,7 +10,8 @@ public enum CrystalFlashStyle {
     /** The original burst: stacked discs with rotating facet rays. */
     EXPLOSION("Explosion", "Explosion"),
     SKULL("Calavera", "Skull"),
-    STEVE("Cabeza de Steve", "Steve head"),
+    /** The player's own head, drawn from their skin as a pale apparition. */
+    MY_HEAD("Mi cabeza", "My head"),
     /** Bolts thrown from the blast toward the players around it. */
     LIGHTNING("Rayos", "Lightning");
 
@@ -26,6 +27,11 @@ public enum CrystalFlashStyle {
         return useSpanish ? this.spanish : this.english;
     }
 
+    /** True for the styles the size slider applies to; the burst keeps its own proportions. */
+    public boolean scalable() {
+        return this != EXPLOSION;
+    }
+
     public CrystalFlashStyle next() {
         CrystalFlashStyle[] values = values();
         return values[(ordinal() + 1) % values.length];
@@ -35,8 +41,13 @@ public enum CrystalFlashStyle {
         if (value == null) {
             return fallback;
         }
+        String wanted = value.trim();
+        // 2.3.0 shipped a Steve head briefly; anyone who picked it gets their own head instead.
+        if (wanted.equalsIgnoreCase("STEVE")) {
+            return MY_HEAD;
+        }
         for (CrystalFlashStyle style : values()) {
-            if (style.name().equalsIgnoreCase(value.trim())) {
+            if (style.name().equalsIgnoreCase(wanted)) {
                 return style;
             }
         }

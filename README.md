@@ -40,7 +40,7 @@ See the [Crystal Tweaks Wiki](docs/WIKI.md) for installation, configuration, pre
   [`gradle/versions.properties`](gradle/versions.properties).
 - The Fabric API version matching your Minecraft installation.
 - Java 21 for Minecraft 1.21–1.21.11.
-- Java 25 for Minecraft 26.1–26.2.
+- Java 25 for Minecraft 26.1–26.3.
 - Mod Menu is optional but recommended for opening the configuration screen.
 
 ## Supported Minecraft versions
@@ -50,10 +50,10 @@ The source build matrix contains these exact Minecraft targets:
 ```text
 1.21, 1.21.1, 1.21.2, 1.21.3, 1.21.4, 1.21.5,
 1.21.6, 1.21.7, 1.21.8, 1.21.9, 1.21.10, 1.21.11,
-26.1, 26.1.1, 26.1.2, and 26.2
+26.1, 26.1.1, 26.1.2, 26.2, and 26.3
 ```
 
-The 2.3.0 release notes cover **1.21.11, 26.1, 26.1.1, 26.1.2, and 26.2**. Earlier targets remain in the source matrix; use the release available for your exact game version. Each JAR declares one exact Minecraft version.
+The 2.3.0 release notes cover **1.21.10, 1.21.11, 26.1, 26.1.1, 26.1.2, 26.2, and 26.3**. Earlier targets remain in the source matrix; use the release available for your exact game version. Each JAR declares one exact Minecraft version.
 
 ## Compatibility and multiplayer
 

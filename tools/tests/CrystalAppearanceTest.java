@@ -34,7 +34,23 @@ public final class CrystalAppearanceTest {
         frame = player.copy();
         check(frame.rotationSpeedPercent == 300 && frame.floatingSpeedPercent == 0, "Animation bounds");
         check(frame.glowPowerPercent == 0 && frame.glowReflectionsPercent == 300, "Glow bounds");
-        check(new CrystalAppearance().glowPowerPercent == 0, "Glow defaults off");
+        CrystalAppearance fresh = new CrystalAppearance();
+        check(fresh.glowPowerPercent == 55 && fresh.glowReflectionsPercent == 55,
+                "Glow ships on at 55/55 so the mod is visible from the first launch");
+        check(fresh.customGlowColor && fresh.glowColor == 0xFFC880FF,
+                "A fresh profile glows crystal purple");
+        check(fresh.flashScalePercent == 100, "Flash size starts at its natural scale");
+        fresh.flashScalePercent = 9999;
+        check(fresh.copy().flashScalePercent == 300, "Flash size clamps at 300");
+        fresh.flashScalePercent = -5;
+        check(fresh.copy().flashScalePercent == 50, "Flash size clamps at 50");
+        CrystalAppearance layered = new CrystalAppearance();
+        layered.outerColor = 0xFF00FF00;
+        layered.customGlowColor = true;
+        layered.glowColor = 0xFF0000FF;
+        check(layered.copy().outerColor == 0xFF00FF00,
+                "A custom glow colour must never overwrite a layer colour");
+        check(layered.haloColor() == 0xFF0000FF, "The custom colour still drives the halo");
         check(CrystalGlowMath.power(100) == 1 && CrystalGlowMath.power(300) == 3, "100 baseline, 300 triple multiplier");
         check(Math.abs(CrystalGlowMath.radius(1) - 1.55F) < 0.00001F, "Original 100 percent halo radius");
         check(CrystalGlowMath.radius(3) > CrystalGlowMath.radius(1), "Stronger halo expands");

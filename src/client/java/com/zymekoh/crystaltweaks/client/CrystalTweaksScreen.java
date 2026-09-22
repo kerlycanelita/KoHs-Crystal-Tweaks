@@ -29,9 +29,6 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.EntityType;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
-import org.lwjgl.PointerBuffer;
-import org.lwjgl.system.MemoryStack;
-import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
 public final class CrystalTweaksScreen extends Screen {
     private static final long MENU_INTRO_MILLIS = 360L;
@@ -119,6 +116,10 @@ public final class CrystalTweaksScreen extends Screen {
         this.previewState.boundingBoxHeight = 2.0F;
         this.previewState.eyeHeight = 1.0F;
         this.previewState.outlineColor = 0;
+        // Without this the preview model is lit by nothing and renders black, and no colour the
+        // player picks can brighten it. The GUI has no world light to sample, so it gets full block
+        // and sky light, which is what vanilla inventory rendering effectively uses.
+        this.previewState.lightCoords = 15728880;
     }
 
     @Override
@@ -392,51 +393,67 @@ public final class CrystalTweaksScreen extends Screen {
     /** Dedicated glow window: no layer paint controls or rotation sliders. */
     private void addGlowControls() {
         int y = this.contentY;
-        addContent(new CompactSlider(this.optionsX, y, this.optionsWidth, this.controlHeight,
+        int row = 0;
+        addContent(new CompactSlider(this.optionsX, y + rowStep() * row++, this.optionsWidth, this.controlHeight,
                 0, 300, visuals().glowPowerPercent,
                 value -> visuals().glowPowerPercent = (int) Math.round(value),
                 value -> (this.spanish ? "Potencia del glow: " : "Glow power: ") + Math.round(value) + "%"));
         CompactSlider reflections = addContent(new CompactSlider(
-                this.optionsX, y + rowStep(), this.optionsWidth, this.controlHeight,
+                this.optionsX, y + rowStep() * row++, this.optionsWidth, this.controlHeight,
                 0, 300, visuals().glowReflectionsPercent,
                 value -> visuals().glowReflectionsPercent = (int) Math.round(value),
                 value -> (this.spanish ? "Reflejos de glow: " : "Glow reflections: ") + Math.round(value) + "%"));
         reflections.setTooltip(Tooltip.create(Component.literal(this.spanish
                 ? "Luz de color simulada en las caras superiores de bloques cercanos. Requiere potencia de glow; no modifica la iluminación del mundo ni añade reflejos de trazado de rayos."
                 : "Simulated colored light on nearby block tops. Requires glow power; does not change world lighting or add ray-traced reflections.")));
+
         // The flash is glow: same colour, same material, same power switch. It belongs beside the
         // controls that drive it rather than in a tab about other mods.
         this.flashStyleButton = addContent(new PurpleCloseButton(
-                this.optionsX, y + rowStep() * 2, this.optionsWidth, this.controlHeight,
+                this.optionsX, y + rowStep() * row++, this.optionsWidth, this.controlHeight,
                 flashStyleMessage(), ignored -> cycleFlashStyle()));
         this.flashStyleButton.setTooltip(Tooltip.create(Component.literal(this.spanish
                 ? "Forma del destello que deja un cristal al explotar, en este mismo color. Requiere potencia "
                         + "de glow. Es solo dibujo: no cambia la explosión, el daño ni ningún paquete."
                 : "Shape of the flash a crystal leaves when it explodes, in this same color. Requires glow "
                         + "power. Drawing only: it changes no explosion, no damage and no packet.")));
+
+        // The burst sizes itself from the glow power, so the slider would do nothing for it.
+        if (CrystalVisualConfig.flashStyle().scalable()) {
+            addContent(new CompactSlider(this.optionsX, y + rowStep() * row++, this.optionsWidth,
+                    this.controlHeight, 50, 300, visuals().flashScalePercent,
+                    value -> visuals().flashScalePercent = (int) Math.round(value),
+                    value -> (this.spanish ? "Tamaño del destello: " : "Flash size: ")
+                            + Math.round(value) + "%"));
+        }
+
         this.glowColorToggle = addContent(new PurpleCloseButton(
-                this.optionsX, y + rowStep() * 3, this.optionsWidth, this.controlHeight,
+                this.optionsX, y + rowStep() * row++, this.optionsWidth, this.controlHeight,
                 glowColorToggleMessage(), ignored -> toggleGlowColor()));
         this.glowColorToggle.setTooltip(Tooltip.create(Component.literal(this.spanish
-                ? "Al activarlo se pide confirmación: este color sustituye visualmente los colores por capa, sin borrarlos."
-                : "Enabling asks for confirmation: this color visually overrides layer colors without deleting them.")));
-        this.hexBox = addContent(new EditBox(this.font, this.optionsX, y + rowStep() * 4,
+                ? "Elige el color del brillo y del destello. No cambia los colores del cristal."
+                : "Chooses the colour of the glow and the flash. It does not change the crystal's colours.")));
+
+        // The hex box and the picker only exist while there is a custom colour to edit, so the
+        // editor never shows two dead controls that ignore every click.
+        if (!visuals().customGlowColor) {
+            return;
+        }
+        this.hexBox = addContent(new EditBox(this.font, this.optionsX, y + rowStep() * row++,
                 Math.min(94, this.optionsWidth), this.controlHeight,
                 Component.literal(this.spanish ? "Color de glow hexadecimal" : "Glow hex color")));
         this.hexBox.setMaxLength(7);
         this.hexBox.setResponder(this::onHexChanged);
-        // Take the height from the space the five rows above leave behind, rather than a fixed cap
-        // that does not know how tall the column ended up being.
-        int glowPickerHeight = Mth.clamp(this.contentHeight - rowStep() * 5, 14, 42);
-        this.colorPicker = addContent(new ColorPickerWidget(this.optionsX, y + rowStep() * 5,
+        // Room to actually aim: the picker takes whatever the rows above left, and the panel scrolls
+        // when that is not enough rather than squeezing it down to a strip.
+        int glowPickerHeight = Mth.clamp(this.contentHeight - rowStep() * row, 46, 120);
+        this.colorPicker = addContent(new ColorPickerWidget(this.optionsX, y + rowStep() * row,
                 this.optionsWidth, glowPickerHeight,
                 Component.literal(this.spanish ? "Color de glow" : "Glow color"),
                 selectedColor(), this::onPickerChanged));
         this.updatingControls = true;
         this.hexBox.setValue(CrystalVisualConfig.toHex(selectedColor()));
         this.updatingControls = false;
-        this.hexBox.active = visuals().customGlowColor;
-        this.colorPicker.active = visuals().customGlowColor;
     }
 
     private void addSoundControls() {
@@ -545,6 +562,8 @@ public final class CrystalTweaksScreen extends Screen {
         CrystalVisualConfig.setFlashStyle(CrystalVisualConfig.flashStyle().next());
         CrystalVisualConfig.save();
         this.flashStyleButton.setMessage(flashStyleMessage());
+        // The size slider belongs to the shaped styles only, so the row list changes with it.
+        rebuildActiveContent();
     }
 
     private Component rescanButtonMessage() {
@@ -659,9 +678,11 @@ public final class CrystalTweaksScreen extends Screen {
         this.selectedLayer = layer;
         int color = selectedColor();
         this.updatingControls = true;
-        this.colorPicker.setColor(color);
-        this.hexBox.setValue(CrystalVisualConfig.toHex(color));
-        this.hexBox.setTextColor(0xFFF0E5F6);
+        if (this.colorPicker != null) this.colorPicker.setColor(color);
+        if (this.hexBox != null) {
+            this.hexBox.setValue(CrystalVisualConfig.toHex(color));
+            this.hexBox.setTextColor(0xFFF0E5F6);
+        }
         this.updatingControls = false;
         updateLayerMessages();
     }
@@ -672,8 +693,10 @@ public final class CrystalTweaksScreen extends Screen {
         }
         setSelectedColor(color);
         this.updatingControls = true;
-        this.hexBox.setValue(CrystalVisualConfig.toHex(color));
-        this.hexBox.setTextColor(0xFFF0E5F6);
+        if (this.hexBox != null) {
+            this.hexBox.setValue(CrystalVisualConfig.toHex(color));
+            this.hexBox.setTextColor(0xFFF0E5F6);
+        }
         this.updatingControls = false;
         updateLayerMessages();
     }
@@ -685,11 +708,11 @@ public final class CrystalTweaksScreen extends Screen {
         try {
             int color = CrystalVisualConfig.parseHex(value);
             setSelectedColor(color);
-            this.colorPicker.setColor(color);
-            this.hexBox.setTextColor(0xFFF0E5F6);
+            if (this.colorPicker != null) this.colorPicker.setColor(color);
+            if (this.hexBox != null) this.hexBox.setTextColor(0xFFF0E5F6);
             updateLayerMessages();
         } catch (IllegalArgumentException exception) {
-            this.hexBox.setTextColor(0xFFFF7D9C);
+            if (this.hexBox != null) this.hexBox.setTextColor(0xFFFF7D9C);
         }
     }
 
@@ -815,12 +838,16 @@ public final class CrystalTweaksScreen extends Screen {
             return;
         }
         this.minecraft.setScreen(new ConfirmScreen(confirmed -> {
-            if (confirmed) visuals().customGlowColor = true;
+            if (confirmed) {
+                visuals().customGlowColor = true;
+                CrystalVisualConfig.save();
+            }
             this.minecraft.setScreen(this);
+            rebuildActiveContent();
         }, Component.literal(this.spanish ? "¿Usar color de glow personalizado?" : "Use custom glowing color?"),
                 Component.literal(this.spanish
-                        ? "Se omitirán los colores Exterior, Interior y Núcleo de este perfil. No se borrarán: al desactivar esta opción volverán a aplicarse."
-                        : "This overrides the Outer, Inner and Core colors of this profile. They are preserved and will return when you disable this option.")));
+                        ? "Elige el color del brillo y del destello. Los colores del cristal no cambian."
+                        : "Chooses the colour of the glow and the flash. The crystal's own colours are untouched.")));
     }
 
     private Component glowColorToggleMessage() {
@@ -836,30 +863,10 @@ public final class CrystalTweaksScreen extends Screen {
     }
 
     private void openSoundPicker() {
-        Thread picker = new Thread(() -> {
-            try (MemoryStack stack = MemoryStack.stackPush()) {
-                PointerBuffer patterns = stack.mallocPointer(3);
-                patterns.put(stack.UTF8("*.wav"));
-                patterns.put(stack.UTF8("*.ogg"));
-                patterns.put(stack.UTF8("*.mp3"));
-                patterns.flip();
-                String selected = TinyFileDialogs.tinyfd_openFileDialog(
-                        this.spanish ? "Seleccionar sonido" : "Select sound",
-                        null,
-                        patterns,
-                        "Audio (*.wav, *.ogg, *.mp3)",
-                        false);
-                if (selected != null) {
-                    Minecraft.getInstance().execute(() -> importSound(Path.of(selected)));
-                }
-            } catch (RuntimeException exception) {
-                Minecraft.getInstance().execute(() -> this.soundStatus = this.spanish
-                        ? "No se pudo abrir el selector"
-                        : "Could not open file picker");
-            }
-        }, "Crystal Tweaks sound picker");
-        picker.setDaemon(true);
-        picker.start();
+        SoundFilePicker.choose(
+                this.spanish,
+                this::importSound,
+                message -> this.soundStatus = message);
     }
 
     private void importSound(Path file) {
@@ -1061,7 +1068,7 @@ public final class CrystalTweaksScreen extends Screen {
                     0xFFE2A2FF);
         }
 
-        if (!this.hexBox.visible) {
+        if (this.hexBox == null || !this.hexBox.visible) {
             return;
         }
         int swatchSize = Math.min(11, Math.max(6, this.hexBox.getHeight() - 5));

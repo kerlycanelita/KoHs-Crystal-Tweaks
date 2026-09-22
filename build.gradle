@@ -58,7 +58,10 @@ def usesRenderTypeIconBlit = usesRemapping && project.minecraft_version.toString
 def usesLegacyTextureConstructor = usesRemapping && project.minecraft_version.toString() in [
 		'1.21', '1.21.1', '1.21.2', '1.21.3', '1.21.4'
 ]
-def usesModernRegistrySplit = project.minecraft_version.toString() == '26.2'
+def usesModernRegistrySplit = project.minecraft_version.toString() in ['26.2', '26.3']
+// 26.3 swapped GLFW for SDL and dropped lwjgl-tinyfd with it, renamed the use-item packet's
+// accessors to record components, and removed PoseStack.mulPose(Quaternionf).
+def usesSdlWindowing = project.minecraft_version.toString() in ['26.3']
 apply plugin: usesRemapping ? 'net.fabricmc.fabric-loom-remap' : 'net.fabricmc.fabric-loom'
 
 def legacyGuiTransform = { String line -> line
@@ -98,7 +101,11 @@ def preIdentifierTransform = { String line -> line
 		.replace('Identifier', 'ResourceLocation')
 		.replace(
 				'net.minecraft.client.model.object.crystal.EndCrystalModel',
-				'net.minecraft.client.model.EndCrystalModel') }
+				'net.minecraft.client.model.EndCrystalModel')
+		.replace(
+				'net.minecraft.client.renderer.rendertype.RenderTypes',
+				'net.minecraft.client.renderer.RenderType')
+		.replace('RenderTypes.', 'RenderType.') }
 
 def legacyMouseTransform = { String line -> line
 		.replace('import net.minecraft.client.input.MouseButtonEvent;', '')
@@ -326,6 +333,12 @@ def legacyIconTransform = { String line ->
 	return transformed
 }
 
+def sdlEraTransform = { String line -> line
+		.replace('packet.getHand()', 'packet.hand()')
+		.replace('packet.getHitResult()', 'packet.hitResult()')
+		.replace('packet.getSequence()', 'packet.sequence()')
+		.replace('poses.mulPose(camera.orientation)', 'poses.rotate(camera.orientation)') }
+
 def modernRegistryTransform = { String line -> line
 		.replace(
 				'import net.minecraft.world.entity.EntityType;',
@@ -378,8 +391,15 @@ if (usesRemapping || usesModernRegistrySplit) {
 		inputs.property 'usesRenderTypeIconBlit', usesRenderTypeIconBlit
 		inputs.property 'usesLegacyTextureConstructor', usesLegacyTextureConstructor
 		inputs.property 'usesModernRegistrySplit', usesModernRegistrySplit
+		inputs.property 'usesSdlWindowing', usesSdlWindowing
 
 		from('src/client/java') {
+			if (usesSdlWindowing) {
+				exclude 'com/zymekoh/crystaltweaks/client/SoundFilePicker.java'
+				filesMatching('**/*.java') {
+					filter { line -> sdlEraTransform(line) }
+				}
+			}
 			if (usesRemapping) {
 				exclude 'com/zymekoh/crystaltweaks/core/CrystalAttackOptimizer.java'
 				// The ghost crystal renderer needs the level render events added in 26.1. The 1.x
@@ -450,6 +470,9 @@ if (usesRemapping || usesModernRegistrySplit) {
 			if (usesOldCrystalRenderer) {
 				from('src/legacyOld/java')
 			}
+		}
+		if (usesSdlWindowing) {
+			from('src/sdl/java')
 		}
 		into generatedLegacySources
 	}

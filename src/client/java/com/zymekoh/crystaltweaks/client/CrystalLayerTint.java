@@ -30,7 +30,7 @@ public final class CrystalLayerTint {
         }
         CrystalAppearance appearance = CrystalAppearanceAccess.of(model);
         if (part == model.cube && appearance.glowPowerPercent > 0) {
-            int tint = appearance.customGlowColor ? appearance.glowColor : appearance.coreColor;
+            int tint = appearance.coreColor;
             int hot = CrystalGlowMath.hotColor(tint);
             float amount = Math.min(1, CrystalGlowMath.power(appearance.glowPowerPercent));
             int r = Math.round(((tint >> 16) & 255) * (1 - amount) + ((hot >> 16) & 255) * amount);
@@ -38,10 +38,10 @@ public final class CrystalLayerTint {
             int b = Math.round((tint & 255) * (1 - amount) + (hot & 255) * amount);
             return (originalColor & 0xFF000000) | r << 16 | g << 8 | b;
         }
-        if (appearance.customGlowColor
-                && (part == model.outerGlass || part == model.innerGlass || part == model.cube)) {
-            return (originalColor & 0xFF000000) | (appearance.glowColor & 0xFFFFFF);
-        }
+        // The custom glow colour belongs to the light, not to the crystal. Repainting the three
+        // layers with it made the picker look like it had erased the colours underneath, and turning
+        // it back off appeared to restore them from nowhere. They were never touched; they were only
+        // being drawn over. The layers below always use their own colour.
         if (part == model.outerGlass) {
             return (originalColor & 0xFF000000) | (appearance.outerColor & 0xFFFFFF);
         }

@@ -4,6 +4,20 @@
 
 ### Changed
 
+- Glow now ships on: power and reflections at `55%`, your crystals in crystal purple and enemy
+  crystals in red, with the enemy profile enabled. A config file that already exists keeps every
+  value in it, so only a fresh install starts this way.
+- The Glow editor shows the hex box and the colour picker only while the custom colour is on, and
+  gives the picker real room (46-120px) instead of a strip, letting the panel scroll when the rows
+  above do not leave enough.
+- The Steve head flash is replaced by **My head**, which draws your own skin's face and hat layer as
+  an apparition tinted with the glow colour. Anyone who had picked Steve gets this instead.
+
+### Added
+
+- A flash size slider, `50%`-`300%`, shown for the shaped styles. The burst sizes itself from the
+  glow power, so it does not get one.
+
 - Safe Crystal now states its stand-down as one named decision instead of a condition folded into the
   click handler. With Marlow's Crystal Optimizer, No Crystal Break or any other detected crystal
   optimizer installed, the obsidian click reaches Vanilla untouched: that mod owns the crystal click,
@@ -21,10 +35,27 @@
   a skull, a Steve head and bolts thrown toward the players around the blast. Selected in the **Glow
   editor**, beside the power, reflections and colour that drive it; drawing only, with no change to
   the explosion, the damage or any packet.
-- Published for 1.21.11, 26.1, 26.1.1, 26.1.2 and 26.2.
+- Support for Minecraft 26.3, which needed a real port: it swapped GLFW for SDL and dropped
+  `lwjgl-tinyfd` with it, renamed the use-item packet's accessors to record components
+  (`hand()`, `hitResult()`, `sequence()`) and removed `PoseStack.mulPose(Quaternionf)`. Without a
+  native file dialog on that target, a custom sound is chosen by dropping the file into the mod's
+  own sounds folder; everything after that is unchanged.
+- 1.21.10 builds again. `RenderTypes` and its package arrived in 1.21.11, so every earlier 1.x
+  target now rewrites it back to `RenderType`.
+- Published for 1.21.10, 1.21.11, 26.1, 26.1.1, 26.1.2, 26.2 and 26.3.
 
 ### Fixed
 
+- The crystal in the settings preview rendered black, and no colour could brighten it. The preview
+  render state was never given light coordinates, so it was lit by nothing at all. It now draws at
+  full block and sky light, the way vanilla lights a model in a GUI.
+- Turning on the custom glow colour repainted the crystal's outer, inner and core layers with it, so
+  the picker looked like it had erased the colours underneath and disabling it looked like it
+  restored them from nowhere. They were never stored over, only drawn over. The custom colour now
+  belongs to the light alone, in both the player and the enemy profile, which share this code.
+- Lightning bolts read as a row of separate dashes. Every segment was its own quad with its own
+  normal, so the two quads meeting at a kink left a notch. A bolt is now one strip whose joints share
+  their vertices and mitre their normal.
 - Your own crystals were drawn with the enemy profile while spamming. Each base remembered a single
   placement, so placing, breaking and placing again on the same obsidian produced two crystals
   against one record: the first consumed it and the second was read as someone else's. Attempts are

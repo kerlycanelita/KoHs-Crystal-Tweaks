@@ -26,8 +26,15 @@ public final class CrystalVisualConfig {
     private static volatile CrystalFlashStyle flashStyle = CrystalFlashStyle.EXPLOSION;
     private static volatile boolean loaded;
     private static final CrystalAppearance playerVisuals = new CrystalAppearance();
-    private static CrystalAppearance enemyVisuals = new CrystalAppearance();
-    private static boolean enemyCustomEnabled;
+    private static CrystalAppearance enemyVisuals = defaultEnemyVisuals();
+    private static boolean enemyCustomEnabled = true;
+
+    /** Enemy crystals glow red out of the box; yours stay the crystal purple. */
+    private static CrystalAppearance defaultEnemyVisuals() {
+        CrystalAppearance enemy = new CrystalAppearance();
+        enemy.glowColor = 0xFFFF3B3B;
+        return enemy;
+    }
 
     public static CrystalAppearance visuals(boolean enemy) {
         load();
@@ -79,21 +86,24 @@ public final class CrystalVisualConfig {
                     JsonObject glow = root.has("glow") && root.get("glow").isJsonObject()
                             ? root.getAsJsonObject("glow")
                             : new JsonObject();
-                    playerVisuals.glowReflectionsPercent = clamp(intValue(glow, "reflectionsPercent", 0), 0, 300);
+                    playerVisuals.glowReflectionsPercent = clamp(intValue(glow, "reflectionsPercent", 55), 0, 300);
                     JsonObject enemy = root.has("enemyVisuals") && root.get("enemyVisuals").isJsonObject()
                             ? root.getAsJsonObject("enemyVisuals") : new JsonObject();
-                    enemyCustomEnabled = booleanValue(enemy, "enabled", false);
+                    enemyCustomEnabled = booleanValue(enemy, "enabled", true);
                     try {
-                        enemyVisuals = GSON.fromJson(enemy, CrystalAppearance.class).copy();
+                        CrystalAppearance stored = GSON.fromJson(enemy, CrystalAppearance.class);
+                        if (stored.flashScalePercent <= 0) stored.flashScalePercent = 100;
+                        enemyVisuals = stored.copy();
                     } catch (RuntimeException invalidEnemySettings) {
-                        enemyVisuals = new CrystalAppearance();
+                        enemyVisuals = defaultEnemyVisuals();
                         CrystalTweaksClient.LOGGER.warn("Invalid enemy visual settings; resetting only that profile");
                     }
-                    playerVisuals.glowPowerPercent = clamp(intValue(glow, "powerPercent", 0), 0, 300);
-                    playerVisuals.customGlowColor = booleanValue(glow, "customColor", false);
-                    playerVisuals.glowColor = parseColor(glow, "color", DEFAULT_COLOR);
+                    playerVisuals.glowPowerPercent = clamp(intValue(glow, "powerPercent", 55), 0, 300);
+                    playerVisuals.customGlowColor = booleanValue(glow, "customColor", true);
+                    playerVisuals.glowColor = parseColor(glow, "color", 0xFFC880FF);
                     flashStyle = CrystalFlashStyle.parse(
                             stringValue(glow, "flashStyle", ""), CrystalFlashStyle.EXPLOSION);
+                    playerVisuals.flashScalePercent = clamp(intValue(glow, "flashScalePercent", 100), 50, 300);
                 } catch (Exception exception) {
                     CrystalTweaksClient.LOGGER.warn(
                             "Could not read crystal visual settings from {}; using neutral colors",
@@ -143,6 +153,7 @@ public final class CrystalVisualConfig {
                 glow.addProperty("customColor", playerVisuals.customGlowColor);
                 glow.addProperty("color", toHex(playerVisuals.glowColor));
                 glow.addProperty("flashStyle", flashStyle.storageKey());
+                glow.addProperty("flashScalePercent", playerVisuals.flashScalePercent);
                 root.add("glow", glow);
 
                 JsonObject sounds = root.has("sounds") && root.get("sounds").isJsonObject()

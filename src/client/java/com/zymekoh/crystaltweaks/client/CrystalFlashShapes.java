@@ -4,7 +4,9 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
@@ -38,26 +40,74 @@ public final class CrystalFlashShapes {
             "...##.##.##...",
     };
 
-    private static final String[] STEVE = {
-            "##########",
-            "##########",
-            "##########",
-            "##########",
-            "#..####..#",
-            "#..####..#",
-            "####..####",
-            "##########",
-            "##......##",
-            "##########",
-    };
-
     /** Bolts thrown per flash. Past this the screen reads as noise rather than as lightning. */
     private static final int MAX_BOLTS = 5;
 
     /** Players further than this contribute no bolt. */
     private static final double BOLT_RANGE = 24.0D;
 
+    /** Full block light, so the apparition is as bright in a cave as it is at noon. */
+    private static final int FULL_BRIGHT = 15728880;
+
+    /** No damage overlay on the head. */
+    private static final int NO_OVERLAY = 655360;
+
     private CrystalFlashShapes() { }
+
+    /** Texture of the local player's own skin, or {@code null} before one is available. */
+    public static Identifier playerSkin() {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null) {
+            return null;
+        }
+        try {
+            return ((AbstractClientPlayer) player).getSkin().body().texturePath();
+        } catch (RuntimeException skinNotReady) {
+            return null;
+        }
+    }
+
+    /**
+     * Draws the player's own head as an apparition: the face from their skin, tinted with the chosen
+     * glow colour and fading with the flash, plus the hat layer a little larger in front of it.
+     *
+     * <p>The skin is the one the client is already rendering on the player. Nothing is downloaded,
+     * and no other player's skin is read.</p>
+     */
+    public static void submitPlayerHead(
+            VertexConsumer buffer, Matrix4f matrix, int color, float radius, float gain) {
+        float half = radius * 0.95F;
+        // A skin is 64 wide: the face sits at x 8-16, y 8-16, and the hat layer at x 40-48.
+        face(buffer, matrix, color, half, gain, 0.125F, 0.125F, 0.25F, 0.25F);
+        face(buffer, matrix, color, half * 1.12F, gain * 0.55F, 0.625F, 0.125F, 0.75F, 0.25F);
+    }
+
+    private static void face(VertexConsumer buffer, Matrix4f matrix, int color, float half,
+            float gain, float u0, float v0, float u1, float v1) {
+        int alpha = CrystalGlowMath.alpha(gain);
+        if (alpha <= 0) {
+            return;
+        }
+        int r = (color >> 16) & 255, g = (color >> 8) & 255, b = color & 255;
+        // Two windings so the settings screen's mirrored pose shows the head too.
+        for (int pass = 0; pass < 2; pass++) {
+            boolean flipped = pass == 1;
+            headVertex(buffer, matrix, r, g, b, alpha, -half, -half, flipped ? u1 : u0, v1);
+            headVertex(buffer, matrix, r, g, b, alpha, half, -half, flipped ? u0 : u1, v1);
+            headVertex(buffer, matrix, r, g, b, alpha, half, half, flipped ? u0 : u1, v0);
+            headVertex(buffer, matrix, r, g, b, alpha, -half, half, flipped ? u1 : u0, v0);
+        }
+    }
+
+    private static void headVertex(VertexConsumer buffer, Matrix4f matrix,
+            int r, int g, int b, int alpha, float x, float y, float u, float v) {
+        buffer.addVertex(matrix, x, y, 0F)
+                .setColor(r, g, b, alpha)
+                .setUv(u, v)
+                .setOverlay(NO_OVERLAY)
+                .setLight(FULL_BRIGHT)
+                .setNormal(0F, 0F, 1F);
+    }
 
     /**
      * @param origin world position of the blast, or {@code null} for the settings-screen preview
@@ -76,7 +126,6 @@ public final class CrystalFlashShapes {
     ) {
         switch (style) {
             case SKULL -> mask(buffer, matrix, SKULL, color, hotColor, radius * 1.15F, gain);
-            case STEVE -> mask(buffer, matrix, STEVE, color, hotColor, radius * 1.05F, gain);
             case LIGHTNING -> bolts(buffer, matrix, cameraOrientation, color, hotColor, radius, gain, origin);
             default -> { }
         }
@@ -182,6 +231,14 @@ public final class CrystalFlashShapes {
         disc(buffer, matrix, hotColor, radius * 0.22F, gain * 0.9F);
     }
 
+    /**
+     * Draws one bolt as a single continuous strip.
+     *
+     * <p>Each segment used to be its own quad with its own normal, so at every kink the two quads
+     * met at different angles and left a notch: the bolt read as a row of separate dashes rather
+     * than one line. The joints now share their vertices, and the normal at a joint is the average
+     * of the two segments meeting there, which is what closes the gap.</p>
+     */
     private static void jagged(
             VertexConsumer buffer,
             Matrix4f matrix,
@@ -196,45 +253,77 @@ public final class CrystalFlashShapes {
         int segments = 6;
         float normalX = -dirY;
         float normalY = dirX;
-        float previousX = 0F;
-        float previousY = 0F;
-        for (int segment = 1; segment <= segments; segment++) {
-            float travel = length * segment / segments;
-            float sway = segment == segments ? 0F : (noise(seed + segment) - 0.5F) * length * 0.22F;
-            float x = dirX * travel + normalX * sway;
-            float y = dirY * travel + normalY * sway;
-            float taper = 1F - (segment - 1F) / segments;
-            float width = length * 0.045F * taper;
-            ribbon(buffer, matrix, color, previousX, previousY, x, y, width, gain * 0.55F * taper);
-            ribbon(buffer, matrix, hotColor, previousX, previousY, x, y, width * 0.38F, gain * taper);
-            previousX = x;
-            previousY = y;
+        float[] xs = new float[segments + 1];
+        float[] ys = new float[segments + 1];
+        for (int point = 0; point <= segments; point++) {
+            float travel = length * point / segments;
+            float sway = (point == 0 || point == segments)
+                    ? 0F
+                    : (noise(seed + point) - 0.5F) * length * 0.22F;
+            xs[point] = dirX * travel + normalX * sway;
+            ys[point] = dirY * travel + normalY * sway;
         }
+        strip(buffer, matrix, color, xs, ys, length * 0.045F, gain * 0.55F);
+        strip(buffer, matrix, hotColor, xs, ys, length * 0.017F, gain);
     }
 
-    private static void ribbon(
+    /** Emits a tapering strip through the points, mitring the normal at every joint. */
+    private static void strip(
             VertexConsumer buffer,
             Matrix4f matrix,
             int color,
-            float x0,
-            float y0,
-            float x1,
-            float y1,
+            float[] xs,
+            float[] ys,
             float width,
             float gain
     ) {
-        float dx = x1 - x0;
-        float dy = y1 - y0;
-        float length = (float) Math.sqrt(dx * dx + dy * dy);
-        if (length < 0.0001F) {
-            return;
+        int points = xs.length;
+        float[] offsetX = new float[points];
+        float[] offsetY = new float[points];
+        for (int point = 0; point < points; point++) {
+            float inX = point > 0 ? xs[point] - xs[point - 1] : xs[1] - xs[0];
+            float inY = point > 0 ? ys[point] - ys[point - 1] : ys[1] - ys[0];
+            float outX = point < points - 1 ? xs[point + 1] - xs[point] : inX;
+            float outY = point < points - 1 ? ys[point + 1] - ys[point] : inY;
+            float nx = normalize(-inY, inX, 0) + normalize(-outY, outX, 0);
+            float ny = normalize(-inY, inX, 1) + normalize(-outY, outX, 1);
+            float len = (float) Math.sqrt(nx * nx + ny * ny);
+            if (len < 0.0001F) {
+                nx = -inY;
+                ny = inX;
+                len = (float) Math.sqrt(nx * nx + ny * ny);
+                if (len < 0.0001F) {
+                    len = 1F;
+                }
+            }
+            // The bolt narrows toward its tip and fades out with it.
+            float taper = 1F - (float) point / points * 0.75F;
+            float half = width * taper / len;
+            offsetX[point] = nx * half;
+            offsetY[point] = ny * half;
         }
-        float nx = -dy / length * width;
-        float ny = dx / length * width;
-        triangle(buffer, matrix, color,
-                x0 + nx, y0 + ny, gain, x0 - nx, y0 - ny, gain, x1 - nx, y1 - ny, gain);
-        triangle(buffer, matrix, color,
-                x0 + nx, y0 + ny, gain, x1 - nx, y1 - ny, gain, x1 + nx, y1 + ny, gain);
+        for (int segment = 0; segment < points - 1; segment++) {
+            float a = gain * (1F - (float) segment / points * 0.8F);
+            float b = gain * (1F - (float) (segment + 1) / points * 0.8F);
+            float x0 = xs[segment], y0 = ys[segment], x1 = xs[segment + 1], y1 = ys[segment + 1];
+            triangle(buffer, matrix, color,
+                    x0 + offsetX[segment], y0 + offsetY[segment], a,
+                    x0 - offsetX[segment], y0 - offsetY[segment], a,
+                    x1 - offsetX[segment + 1], y1 - offsetY[segment + 1], b);
+            triangle(buffer, matrix, color,
+                    x0 + offsetX[segment], y0 + offsetY[segment], a,
+                    x1 - offsetX[segment + 1], y1 - offsetY[segment + 1], b,
+                    x1 + offsetX[segment + 1], y1 + offsetY[segment + 1], b);
+        }
+    }
+
+    /** Component {@code axis} of the unit vector along (x, y); 0 for a degenerate segment. */
+    private static float normalize(float x, float y, int axis) {
+        float length = (float) Math.sqrt(x * x + y * y);
+        if (length < 0.0001F) {
+            return 0F;
+        }
+        return (axis == 0 ? x : y) / length;
     }
 
     private static void disc(VertexConsumer buffer, Matrix4f matrix, int color, float radius, float gain) {

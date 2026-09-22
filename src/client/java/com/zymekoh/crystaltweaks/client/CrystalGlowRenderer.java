@@ -13,6 +13,7 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.HitResult;
@@ -106,9 +107,26 @@ public final class CrystalGlowRenderer {
         poses.pushPose();
         poses.translate(0, centerY, 0);
         poses.mulPose(camera.orientation);
+        // The size slider only moves the shaped styles; the burst keeps the proportions it had.
+        float shapeScale = style.scalable() ? look.flashScalePercent / 100F : 1F;
+        if (style == CrystalFlashStyle.MY_HEAD) {
+            // The head is a textured quad, so it needs its own material rather than the ray buffer.
+            Identifier skin = CrystalFlashShapes.playerSkin();
+            if (skin != null) {
+                float headRadius = CrystalGlowMath.radius(power) * shapeScale;
+                collector.submitCustomGeometry(poses, RenderTypes.entityTranslucent(skin),
+                        (pose, buffer) -> CrystalFlashShapes.submitPlayerHead(
+                                buffer, pose.pose(), color, headRadius, power * opacity));
+                collector.submitCustomGeometry(poses, RenderTypes.dragonRays(), (pose, buffer) ->
+                        disk(buffer, pose.pose(), color, headRadius * 1.35F, 0.30F * power * opacity));
+            }
+            poses.popPose();
+            submitReflections(state, look, poses, collector, color, power, opacity, centerY);
+            return;
+        }
         collector.submitCustomGeometry(poses, RenderTypes.dragonRays(), (pose, buffer) -> {
             Matrix4f matrix = pose.pose();
-            float radius = CrystalGlowMath.radius(power);
+            float radius = CrystalGlowMath.radius(power) * shapeScale;
             if (style != CrystalFlashStyle.EXPLOSION) {
                 CrystalFlashShapes.submit(style, buffer, matrix, camera.orientation, color,
                         CrystalGlowMath.hotColor(color), radius, power * opacity, origin);
@@ -129,6 +147,13 @@ public final class CrystalGlowRenderer {
             }
         });
         poses.popPose();
+        submitReflections(state, look, poses, collector, color, power, opacity, centerY);
+    }
+
+    /** Coloured spill on the block tops under the crystal; shared by every flash style. */
+    private static void submitReflections(EndCrystalRenderState state, CrystalAppearance look,
+            PoseStack poses, SubmitNodeCollector collector, int color, float power, float opacity,
+            float centerY) {
         if (look.glowReflectionsPercent <= 0 || !((Object) state instanceof CrystalGlowAccess access)) return;
         List<Surface> surfaces = access.crystalTweaks$surfaces();
         if (surfaces.isEmpty()) return;

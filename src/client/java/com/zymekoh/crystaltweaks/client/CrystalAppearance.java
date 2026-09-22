@@ -7,10 +7,14 @@ public final class CrystalAppearance {
     public int coreColor = -1;
     public int rotationSpeedPercent = 100;
     public int floatingSpeedPercent = 100;
-    public int glowPowerPercent;
-    public int glowReflectionsPercent;
-    public boolean customGlowColor;
-    public int glowColor = -1;
+    /** Glow ships on: the mod's whole point is visible from the first launch, not after a hunt. */
+    public int glowPowerPercent = 55;
+    public int glowReflectionsPercent = 55;
+    public boolean customGlowColor = true;
+    /** Crystal purple for your own; the enemy profile overrides this with red when it is created. */
+    public int glowColor = 0xFFC880FF;
+    /** Size of the death flash, 50-300. Only the shaped styles use it; the burst keeps its own. */
+    public int flashScalePercent = 100;
 
     public CrystalAppearance copy() {
         CrystalAppearance copy = new CrystalAppearance();
@@ -23,6 +27,7 @@ public final class CrystalAppearance {
         copy.glowReflectionsPercent = clamp(glowReflectionsPercent, 300);
         copy.customGlowColor = customGlowColor;
         copy.glowColor = glowColor | 0xFF000000;
+        copy.flashScalePercent = Math.max(50, Math.min(300, flashScalePercent));
         return copy;
     }
 
