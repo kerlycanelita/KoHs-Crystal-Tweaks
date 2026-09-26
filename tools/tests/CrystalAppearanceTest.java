@@ -1,5 +1,6 @@
 import com.zymekoh.crystaltweaks.client.CrystalAppearance;
-import com.zymekoh.crystaltweaks.client.GlowEditorLayout;
+import com.zymekoh.crystaltweaks.client.CrystalFlashStyle;
+import com.zymekoh.crystaltweaks.client.CrystalScreenLayout;
 import com.zymekoh.crystaltweaks.client.CrystalGlowMath;
 import com.zymekoh.crystaltweaks.client.AfterglowTimeline;
 import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
@@ -43,7 +44,8 @@ public final class CrystalAppearanceTest {
         fresh.flashScalePercent = 9999;
         check(fresh.copy().flashScalePercent == 300, "Flash size clamps at 300");
         fresh.flashScalePercent = -5;
-        check(fresh.copy().flashScalePercent == 50, "Flash size clamps at 50");
+        check(fresh.copy().flashScalePercent == CrystalAppearance.MIN_FLASH_SCALE
+                && CrystalAppearance.MIN_FLASH_SCALE == 10, "Flash size goes down to 10 and clamps there");
         CrystalAppearance layered = new CrystalAppearance();
         layered.outerColor = 0xFF00FF00;
         layered.customGlowColor = true;
@@ -70,6 +72,9 @@ public final class CrystalAppearanceTest {
         timeline.start(id, "first", 0);
         timeline.start(id, "duplicate", 600_000_000);
         check(timeline.size() == 1 && timeline.samples(600_000_000).get(0).opacity() == 0.5F, "Duplicate callbacks must not restart fade");
+        check(timeline.samples(600_000_000).get(0).progress() == 0.5F, "Progress follows the fade clock");
+        check(CrystalGlowMath.progress(-5) == 0 && CrystalGlowMath.progress(CrystalGlowMath.FADE_NANOS * 2) == 1,
+                "Progress is clamped to the flash's lifetime");
         check(timeline.samples(CrystalGlowMath.FADE_NANOS).isEmpty(), "Expired glow released");
         for (int n = 0; n < 1000; n++) timeline.start(UUID.randomUUID(), "rapid clicks", n);
         check(timeline.size() == 4, "Rapid placement remains bounded");
@@ -151,15 +156,30 @@ public final class CrystalAppearanceTest {
         CrystalOptimizerGuard.clearConflict();
         CrystalOptimizerGuard.completeScan();
         check(player.haloColor() == 0xFFFF0000, "Visual settings remain available whatever the guard decides");
+        // Flash styles: fourteen shapes, a stable storage key each, and a round trip in both directions.
+        CrystalFlashStyle[] styles = CrystalFlashStyle.values();
+        check(styles.length == 14, "Four original flash styles plus ten new ones");
+        for (CrystalFlashStyle style : styles) {
+            check(CrystalFlashStyle.parse(style.storageKey(), null) == style, style + " survives a save and load");
+            check(style.next().previous() == style && style.previous().next() == style, style + " cycles both ways");
+            check(!style.label(true).isBlank() && !style.label(false).isBlank(), style + " has both labels");
+            check(style.scalable() == (style != CrystalFlashStyle.EXPLOSION), style + " scalability");
+        }
+        check(CrystalFlashStyle.parse("steve", null) == CrystalFlashStyle.MY_HEAD, "The retired Steve head maps to My head");
+        check(CrystalFlashStyle.parse("no-such-style", CrystalFlashStyle.EXPLOSION) == CrystalFlashStyle.EXPLOSION,
+                "Unknown styles fall back");
         int layouts = 0;
         for (int width = 1; width <= 1920; width += 7) for (int height = 1; height <= 1080; height += 7) {
-            var l = GlowEditorLayout.fit(17, 23, width, height);
-            check(l.optionsX() >= 17 && l.optionsX() + l.optionsWidth() <= 17 + width, "Options X bounds");
-            check(l.optionsY() >= 23 && l.optionsY() + l.optionsHeight() <= 23 + height, "Options Y bounds");
-            check(l.previewX() >= 17 && l.previewX() + l.previewWidth() <= 17 + width, "Preview bounds");
-            check(Math.abs(l.previewX() * 2 + l.previewWidth() - (34 + width)) <= 1, "Centered crystal");
-            if (l.previewHeight() > 0) check(l.optionsY() >= 23 + l.previewHeight() + 5, "No preview/control overlap");
-            else check(l.optionsHeight() == height, "Compact layout must reclaim preview space");
+            var l = CrystalScreenLayout.fit(width, height);
+            check(l.panel.x() >= 0 && l.panel.right() <= Math.max(1, width), "Panel X bounds");
+            check(l.panel.y() >= 0 && l.panel.bottom() <= Math.max(1, height), "Panel Y bounds");
+            check(l.optionsX >= l.content.x() && l.optionsX + l.optionsWidth <= l.content.right(), "Options bounds");
+            if (l.preview.width() > 0) {
+                check(l.preview.x() >= l.optionsX + l.optionsWidth, "No preview/control overlap");
+                check(l.preview.right() <= l.content.right(), "Preview bounds");
+            } else {
+                check(l.optionsWidth == l.content.width(), "Compact layout must reclaim preview space");
+            }
             layouts++;
         }
         System.out.println("PASS: appearance, 0/100/300 gain, alpha/light bounds, fade lifecycle, optimizer isolation and " + layouts + " responsive layouts");

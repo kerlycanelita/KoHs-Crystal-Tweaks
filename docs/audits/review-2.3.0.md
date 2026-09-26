@@ -46,15 +46,15 @@ it only served the archived 1.21–1.21.5 previews. It stays registered so the
 
 | # | Severity | Area | Finding |
 | --- | --- | --- | --- |
-| F1 | Critical | Porting | 26.3 cannot start: a Mixin targets a method signature 26.3 no longer has |
-| F2 | High | Fair play | The lightning flash points at every tracked player, including hidden ones |
-| F3 | Medium | Fair play | `LEGITIMACY_AUDIT.md` describes 2.2.7 behaviour that no longer exists |
-| F4 | Medium | Fair play | Safe Crystal filters input and cannot be switched off |
+| F1 | Critical | Porting | 26.3 cannot start: a Mixin targets a method signature 26.3 no longer has (fixed) |
+| F2 | High | Fair play | The lightning flash points at every tracked player, including hidden ones (fixed) |
+| F3 | Medium | Fair play | `LEGITIMACY_AUDIT.md` describes 2.2.7 behaviour that no longer exists (fixed) |
+| F4 | Medium | Fair play | Safe Crystal filters input and cannot be switched off (fixed) |
 | F5 | Medium | Performance | The glow rebuilds about 17,000 vertices per crystal per frame |
 | F6 | Low | Fair play | A custom sound above 100% doubles how far explosions carry |
 | F7 | Low | Performance | Afterglow bookkeeping allocates per crystal per frame |
-| F8 | Low | Robustness | The config file is overwritten in place |
-| F9 | Low | GUI | Invisible buttons during the intro, fixed strings, one 1,605-line screen |
+| F8 | Low | Robustness | The config file is overwritten in place (fixed) |
+| F9 | Low | GUI | Invisible buttons during the intro, fixed strings, one 1,605-line screen (partly fixed) |
 | F10 | Low | Docs | Stale statements in README, RELEASING, the 2.3.0 notes and the index (fixed) |
 
 ### F1 — 26.3 crashes at startup
@@ -176,9 +176,9 @@ To improve:
 - Every string is a Spanish or English literal. There are no language files, so
   resource packs and translators cannot change them.
 - `CrystalTweaksScreen` holds layout, theme colours, widgets and preview in
-  1,605 lines. `GlowEditorLayout` shows the better pattern: pure geometry that
-  the tests call directly. `ScreenLayoutTest` still mirrors the main screen's
-  rows by hand and can drift from it.
+  1,605 lines. The glow editor's own layout class showed the better pattern:
+  pure geometry that the tests call directly. `ScreenLayoutTest` still mirrored
+  the main screen's rows by hand and could drift from it.
 - Animations read `System.currentTimeMillis`, which jumps with the wall clock.
 
 ### F10 — Documentation
@@ -201,12 +201,12 @@ Corrected together with this review:
 | --- | --- | --- | --- | --- |
 | Break prediction | L1 local prediction | Hit crystal skipped while drawing for 250 ms–1 s | Unchanged | Low; servers that forbid any prediction still apply |
 | Ghost crystals | L1 visual, opt-in, 26.x | Stand-in drawn until the server's crystal arrives | Unchanged | Low; off by default |
-| Safe Crystal | L2 input filter | Obsidian not mined while holding a crystal | Fewer | Medium until it can be disabled (F4) |
+| Safe Crystal | L2 input filter, switchable | Obsidian not mined while holding a crystal | Fewer | Low since F4 |
 | Placement observer | L0 | Reads the sent packet for latency | Unchanged | None |
 | Ownership colours | L0 visual heuristic | Your crystals and others' drawn differently | Unchanged | None |
 | Glow, reflections, afterglow | L0 cosmetic | Depth-tested light; crystals brighter in the dark | Unchanged | None: nothing shows through walls |
 | Flash: explosion, skull, own head | L0 cosmetic | Shape of the death flash | Unchanged | None |
-| Flash: lightning | Information | Direction and range to tracked players | Unchanged | High until fixed (F2) |
+| Flash: lightning | L0 cosmetic with a visibility rule | Bolts toward players already in sight, fixed length | Unchanged | Low since F2 |
 | Custom sound | L0 cosmetic | Replaces the crystal explosion locally | Unchanged | Low above 100% (F6) |
 | Conflict Monitor and detector | L0 local scan | Reads installed mods at startup | Unchanged | None |
 
@@ -220,3 +220,28 @@ Modrinth lists 61 versions built only for 1.21–1.21.10, from `1.0.0+mc1.21` to
 2.2.7. Archiving them keeps them downloadable and marks them as unsupported.
 `1.0.0` declares both 1.21.10 and 1.21.11 and is left alone. This needs the
 owner's approval; nothing was changed on Modrinth.
+
+## Follow-up the same day
+
+At the owner's request, after this review:
+
+- **F1** 26.3 gets its own rewrite of `EndCrystalRendererMixin`: the `DDDF)Z` descriptor and a
+  `float partialTick` argument. `verify-mixins.py` now passes on all six targets.
+- **F2** Lightning takes its targets once, at the explosion, from
+  `CrystalFlashShapes.visibleBoltTargets`: no self, spectator or player invisible to the viewer,
+  inside the view cone from the FOV setting, and a clear visual line of sight to the head or body.
+  Every bolt has the same reach.
+- **F3** `LEGITIMACY_AUDIT.md` rewritten for 2.3.0.
+- **F4** Safe Crystal has a switch in Advanced, on by default.
+- **F8** The config is written to a temporary file and moved over the real one.
+- **F9** The screen was rebuilt around `CrystalScreenLayout`, pure geometry that the screen places
+  its widgets from and `ScreenLayoutTest` checks directly across 362,880 window-size and tab-state
+  combinations with no problems. Colours live in `CrystalTheme` and drawing in `CrystalUi`. Rows fade
+  in from 35% visible, so nothing clickable is ever invisible. Strings are still Spanish and English
+  literals.
+
+Also requested and done: ten new flash styles, a paler **My head**, a flash size down to 10%, the
+preview explosion showing the chosen style, and a once-per-session notice recommending Marlow's
+Crystal Optimizer when no crystal optimizer is installed.
+
+F5, F6 and F7 are unchanged. Nothing was launched in game; the owner tests in their instances.

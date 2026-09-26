@@ -6,6 +6,8 @@ import java.util.List;
 /** Synthetic GUI submission: a light only, never a world entity or a target. */
 public final class CrystalAfterglowState extends EndCrystalRenderState implements CrystalAppearanceAccess, CrystalGlowAccess {
     public float opacity = 1;
+    /** How far the flash has faded, which the animated flash styles follow. */
+    public float progress;
     private CrystalAppearance appearance;
     private List<CrystalGlowRenderer.Surface> surfaces = List.of();
 

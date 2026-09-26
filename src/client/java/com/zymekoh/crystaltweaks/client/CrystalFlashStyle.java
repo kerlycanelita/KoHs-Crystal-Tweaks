@@ -8,12 +8,24 @@ import java.util.Locale;
  */
 public enum CrystalFlashStyle {
     /** The original burst: stacked discs with rotating facet rays. */
-    EXPLOSION("Explosion", "Explosion"),
+    EXPLOSION("Explosión", "Explosion"),
     SKULL("Calavera", "Skull"),
     /** The player's own head, drawn from their skin as a pale apparition. */
     MY_HEAD("Mi cabeza", "My head"),
-    /** Bolts thrown from the blast toward the players around it. */
-    LIGHTNING("Rayos", "Lightning");
+    /** Bolts thrown from the blast toward the players around it that the player can see. */
+    LIGHTNING("Rayos", "Lightning"),
+    HEART("Corazón", "Heart"),
+    STAR("Estrella", "Star"),
+    /** A ring that expands as the flash fades. */
+    SHOCKWAVE("Onda expansiva", "Shockwave"),
+    /** Three arms spiralling out of the blast. */
+    VORTEX("Vórtice", "Vortex"),
+    CROWN("Corona", "Crown"),
+    CRESCENT("Luna", "Crescent"),
+    SNOWFLAKE("Copo de nieve", "Snowflake"),
+    FLOWER("Flor", "Flower"),
+    GEM("Gema", "Gem"),
+    SWORDS("Espadas", "Swords");
 
     private final String spanish;
     private final String english;
@@ -35,6 +47,11 @@ public enum CrystalFlashStyle {
     public CrystalFlashStyle next() {
         CrystalFlashStyle[] values = values();
         return values[(ordinal() + 1) % values.length];
+    }
+
+    public CrystalFlashStyle previous() {
+        CrystalFlashStyle[] values = values();
+        return values[(ordinal() + values.length - 1) % values.length];
     }
 
     public static CrystalFlashStyle parse(String value, CrystalFlashStyle fallback) {

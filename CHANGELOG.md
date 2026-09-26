@@ -2,55 +2,72 @@
 
 ## 2.3.0
 
-### Changed
-
-- Glow now ships on: power and reflections at `55%`, your crystals in crystal purple and enemy
-  crystals in red, with the enemy profile enabled. A config file that already exists keeps every
-  value in it, so only a fresh install starts this way.
-- The Glow editor shows the hex box and the colour picker only while the custom colour is on, and
-  gives the picker real room (46-120px) instead of a strip, letting the panel scroll when the rows
-  above do not leave enough.
-- The Steve head flash is replaced by **My head**, which draws your own skin's face and hat layer as
-  an apparition tinted with the glow colour. Anyone who had picked Steve gets this instead.
-
 ### Added
 
-- A flash size slider, `50%`-`300%`, shown for the shaped styles. The burst sizes itself from the
-  glow power, so it does not get one.
-
-- Safe Crystal now states its stand-down as one named decision instead of a condition folded into the
-  click handler. With Marlow's Crystal Optimizer, No Crystal Break or any other detected crystal
-  optimizer installed, the obsidian click reaches Vanilla untouched: that mod owns the crystal click,
-  and two mods deciding whether the same swing mines a block is how a player ends up unable to break
-  obsidian at all.
+- Flash styles for a destroyed crystal, in the player's own glow colour: the original explosion,
+  a skull, your own head, lightning, and ten new shapes: heart, star, shockwave, vortex, crown,
+  crescent, snowflake, flower, gem and crossed swords. The shockwave, vortex, star and flower move
+  as the flash fades. Drawing only, with no change to the explosion, the damage or any packet.
+- A flash size slider, `10%`-`300%`, for every shaped style. The burst sizes itself from the glow
+  power, so it does not get one.
+- A rebuilt settings screen. Four tabs, **Colors**, **Glow**, **Sound** and **Advanced**, with a
+  bar that slides to the selected one; related controls grouped on cards that carry titles when
+  there is room; switches with a sliding knob instead of `ON`/`OFF` text; a status chip that shows
+  what the optimizer is doing and explains it on hover; rows that fade in one after another; a
+  crystal badge and a light that runs round the panel's edge; and an obsidian pedestal under the
+  preview, ringed in the glow colour. Its geometry lives in one class the layout tests check
+  directly, across more than 360,000 window sizes and tab states.
+- The Glow editor is now the **Glow** tab, for your crystals and for the enemy profile alike. The
+  flash style has previous and next arrows, and changing it explodes the preview to show it.
+- An **Important notice** on the way into the settings, once per session and only when no crystal
+  optimizer is installed: Crystal Tweaks optimizes the client only, and Marlow's Crystal Optimizer
+  is recommended for placements that reach the server sooner. **Don't show again** turns it off.
+- **Safe Crystal** can be switched off in **Advanced**. It stays on by default. It sends fewer
+  actions than Vanilla, so a player on a server that forbids input filters can now comply.
+- Support for Minecraft 26.3, which needed a real port: it swapped GLFW for SDL and dropped
+  `lwjgl-tinyfd` with it, renamed the use-item packet's accessors to record components
+  (`hand()`, `hitResult()`, `sequence()`), removed `PoseStack.mulPose(Quaternionf)` and gave
+  `EntityRenderer.shouldRender` a trailing `float`. Without a native file dialog on that target, a
+  custom sound is chosen by dropping the file into the mod's own sounds folder.
 - Performance mods are named explicitly and can never stand this mod down, whatever they overlap.
   Krypton, Lithium, Sodium, C2ME, ImmediatelyFast, ScalableLux, FerriteCore, MoreCulling,
   EntityCulling, ModernFix, LazyDFU, DynamicFPS, MemoryLeakFix, Noxesium, ViaFabricPlus and
   ViaVersion sit on the same network and rendering paths this mod uses, and matching there says
   nothing about crystals.
-
-### Added
-
-- Flash styles for a destroyed crystal, in the player's own glow colour: the original explosion plus
-  a skull, a Steve head and bolts thrown toward the players around the blast. Selected in the **Glow
-  editor**, beside the power, reflections and colour that drive it; drawing only, with no change to
-  the explosion, the damage or any packet.
-- Support for Minecraft 26.3, which needed a real port: it swapped GLFW for SDL and dropped
-  `lwjgl-tinyfd` with it, renamed the use-item packet's accessors to record components
-  (`hand()`, `hitResult()`, `sequence()`) and removed `PoseStack.mulPose(Quaternionf)`. Without a
-  native file dialog on that target, a custom sound is chosen by dropping the file into the mod's
-  own sounds folder; everything after that is unchanged.
 - Built for 1.21.11, 26.1, 26.1.1, 26.1.2, 26.2 and 26.3.
+
+### Changed
+
+- Glow now ships on: power and reflections at `55%`, your crystals in crystal purple and enemy
+  crystals in red, with the enemy profile enabled. A config file that already exists keeps every
+  value in it, so only a fresh install starts this way.
+- The Steve head flash is replaced by **My head**, which draws your own skin's face and hat layer as
+  a pale, see-through apparition lit in the glow colour. Anyone who had picked Steve gets this
+  instead.
+- **Lightning** only points at players the player could see when the crystal exploded: not
+  invisible, not spectating, inside the view and with a clear line of sight. Its targets are fixed
+  at the explosion and every bolt has the same length, so no bolt points at or measures the distance
+  to anyone who was not already on screen.
+- Turning on the glow's own colour no longer asks for confirmation; it only ever changed the light.
+- **Reset** on the Glow tab restores the shipped glow instead of switching it off.
+- Safe Crystal now states its stand-down as one named decision instead of a condition folded into the
+  click handler. With Marlow's Crystal Optimizer, No Crystal Break or any other detected crystal
+  optimizer installed, the obsidian click reaches Vanilla untouched.
 
 ### Fixed
 
+- Minecraft 26.3 could not start with the mod installed: the Mixin that hides a predicted break
+  still named the old `shouldRender` signature and aborted the game when the crystal renderer
+  loaded.
+- The settings preview always exploded with the plain burst. It now shows the chosen flash style,
+  size and colour.
 - The crystal in the settings preview rendered black, and no colour could brighten it. The preview
   render state was never given light coordinates, so it was lit by nothing at all. It now draws at
   full block and sky light, the way vanilla lights a model in a GUI.
 - Turning on the custom glow colour repainted the crystal's outer, inner and core layers with it, so
   the picker looked like it had erased the colours underneath and disabling it looked like it
-  restored them from nowhere. They were never stored over, only drawn over. The custom colour now
-  belongs to the light alone, in both the player and the enemy profile, which share this code.
+  restored them from nowhere. The custom colour now belongs to the light alone, in both profiles, and
+  the settings screen no longer warns that the layers are ignored.
 - Lightning bolts read as a row of separate dashes. Every segment was its own quad with its own
   normal, so the two quads meeting at a kink left a notch. A bolt is now one strip whose joints share
   their vertices and mitre their normal.
@@ -66,6 +83,10 @@
 - The same explosion lit the ground only sometimes during a fight. When the per-tick terrain sampling
   budget ran out, a crystal reported no lit surfaces at all and that empty answer was captured into
   the flash. It now reuses its last result instead.
+- For the first moment after the settings opened, the buttons already took clicks but were not
+  drawn yet. They now fade in from partly visible, so nothing clickable is ever invisible.
+- The settings file is written beside the real one and moved over it, so a crash mid-write can no
+  longer leave a broken file that resets every setting on the next launch.
 
 ### Removed
 

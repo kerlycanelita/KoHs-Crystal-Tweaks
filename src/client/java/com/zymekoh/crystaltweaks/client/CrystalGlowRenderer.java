@@ -81,22 +81,26 @@ public final class CrystalGlowRenderer {
     /** A crystal still in the world always wears the burst; only the death flash takes a shape. */
     public static void submit(EndCrystalRenderState state, PoseStack poses,
             SubmitNodeCollector collector, CameraRenderState camera, float opacity) {
-        submit(state, poses, collector, camera, opacity, CrystalFlashStyle.EXPLOSION, null);
+        submit(state, poses, collector, camera, opacity, 0F, CrystalFlashStyle.EXPLOSION, null, List.of());
     }
 
     /**
      * The flash a destroyed crystal leaves behind, in the shape the player selected.
      *
-     * @param origin world position of the blast, used by the lightning style to aim its bolts
+     * @param progress how far the flash has faded, 0 at the explosion and 1 when it is gone
+     * @param origin   world position of the blast, or {@code null} in the settings preview
+     * @param targets  visible players the lightning style may point at
      */
     public static void submitFlash(EndCrystalRenderState state, PoseStack poses,
-            SubmitNodeCollector collector, CameraRenderState camera, float opacity, Vec3 origin) {
-        submit(state, poses, collector, camera, opacity, CrystalVisualConfig.flashStyle(), origin);
+            SubmitNodeCollector collector, CameraRenderState camera, float opacity, float progress,
+            Vec3 origin, List<Vec3> targets) {
+        submit(state, poses, collector, camera, opacity, progress, CrystalVisualConfig.flashStyle(),
+                origin, targets);
     }
 
     public static void submit(EndCrystalRenderState state, PoseStack poses,
-            SubmitNodeCollector collector, CameraRenderState camera, float opacity,
-            CrystalFlashStyle style, Vec3 origin) {
+            SubmitNodeCollector collector, CameraRenderState camera, float opacity, float progress,
+            CrystalFlashStyle style, Vec3 origin, List<Vec3> targets) {
         CrystalAppearance look = CrystalAppearanceAccess.of(state);
         if (opacity <= 0) return;
         if (look.glowPowerPercent <= 0 || state.distanceToCameraSq > 4096) return;
@@ -114,11 +118,17 @@ public final class CrystalGlowRenderer {
             Identifier skin = CrystalFlashShapes.playerSkin();
             if (skin != null) {
                 float headRadius = CrystalGlowMath.radius(power) * shapeScale;
+                // Pale, not tinted: a washed-out colour on a see-through face, a white veil over it
+                // and a whiter halo behind, so the skin reads as a ghost of itself.
+                int pale = CrystalFlashShapes.paleTint(color);
                 collector.submitCustomGeometry(poses, RenderTypes.entityTranslucent(skin),
                         (pose, buffer) -> CrystalFlashShapes.submitPlayerHead(
-                                buffer, pose.pose(), color, headRadius, power * opacity));
-                collector.submitCustomGeometry(poses, RenderTypes.dragonRays(), (pose, buffer) ->
-                        disk(buffer, pose.pose(), color, headRadius * 1.35F, 0.30F * power * opacity));
+                                buffer, pose.pose(), pale, headRadius, power * opacity));
+                collector.submitCustomGeometry(poses, RenderTypes.dragonRays(), (pose, buffer) -> {
+                    disk(buffer, pose.pose(), pale, headRadius * 1.4F, 0.4F * power * opacity);
+                    CrystalFlashShapes.submitHeadVeil(buffer, pose.pose(), 0xFFFFFFFF, headRadius,
+                            power * opacity);
+                });
             }
             poses.popPose();
             submitReflections(state, look, poses, collector, color, power, opacity, centerY);
@@ -129,7 +139,8 @@ public final class CrystalGlowRenderer {
             float radius = CrystalGlowMath.radius(power) * shapeScale;
             if (style != CrystalFlashStyle.EXPLOSION) {
                 CrystalFlashShapes.submit(style, buffer, matrix, camera.orientation, color,
-                        CrystalGlowMath.hotColor(color), radius, power * opacity, origin);
+                        CrystalGlowMath.hotColor(color), radius, power * opacity, origin, targets,
+                        progress);
                 return;
             }
             // Preserve the original halo's gain at 100%; extra passes avoid byte-alpha overflow.

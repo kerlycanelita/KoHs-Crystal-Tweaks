@@ -13,24 +13,24 @@
 
 ## About
 
-Crystal Tweaks brings End Crystal visual and sound controls into one compact configuration screen. Version 2.3.0 adds flash styles for a destroyed crystal and gathers every glow control into one editor, fixes your own crystals being drawn with the enemy profile while spamming, and keeps the native optimizer standing down only for a mod actually found to be optimizing crystals.
+Crystal Tweaks brings End Crystal visual and sound controls into one animated configuration screen. Version 2.3.0 adds fourteen flash styles for a destroyed crystal, rebuilds the settings into four tabs of tidy cards around a live preview, fixes your own crystals being drawn with the enemy profile while spamming, and supports Minecraft 1.21.11 through 26.3.
 
 ## What it changes
 
 - Independent colors for the outer layer, inner layer, and crystal core.
-- Glow editor with `0%`–`300%` power, colored reflections, custom glow color, and a smooth afterglow trail.
-- Flash styles for a destroyed crystal, in the same glow color: explosion, skull, your own head, or bolts thrown toward nearby players.
+- Glow with `0%`-`300%` power, colored reflections, its own color, and a smooth afterglow trail.
+- Fourteen flash styles for a destroyed crystal, in the glow color and sized from `10%` to `300%`: explosion, skull, your own head as a pale ghost, lightning toward the players you can see, heart, star, shockwave, vortex, crown, crescent, snowflake, flower, gem, and crossed swords.
 - Glow that respects walls instead of using an outline drawn through terrain.
 - Separate colors, glow, and animation speeds for crystals that were not placed by you (with approximate identification).
-- Automatic optimizer conflict handling: interaction helpers step aside while visuals, sounds, and the preview stay active.
 - Rotation and floating speed controls from `0%` to `300%`.
 - Custom local explosion sounds with volume and playback-speed controls.
-- Interactive preview using the player's mapped Attack and Use Item controls.
-- Responsive translucent interface with animated purple particles.
-- Optional ghost crystals (off by default), scroll hints, and a local conflict monitor.
-- Local Conflict Monitor for qualified, exact Mixin class-and-method overlaps.
+- A settings screen in four tabs (Colors, Glow, Sound, Advanced) with an optimizer status chip, animated tabs and cards, and an interactive preview that shows your flash when you click it.
+- Automatic optimizer conflict handling: interaction helpers step aside while visuals, sounds, and the preview stay active.
+- Safe Crystal (switchable), optional ghost crystals (off by default), and a local Conflict Monitor.
 - Spanish localization for Minecraft language codes beginning with `es`; English for every other locale.
 - Optional Mod Menu integration.
+
+Crystal Tweaks optimizes the client only: a crystal you break disappears on your screen straight away, but what reaches the server is not sped up. For that, Marlow's Crystal Optimizer is recommended (check your server's rules); with it installed, Crystal Tweaks turns all of its own optimizations off.
 
 See the [Crystal Tweaks Wiki](docs/WIKI.md) for installation, configuration, preview controls, compatibility notes, and troubleshooting.
 
@@ -70,7 +70,7 @@ which is latency compensation for an action you already performed. It is constra
 server is expected to accept.
 
 See [docs/audits/LEGITIMACY_AUDIT.md](docs/audits/LEGITIMACY_AUDIT.md) for the full client/server boundary of every feature,
-including the two places where the mod does change what a later packet contains.
+including the one place where the mod changes which packets are sent: Safe Crystal, which you can switch off.
 
 ## Building
 

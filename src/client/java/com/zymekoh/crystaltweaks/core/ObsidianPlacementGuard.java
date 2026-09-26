@@ -1,5 +1,6 @@
 package com.zymekoh.crystaltweaks.core;
 
+import com.zymekoh.crystaltweaks.client.CrystalVisualConfig;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.Items;
@@ -44,12 +45,13 @@ public final class ObsidianPlacementGuard {
     }
 
     /**
-     * Whether Safe Crystal may swallow a click right now.
+     * Whether Safe Crystal may swallow a click right now: the player has it switched on and no other
+     * crystal optimizer is installed.
      *
      * <p>Named rather than inlined so the stand-down is one decision with one reason, and so the
      * settings screen and the tests can ask the same question the event handler asks.</p>
      */
     public static boolean active() {
-        return CrystalOptimizerGuard.optimizationsAllowed();
+        return CrystalOptimizerGuard.optimizationsAllowed() && CrystalVisualConfig.safeCrystal();
     }
 }

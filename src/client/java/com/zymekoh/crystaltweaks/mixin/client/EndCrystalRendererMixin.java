@@ -5,6 +5,7 @@ import com.zymekoh.crystaltweaks.client.CrystalAfterglow;
 import com.zymekoh.crystaltweaks.client.CrystalAfterglowState;
 import com.zymekoh.crystaltweaks.client.CrystalGlowRenderer;
 import com.mojang.blaze3d.vertex.PoseStack;
+import java.util.List;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.state.EndCrystalRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
@@ -28,8 +29,10 @@ public abstract class EndCrystalRendererMixin {
     @Inject(method = "submit(Lnet/minecraft/client/renderer/entity/state/EndCrystalRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V", at = @At("HEAD"), cancellable = true)
     private void crystalTweaks$previewLightOnly(EndCrystalRenderState state, PoseStack poses, SubmitNodeCollector collector, CameraRenderState camera, CallbackInfo ci) {
         // Only our synthetic preview state is cancellable; real entities never enter this branch.
+        // It is the settings preview's explosion, so it wears the chosen flash style and size.
         if (state instanceof CrystalAfterglowState afterglow) {
-            CrystalGlowRenderer.submit(state, poses, collector, camera, afterglow.opacity);
+            CrystalGlowRenderer.submitFlash(state, poses, collector, camera, afterglow.opacity,
+                    afterglow.progress, null, List.of());
             ci.cancel();
         }
     }

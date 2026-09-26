@@ -17,7 +17,8 @@ import net.minecraft.world.phys.Vec3;
 
 /** Observes disappearances, retaining light data only. Never delays/removes/resurrects an entity. */
 public final class CrystalAfterglow {
-    private record Light(Vec3 origin, CrystalAfterglowState state) { }
+    /** A light to fade out, and the visible players a lightning flash may point at. */
+    private record Light(Vec3 origin, CrystalAfterglowState state, List<Vec3> targets) { }
     private record Seen(WeakReference<EndCrystal> entity, Light light, long at) { }
     private static final Map<UUID, Seen> SEEN = new LinkedHashMap<>();
     private static final AfterglowTimeline<Light> FADING = new AfterglowTimeline<>(24);
@@ -40,7 +41,8 @@ public final class CrystalAfterglow {
         SEEN.entrySet().removeIf(entry -> now - entry.getValue().at > 2_000_000_000L);
         if (!SEEN.containsKey(id) && SEEN.size() >= 128) SEEN.remove(SEEN.keySet().iterator().next());
         CrystalAfterglowState light = snapshot(state);
-        SEEN.put(id, new Seen(new WeakReference<>(entity), new Light(new Vec3(state.x, state.y, state.z), light), now));
+        SEEN.put(id, new Seen(new WeakReference<>(entity),
+                new Light(new Vec3(state.x, state.y, state.z), light, List.of()), now));
     }
 
     public static CrystalAfterglowState snapshot(EndCrystalRenderState source) {
@@ -71,7 +73,12 @@ public final class CrystalAfterglow {
     public static void onHidden(EndCrystal entity) {
         Seen seen = SEEN.remove(entity.getUUID());
         long now = System.nanoTime();
-        if (seen != null && now - seen.at < 500_000_000L) FADING.start(entity.getUUID(), seen.light, now);
+        if (seen == null || now - seen.at >= 500_000_000L) return;
+        // Who a lightning flash may point at is decided once, at the explosion, and only among the
+        // players visible right then; the other styles never look at anyone.
+        List<Vec3> targets = CrystalVisualConfig.flashStyle() == CrystalFlashStyle.LIGHTNING
+                ? CrystalFlashShapes.visibleBoltTargets(seen.light.origin) : List.of();
+        FADING.start(entity.getUUID(), new Light(seen.light.origin, seen.light.state, targets), now);
     }
 
     public static void submit(PoseStack poses, SubmitNodeCollector collector, CameraRenderState camera) {
@@ -96,8 +103,8 @@ public final class CrystalAfterglow {
             List<CrystalGlowRenderer.Surface> stored = light.state.crystalTweaks$surfaces();
             light.state.crystalTweaks$surfaces(stored.stream()
                     .filter(surface -> survivingSurface(light.origin, surface)).toList());
-            CrystalGlowRenderer.submitFlash(
-                    light.state, poses, collector, camera, sample.opacity(), light.origin);
+            CrystalGlowRenderer.submitFlash(light.state, poses, collector, camera, sample.opacity(),
+                    sample.progress(), light.origin, light.targets);
             light.state.crystalTweaks$surfaces(stored);
             poses.popPose();
         }

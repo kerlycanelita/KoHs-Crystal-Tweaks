@@ -2,6 +2,9 @@ package com.zymekoh.crystaltweaks.client;
 
 /** Visual settings only. Copies travel with each deferred render submission. */
 public final class CrystalAppearance {
+    /** Smallest flash size the slider offers, in percent of the natural size. */
+    public static final int MIN_FLASH_SCALE = 10;
+
     public int outerColor = -1;
     public int innerColor = -1;
     public int coreColor = -1;
@@ -13,7 +16,7 @@ public final class CrystalAppearance {
     public boolean customGlowColor = true;
     /** Crystal purple for your own; the enemy profile overrides this with red when it is created. */
     public int glowColor = 0xFFC880FF;
-    /** Size of the death flash, 50-300. Only the shaped styles use it; the burst keeps its own. */
+    /** Size of the death flash, 10-300. Only the shaped styles use it; the burst keeps its own. */
     public int flashScalePercent = 100;
 
     public CrystalAppearance copy() {
@@ -27,7 +30,7 @@ public final class CrystalAppearance {
         copy.glowReflectionsPercent = clamp(glowReflectionsPercent, 300);
         copy.customGlowColor = customGlowColor;
         copy.glowColor = glowColor | 0xFF000000;
-        copy.flashScalePercent = Math.max(50, Math.min(300, flashScalePercent));
+        copy.flashScalePercent = Math.max(MIN_FLASH_SCALE, Math.min(300, flashScalePercent));
         return copy;
     }
 

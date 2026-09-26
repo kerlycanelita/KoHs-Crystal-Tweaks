@@ -6,8 +6,11 @@ import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.resources.DefaultPlayerSkin;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4f;
 import org.joml.Quaternionf;
@@ -17,13 +20,17 @@ import org.joml.Vector3f;
  * Silhouettes for the death flash, drawn in the same camera-facing plane and the same additive
  * material as the original burst.
  *
- * <p>Everything here is geometry submitted for one frame. No entity is read for collision, no
- * position is reported anywhere, and the lightning style only looks at players the client is already
- * rendering, to point the bolts somewhere. It never selects, tracks or reveals a target: a player
- * behind a wall throws no bolt worth following, because the bolt stops at the blast's own radius.</p>
+ * <p>Everything here is geometry submitted for one frame. Only the lightning style looks at other
+ * players, and only at the ones the player could see when the crystal exploded: not invisible, not
+ * spectating, in front of the camera and with nothing solid in between. Their positions are taken
+ * once, at the explosion, and every bolt has the same length, so a bolt never points at or measures
+ * the distance to anyone the player could not already see.</p>
  */
 public final class CrystalFlashShapes {
-    /** Mask rows are drawn top to bottom; '#' is lit, '.' is a hole the additive pass skips. */
+    /**
+     * Mask rows are drawn top to bottom. {@code #} is lit, {@code +} is a dim facet, {@code *} burns
+     * in the hot colour and {@code .} is a hole the additive pass skips.
+     */
     private static final String[] SKULL = {
             "....######....",
             "..##########..",
@@ -40,11 +47,58 @@ public final class CrystalFlashShapes {
             "...##.##.##...",
     };
 
+    private static final String[] HEART = {
+            ".###.....###.",
+            "#*###...#####",
+            "#*####.######",
+            "#############",
+            "#############",
+            "#############",
+            ".###########.",
+            "..#########..",
+            "...#######...",
+            "....#####....",
+            ".....###.....",
+            "......#......",
+    };
+
+    private static final String[] CROWN = {
+            "*.....*.....*",
+            "#.....#.....#",
+            "##...###...##",
+            "###.#####.###",
+            "#############",
+            "#############",
+            "##*##+#+##*##",
+            "#############",
+            ".###########.",
+    };
+
+    private static final String[] GEM = {
+            "....#######....",
+            "...#+#####+#...",
+            "..#++#####++#..",
+            ".#############.",
+            "###############",
+            ".#+#########+#.",
+            "..#+#######+#..",
+            "...#+#####+#...",
+            "....#+###+#....",
+            ".....#+#+#.....",
+            "......#*#......",
+            ".......#.......",
+    };
+
+    private static final String[] CRESCENT = crescentMask(19);
+
     /** Bolts thrown per flash. Past this the screen reads as noise rather than as lightning. */
     private static final int MAX_BOLTS = 5;
 
-    /** Players further than this contribute no bolt. */
+    /** Players further than this from the blast contribute no bolt. */
     private static final double BOLT_RANGE = 24.0D;
+
+    /** Every bolt reaches this far, in blast radii, whoever it points at. */
+    private static final float BOLT_REACH = 1.5F;
 
     /** Full block light, so the apparition is as bright in a cave as it is at noon. */
     private static final int FULL_BRIGHT = 15728880;
@@ -54,22 +108,35 @@ public final class CrystalFlashShapes {
 
     private CrystalFlashShapes() { }
 
-    /** Texture of the local player's own skin, or {@code null} before one is available. */
+    /**
+     * Texture of the local player's own skin. From the title screen, where there is no player yet,
+     * the settings preview falls back to this account's default skin rather than showing nothing.
+     */
     public static Identifier playerSkin() {
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player == null) {
-            return null;
-        }
+        Minecraft minecraft = Minecraft.getInstance();
         try {
-            return ((AbstractClientPlayer) player).getSkin().body().texturePath();
+            LocalPlayer player = minecraft.player;
+            if (player != null) {
+                return ((AbstractClientPlayer) player).getSkin().body().texturePath();
+            }
+            return DefaultPlayerSkin.get(minecraft.getUser().getProfileId()).body().texturePath();
         } catch (RuntimeException skinNotReady) {
             return null;
         }
     }
 
+    /** The flash colour washed toward white, which is what makes the head read as a ghost. */
+    public static int paleTint(int color) {
+        int r = (color >> 16) & 255, g = (color >> 8) & 255, b = color & 255;
+        return 0xFF000000
+                | Math.round(r + (255 - r) * 0.62F) << 16
+                | Math.round(g + (255 - g) * 0.62F) << 8
+                | Math.round(b + (255 - b) * 0.62F);
+    }
+
     /**
-     * Draws the player's own head as an apparition: the face from their skin, tinted with the chosen
-     * glow colour and fading with the flash, plus the hat layer a little larger in front of it.
+     * Draws the player's own head as a pale apparition: the face from their skin, tinted with a
+     * washed-out glow colour and see-through, plus the hat layer a little larger in front of it.
      *
      * <p>The skin is the one the client is already rendering on the player. Nothing is downloaded,
      * and no other player's skin is read.</p>
@@ -78,8 +145,18 @@ public final class CrystalFlashShapes {
             VertexConsumer buffer, Matrix4f matrix, int color, float radius, float gain) {
         float half = radius * 0.95F;
         // A skin is 64 wide: the face sits at x 8-16, y 8-16, and the hat layer at x 40-48.
-        face(buffer, matrix, color, half, gain, 0.125F, 0.125F, 0.25F, 0.25F);
-        face(buffer, matrix, color, half * 1.12F, gain * 0.55F, 0.625F, 0.125F, 0.75F, 0.25F);
+        face(buffer, matrix, color, half, gain * 0.7F, 0.125F, 0.125F, 0.25F, 0.25F);
+        face(buffer, matrix, color, half * 1.12F, gain * 0.38F, 0.625F, 0.125F, 0.75F, 0.25F);
+    }
+
+    /**
+     * A white veil laid over the face in the additive material. It lifts every colour of the skin
+     * toward white together, which a multiplied tint cannot do, and that is what makes it pale.
+     */
+    public static void submitHeadVeil(
+            VertexConsumer buffer, Matrix4f matrix, int color, float radius, float gain) {
+        float half = radius * 0.95F;
+        quad(buffer, matrix, color, -half, -half, half, half, gain * 0.34F);
     }
 
     private static void face(VertexConsumer buffer, Matrix4f matrix, int color, float half,
@@ -110,8 +187,67 @@ public final class CrystalFlashShapes {
     }
 
     /**
-     * @param origin world position of the blast, or {@code null} for the settings-screen preview
-     *               where no level exists to look for players in
+     * The players a lightning flash may point at, captured once when the crystal explodes.
+     *
+     * <p>Only players this client could see at that moment qualify: not the player, not a spectator,
+     * not invisible to the player, inside the view cone and with a clear line of sight from the
+     * player's eyes to their head or body. Anyone else is skipped, so a bolt adds nothing to what
+     * was already on screen.</p>
+     */
+    public static List<Vec3> visibleBoltTargets(Vec3 origin) {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer self = minecraft.player;
+        if (origin == null || self == null || minecraft.level == null) {
+            return List.of();
+        }
+        Vec3 eye = self.getEyePosition();
+        Vec3 look = self.getViewVector(1.0F);
+        double cone = Math.cos(Math.toRadians(viewHalfAngle(minecraft)));
+        List<Vec3> targets = new ArrayList<>();
+        for (Player player : minecraft.level.players()) {
+            if (targets.size() >= MAX_BOLTS) {
+                break;
+            }
+            if (player == self || player.isSpectator() || player.isInvisibleTo(self)) {
+                continue;
+            }
+            Vec3 body = player.position().add(0, player.getBbHeight() / 2, 0);
+            double distance = body.distanceTo(origin);
+            if (distance < 0.5D || distance > BOLT_RANGE) {
+                continue;
+            }
+            Vec3 head = player.getEyePosition();
+            boolean seen = (inView(eye, look, cone, head) && clearSight(minecraft, self, eye, head))
+                    || (inView(eye, look, cone, body) && clearSight(minecraft, self, eye, body));
+            if (seen) {
+                targets.add(body);
+            }
+        }
+        return List.copyOf(targets);
+    }
+
+    /** Half the horizontal field of view for a 16:9 window, from the player's own FOV setting. */
+    private static double viewHalfAngle(Minecraft minecraft) {
+        double vertical = Math.toRadians(minecraft.options.fov().get());
+        double horizontal = Math.atan(Math.tan(vertical / 2.0D) * 16.0D / 9.0D);
+        return Math.min(80.0D, Math.toDegrees(horizontal));
+    }
+
+    private static boolean inView(Vec3 eye, Vec3 look, double cone, Vec3 target) {
+        Vec3 toTarget = target.subtract(eye);
+        double length = toTarget.length();
+        return length > 0.0001D && toTarget.dot(look) / length >= cone;
+    }
+
+    private static boolean clearSight(Minecraft minecraft, LocalPlayer self, Vec3 eye, Vec3 target) {
+        return minecraft.level.clip(new ClipContext(eye, target, ClipContext.Block.VISUAL,
+                ClipContext.Fluid.NONE, self)).getType() == HitResult.Type.MISS;
+    }
+
+    /**
+     * @param origin   world position of the blast, or {@code null} for the settings-screen preview
+     * @param targets  players the lightning style may point at, from {@link #visibleBoltTargets}
+     * @param progress how far the flash has faded, 0 at the explosion and 1 when it is gone
      */
     public static void submit(
             CrystalFlashStyle style,
@@ -122,11 +258,24 @@ public final class CrystalFlashShapes {
             int hotColor,
             float radius,
             float gain,
-            Vec3 origin
+            Vec3 origin,
+            List<Vec3> targets,
+            float progress
     ) {
         switch (style) {
             case SKULL -> mask(buffer, matrix, SKULL, color, hotColor, radius * 1.15F, gain);
-            case LIGHTNING -> bolts(buffer, matrix, cameraOrientation, color, hotColor, radius, gain, origin);
+            case LIGHTNING -> bolts(buffer, matrix, cameraOrientation, color, hotColor, radius, gain,
+                    origin, targets);
+            case HEART -> mask(buffer, matrix, HEART, color, hotColor, radius * 1.1F, gain);
+            case STAR -> star(buffer, matrix, color, hotColor, radius, gain, progress);
+            case SHOCKWAVE -> shockwave(buffer, matrix, color, hotColor, radius, gain, progress);
+            case VORTEX -> vortex(buffer, matrix, color, hotColor, radius, gain, progress);
+            case CROWN -> mask(buffer, matrix, CROWN, color, hotColor, radius * 1.1F, gain);
+            case CRESCENT -> mask(buffer, matrix, CRESCENT, color, hotColor, radius * 1.1F, gain);
+            case SNOWFLAKE -> snowflake(buffer, matrix, color, hotColor, radius, gain, progress);
+            case FLOWER -> flower(buffer, matrix, color, hotColor, radius, gain, progress);
+            case GEM -> mask(buffer, matrix, GEM, color, hotColor, radius * 1.15F, gain);
+            case SWORDS -> swords(buffer, matrix, color, hotColor, radius, gain);
             default -> { }
         }
     }
@@ -152,7 +301,8 @@ public final class CrystalFlashShapes {
         for (int row = 0; row < height; row++) {
             String line = rows[row];
             for (int column = 0; column < width && column < line.length(); column++) {
-                if (line.charAt(column) != '#') {
+                char kind = line.charAt(column);
+                if (kind == '.') {
                     continue;
                 }
                 float x0 = originX + cell * column;
@@ -161,6 +311,14 @@ public final class CrystalFlashShapes {
                 float dx = (column + 0.5F) / width - 0.5F;
                 float dy = (row + 0.5F) / height - 0.5F;
                 float centre = Math.max(0F, 1F - (float) Math.sqrt(dx * dx + dy * dy) * 1.7F);
+                if (kind == '+') {
+                    quad(buffer, matrix, color, x0, y0, x0 + cell, y0 + cell, gain * 0.32F);
+                    continue;
+                }
+                if (kind == '*') {
+                    quad(buffer, matrix, hotColor, x0, y0, x0 + cell, y0 + cell, gain);
+                    continue;
+                }
                 quad(buffer, matrix, color, x0, y0, x0 + cell, y0 + cell, gain * (0.55F + centre * 0.45F));
                 if (centre > 0.62F) {
                     quad(buffer, matrix, hotColor,
@@ -172,9 +330,29 @@ public final class CrystalFlashShapes {
         }
     }
 
+    /** A crescent moon cut from one disc by another, one star in its hollow and one beyond it. */
+    private static String[] crescentMask(int size) {
+        String[] rows = new String[size];
+        for (int row = 0; row < size; row++) {
+            StringBuilder line = new StringBuilder(size);
+            for (int column = 0; column < size; column++) {
+                float x = (column + 0.5F) / size * 2F - 1F;
+                float y = 1F - (row + 0.5F) / size * 2F;
+                boolean moon = x * x + y * y <= 0.86F * 0.86F;
+                float cx = x - 0.40F, cy = y - 0.20F;
+                boolean bite = cx * cx + cy * cy <= 0.72F * 0.72F;
+                boolean star = (Math.abs(x - 0.45F) + Math.abs(y - 0.10F) < 0.10F)
+                        || (Math.abs(x - 0.80F) + Math.abs(y - 0.62F) < 0.07F);
+                line.append(moon && !bite ? (x < -0.6F ? '*' : '#') : star ? '*' : '.');
+            }
+            rows[row] = line.toString();
+        }
+        return rows;
+    }
+
     /**
-     * Throws a jagged bolt toward every nearby player, projected into the camera-facing plane so the
-     * bolt reads from any angle.
+     * Throws a jagged bolt toward each visible player, projected into the camera-facing plane so
+     * the bolt reads from any angle. With nobody to point at it throws a fixed ring instead.
      */
     private static void bolts(
             VertexConsumer buffer,
@@ -184,36 +362,26 @@ public final class CrystalFlashShapes {
             int hotColor,
             float radius,
             float gain,
-            Vec3 origin
+            Vec3 origin,
+            List<Vec3> targets
     ) {
         List<float[]> directions = new ArrayList<>();
-        Minecraft minecraft = Minecraft.getInstance();
-        if (origin != null && minecraft.level != null && cameraOrientation != null) {
-            LocalPlayer self = minecraft.player;
+        if (origin != null && cameraOrientation != null && targets != null) {
             Quaternionf inverse = new Quaternionf(cameraOrientation).conjugate();
-            for (Player player : minecraft.level.players()) {
-                if (player == self || directions.size() >= MAX_BOLTS) {
-                    continue;
-                }
-                Vec3 delta = player.position().add(0, player.getBbHeight() / 2, 0).subtract(origin);
-                double distance = delta.length();
-                if (distance < 0.5D || distance > BOLT_RANGE) {
-                    continue;
-                }
+            for (Vec3 target : targets) {
+                Vec3 delta = target.subtract(origin);
                 Vector3f local = inverse.transform(
                         new Vector3f((float) delta.x, (float) delta.y, (float) delta.z));
                 float planar = (float) Math.sqrt(local.x * local.x + local.y * local.y);
                 if (planar < 0.0001F) {
                     continue;
                 }
-                // Reach is the blast's own, not the player's: a distant enemy gets a longer-looking
-                // bolt, never a line that measures out to them.
-                float reach = radius * (1.15F + (float) Math.min(1.0D, distance / BOLT_RANGE) * 0.85F);
-                directions.add(new float[] {local.x / planar, local.y / planar, reach});
+                // The same reach for every bolt: it shows a direction, never a distance.
+                directions.add(new float[] {local.x / planar, local.y / planar, radius * BOLT_REACH});
             }
         }
         if (directions.isEmpty()) {
-            // No one around, or the preview: a ring of bolts so the style is never invisible.
+            // No one in sight, or the preview: a ring of bolts so the style is never invisible.
             for (int i = 0; i < 6; i++) {
                 double angle = Math.PI * 2 * i / 6;
                 directions.add(new float[] {
@@ -229,6 +397,154 @@ public final class CrystalFlashShapes {
         }
         // A small core keeps the bolts anchored to something instead of starting in empty air.
         disc(buffer, matrix, hotColor, radius * 0.22F, gain * 0.9F);
+    }
+
+    /** A five-pointed star turning slowly as it fades, with a hot star inside it. */
+    private static void star(VertexConsumer buffer, Matrix4f matrix, int color, int hotColor,
+            float radius, float gain, float progress) {
+        float turn = (float) (-Math.PI / 2.0D) + progress * 0.9F;
+        starPolygon(buffer, matrix, color, radius * 1.05F, 0.42F, turn, gain, gain * 0.35F);
+        starPolygon(buffer, matrix, hotColor, radius * 0.5F, 0.42F, turn, gain * 0.85F, gain * 0.2F);
+    }
+
+    private static void starPolygon(VertexConsumer buffer, Matrix4f matrix, int color, float outer,
+            float innerRatio, float turn, float centreGain, float edgeGain) {
+        int points = 10;
+        float[] xs = new float[points];
+        float[] ys = new float[points];
+        for (int i = 0; i < points; i++) {
+            float r = i % 2 == 0 ? outer : outer * innerRatio;
+            double angle = turn + Math.PI * 2 * i / points;
+            xs[i] = (float) Math.cos(angle) * r;
+            ys[i] = (float) Math.sin(angle) * r;
+        }
+        fan(buffer, matrix, color, xs, ys, centreGain, edgeGain);
+    }
+
+    /** A ring that runs outward as the flash fades, a second one lagging behind it. */
+    private static void shockwave(VertexConsumer buffer, Matrix4f matrix, int color, int hotColor,
+            float radius, float gain, float progress) {
+        float outer = radius * (0.35F + 0.95F * progress);
+        ring(buffer, matrix, color, outer, radius * (0.24F - 0.1F * progress), gain);
+        float inner = radius * (0.18F + 0.7F * progress);
+        ring(buffer, matrix, hotColor, inner, radius * 0.08F, gain * 0.7F);
+        disc(buffer, matrix, hotColor, radius * 0.3F, gain * (1F - progress));
+    }
+
+    /** Three arms spiralling out of the blast and turning as it fades. */
+    private static void vortex(VertexConsumer buffer, Matrix4f matrix, int color, int hotColor,
+            float radius, float gain, float progress) {
+        int points = 16;
+        for (int arm = 0; arm < 3; arm++) {
+            float[] xs = new float[points];
+            float[] ys = new float[points];
+            for (int i = 0; i < points; i++) {
+                float t = i / (float) (points - 1);
+                double angle = arm * Math.PI * 2 / 3 + t * Math.PI * 2.6D + progress * 2.4D;
+                float r = radius * (0.12F + 0.95F * t);
+                xs[i] = (float) Math.cos(angle) * r;
+                ys[i] = (float) Math.sin(angle) * r;
+            }
+            strip(buffer, matrix, color, xs, ys, radius * 0.11F, gain * 0.8F);
+            strip(buffer, matrix, hotColor, xs, ys, radius * 0.04F, gain);
+        }
+        disc(buffer, matrix, hotColor, radius * 0.2F, gain * 0.9F);
+    }
+
+    /** Six arms with two pairs of branches each, turning slightly as the flash fades. */
+    private static void snowflake(VertexConsumer buffer, Matrix4f matrix, int color, int hotColor,
+            float radius, float gain, float progress) {
+        float turn = progress * 0.35F;
+        for (int arm = 0; arm < 6; arm++) {
+            double angle = turn + Math.PI * 2 * arm / 6;
+            float dx = (float) Math.cos(angle), dy = (float) Math.sin(angle);
+            float length = radius * 1.05F;
+            line(buffer, matrix, color, dx * radius * 0.1F, dy * radius * 0.1F,
+                    dx * length, dy * length, radius * 0.055F, gain, gain * 0.45F);
+            for (int branch = 0; branch < 2; branch++) {
+                float along = radius * (branch == 0 ? 0.45F : 0.72F);
+                float reach = radius * (branch == 0 ? 0.3F : 0.2F);
+                float bx = dx * along, by = dy * along;
+                for (int side = -1; side <= 1; side += 2) {
+                    double branchAngle = angle + side * Math.toRadians(52);
+                    line(buffer, matrix, color, bx, by,
+                            bx + (float) Math.cos(branchAngle) * reach,
+                            by + (float) Math.sin(branchAngle) * reach,
+                            radius * 0.04F, gain * 0.85F, gain * 0.35F);
+                }
+            }
+            disc(buffer, matrix, hotColor, radius * 0.06F, gain * 0.6F, dx * length, dy * length);
+        }
+        disc(buffer, matrix, hotColor, radius * 0.16F, gain);
+    }
+
+    /** Six petals around a hot heart, with a smaller ring of petals between them. */
+    private static void flower(VertexConsumer buffer, Matrix4f matrix, int color, int hotColor,
+            float radius, float gain, float progress) {
+        float turn = progress * 0.5F;
+        for (int petal = 0; petal < 6; petal++) {
+            double angle = turn + Math.PI * 2 * petal / 6;
+            ellipse(buffer, matrix, color, angle, radius * 0.5F, radius * 0.46F, radius * 0.2F,
+                    gain * 0.9F, gain * 0.25F);
+        }
+        for (int petal = 0; petal < 6; petal++) {
+            double angle = turn + Math.PI / 6 + Math.PI * 2 * petal / 6;
+            ellipse(buffer, matrix, hotColor, angle, radius * 0.32F, radius * 0.3F, radius * 0.12F,
+                    gain * 0.6F, gain * 0.15F);
+        }
+        disc(buffer, matrix, hotColor, radius * 0.17F, gain);
+    }
+
+    /** Two swords crossed at the middle of their blades, hilts down. */
+    private static void swords(VertexConsumer buffer, Matrix4f matrix, int color, int hotColor,
+            float radius, float gain) {
+        for (int side = -1; side <= 1; side += 2) {
+            double angle = side * Math.toRadians(40);
+            float cos = (float) Math.cos(angle), sin = (float) Math.sin(angle);
+            float pivot = radius * 0.3F;
+            // Blade, then its bright edge, then the guard, grip and pommel.
+            swordPart(buffer, matrix, color, cos, sin, pivot, 0F, radius * 0.3F, radius * 0.07F,
+                    radius * 0.62F, gain);
+            swordTip(buffer, matrix, color, cos, sin, pivot, radius * 0.92F, radius * 1.08F,
+                    radius * 0.07F, gain);
+            swordPart(buffer, matrix, hotColor, cos, sin, pivot, 0F, radius * 0.3F, radius * 0.022F,
+                    radius * 0.6F, gain * 0.9F);
+            swordPart(buffer, matrix, hotColor, cos, sin, pivot, 0F, -radius * 0.3F, radius * 0.26F,
+                    radius * 0.05F, gain);
+            swordPart(buffer, matrix, color, cos, sin, pivot, 0F, -radius * 0.46F, radius * 0.04F,
+                    radius * 0.14F, gain * 0.8F);
+            swordPart(buffer, matrix, hotColor, cos, sin, pivot, 0F, -radius * 0.64F, radius * 0.07F,
+                    radius * 0.06F, gain);
+        }
+    }
+
+    /** One axis-aligned rectangle of a sword, rotated into place around the crossing point. */
+    private static void swordPart(VertexConsumer buffer, Matrix4f matrix, int color, float cos,
+            float sin, float pivot, float cx, float cy, float halfWidth, float halfHeight, float gain) {
+        float[] xs = {cx - halfWidth, cx + halfWidth, cx + halfWidth, cx - halfWidth};
+        float[] ys = {cy - halfHeight, cy - halfHeight, cy + halfHeight, cy + halfHeight};
+        float[] rx = new float[4];
+        float[] ry = new float[4];
+        for (int i = 0; i < 4; i++) {
+            float y = ys[i] - pivot;
+            rx[i] = xs[i] * cos - y * sin;
+            ry[i] = xs[i] * sin + y * cos;
+        }
+        triangle(buffer, matrix, color, rx[0], ry[0], gain, rx[1], ry[1], gain, rx[2], ry[2], gain);
+        triangle(buffer, matrix, color, rx[0], ry[0], gain, rx[2], ry[2], gain, rx[3], ry[3], gain);
+    }
+
+    private static void swordTip(VertexConsumer buffer, Matrix4f matrix, int color, float cos,
+            float sin, float pivot, float base, float tip, float halfWidth, float gain) {
+        float[] xs = {-halfWidth, halfWidth, 0F};
+        float[] ys = {base - pivot, base - pivot, tip - pivot};
+        float[] rx = new float[3];
+        float[] ry = new float[3];
+        for (int i = 0; i < 3; i++) {
+            rx[i] = xs[i] * cos - ys[i] * sin;
+            ry[i] = xs[i] * sin + ys[i] * cos;
+        }
+        triangle(buffer, matrix, color, rx[0], ry[0], gain, rx[1], ry[1], gain, rx[2], ry[2], gain * 0.6F);
     }
 
     /**
@@ -296,7 +612,7 @@ public final class CrystalFlashShapes {
                     len = 1F;
                 }
             }
-            // The bolt narrows toward its tip and fades out with it.
+            // The strip narrows toward its tip and fades out with it.
             float taper = 1F - (float) point / points * 0.75F;
             float half = width * taper / len;
             offsetX[point] = nx * half;
@@ -326,15 +642,86 @@ public final class CrystalFlashShapes {
         return (axis == 0 ? x : y) / length;
     }
 
+    /** A straight bar from one point to another, brightest at its start. */
+    private static void line(VertexConsumer buffer, Matrix4f matrix, int color, float x0, float y0,
+            float x1, float y1, float halfWidth, float gain0, float gain1) {
+        float dx = x1 - x0, dy = y1 - y0;
+        float length = (float) Math.sqrt(dx * dx + dy * dy);
+        if (length < 0.0001F) {
+            return;
+        }
+        float nx = -dy / length * halfWidth, ny = dx / length * halfWidth;
+        triangle(buffer, matrix, color, x0 + nx, y0 + ny, gain0, x0 - nx, y0 - ny, gain0,
+                x1 - nx, y1 - ny, gain1);
+        triangle(buffer, matrix, color, x0 + nx, y0 + ny, gain0, x1 - nx, y1 - ny, gain1,
+                x1 + nx, y1 + ny, gain1);
+    }
+
+    /** A closed polygon filled from its centre, bright in the middle and dimmer at the rim. */
+    private static void fan(VertexConsumer buffer, Matrix4f matrix, int color, float[] xs, float[] ys,
+            float centreGain, float edgeGain) {
+        for (int i = 0; i < xs.length; i++) {
+            int next = (i + 1) % xs.length;
+            triangle(buffer, matrix, color, 0F, 0F, centreGain, xs[i], ys[i], edgeGain,
+                    xs[next], ys[next], edgeGain);
+        }
+    }
+
+    /** A petal: an ellipse whose long axis points away from the centre at {@code angle}. */
+    private static void ellipse(VertexConsumer buffer, Matrix4f matrix, int color, double angle,
+            float distance, float along, float across, float centreGain, float edgeGain) {
+        int segments = 20;
+        float cos = (float) Math.cos(angle), sin = (float) Math.sin(angle);
+        float cx = cos * distance, cy = sin * distance;
+        float[] xs = new float[segments];
+        float[] ys = new float[segments];
+        for (int i = 0; i < segments; i++) {
+            double t = Math.PI * 2 * i / segments;
+            float lx = (float) Math.cos(t) * along, ly = (float) Math.sin(t) * across;
+            xs[i] = cx + lx * cos - ly * sin;
+            ys[i] = cy + lx * sin + ly * cos;
+        }
+        for (int i = 0; i < segments; i++) {
+            int next = (i + 1) % segments;
+            triangle(buffer, matrix, color, cx, cy, centreGain, xs[i], ys[i], edgeGain,
+                    xs[next], ys[next], edgeGain);
+        }
+    }
+
+    /** A band of light around the centre, fading to nothing at both edges. */
+    private static void ring(VertexConsumer buffer, Matrix4f matrix, int color, float radius,
+            float thickness, float gain) {
+        int segments = 48;
+        float inner = Math.max(0F, radius - thickness), outer = radius + thickness;
+        for (int segment = 0; segment < segments; segment++) {
+            double a0 = Math.PI * 2 * segment / segments, a1 = Math.PI * 2 * (segment + 1) / segments;
+            float c0 = (float) Math.cos(a0), s0 = (float) Math.sin(a0);
+            float c1 = (float) Math.cos(a1), s1 = (float) Math.sin(a1);
+            triangle(buffer, matrix, color, c0 * inner, s0 * inner, 0F, c0 * radius, s0 * radius, gain,
+                    c1 * radius, s1 * radius, gain);
+            triangle(buffer, matrix, color, c0 * inner, s0 * inner, 0F, c1 * radius, s1 * radius, gain,
+                    c1 * inner, s1 * inner, 0F);
+            triangle(buffer, matrix, color, c0 * radius, s0 * radius, gain, c0 * outer, s0 * outer, 0F,
+                    c1 * outer, s1 * outer, 0F);
+            triangle(buffer, matrix, color, c0 * radius, s0 * radius, gain, c1 * outer, s1 * outer, 0F,
+                    c1 * radius, s1 * radius, gain);
+        }
+    }
+
     private static void disc(VertexConsumer buffer, Matrix4f matrix, int color, float radius, float gain) {
+        disc(buffer, matrix, color, radius, gain, 0F, 0F);
+    }
+
+    private static void disc(VertexConsumer buffer, Matrix4f matrix, int color, float radius, float gain,
+            float cx, float cy) {
         int segments = 20;
         for (int segment = 0; segment < segments; segment++) {
             double a0 = Math.PI * 2 * segment / segments;
             double a1 = Math.PI * 2 * (segment + 1) / segments;
             triangle(buffer, matrix, color,
-                    0F, 0F, gain,
-                    (float) Math.cos(a0) * radius, (float) Math.sin(a0) * radius, 0F,
-                    (float) Math.cos(a1) * radius, (float) Math.sin(a1) * radius, 0F);
+                    cx, cy, gain,
+                    cx + (float) Math.cos(a0) * radius, cy + (float) Math.sin(a0) * radius, 0F,
+                    cx + (float) Math.cos(a1) * radius, cy + (float) Math.sin(a1) * radius, 0F);
         }
     }
 

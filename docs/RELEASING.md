@@ -111,7 +111,10 @@ The build compiles every target but never launches the game. Before publishing, 
 
 - placing and breaking crystals at high ping, both tap and hold;
 - main hand and off hand;
-- the obsidian attack guard while holding a crystal;
+- Safe Crystal on and off while holding a crystal over obsidian;
 - ghost crystals on and off (26.x);
 - remapped Attack and Use keys;
+- every flash style in the preview and in the world, and Lightning with one player in sight and one
+  invisible or behind a wall;
+- the optimizer notice with and without Marlow's Crystal Optimizer installed;
 - the configuration screen at GUI scale 1 and at the maximum scale.

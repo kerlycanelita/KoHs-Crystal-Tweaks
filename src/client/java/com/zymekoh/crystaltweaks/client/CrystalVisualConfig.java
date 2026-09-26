@@ -10,8 +10,10 @@ import net.fabricmc.loader.api.FabricLoader;
 import java.io.Reader;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Locale;
 
 public final class CrystalVisualConfig {
@@ -23,6 +25,8 @@ public final class CrystalVisualConfig {
     private static volatile float soundVolume = 1.0F;
     private static volatile float soundSpeed = 1.0F;
     private static volatile boolean ghostCrystals;
+    private static volatile boolean safeCrystal = true;
+    private static volatile boolean optimizerNoticeDismissed;
     private static volatile CrystalFlashStyle flashStyle = CrystalFlashStyle.EXPLOSION;
     private static volatile boolean loaded;
     private static final CrystalAppearance playerVisuals = new CrystalAppearance();
@@ -34,6 +38,11 @@ public final class CrystalVisualConfig {
         CrystalAppearance enemy = new CrystalAppearance();
         enemy.glowColor = 0xFFFF3B3B;
         return enemy;
+    }
+
+    /** A fresh profile with the shipped defaults, for the settings screen's reset. */
+    public static CrystalAppearance defaults(boolean enemy) {
+        return enemy ? defaultEnemyVisuals() : new CrystalAppearance();
     }
 
     public static CrystalAppearance visuals(boolean enemy) {
@@ -82,6 +91,12 @@ public final class CrystalVisualConfig {
                             ? root.getAsJsonObject("gameplay")
                             : new JsonObject();
                     ghostCrystals = booleanValue(gameplay, "ghostCrystals", false);
+                    safeCrystal = booleanValue(gameplay, "safeCrystal", true);
+
+                    JsonObject notices = root.has("notices") && root.get("notices").isJsonObject()
+                            ? root.getAsJsonObject("notices")
+                            : new JsonObject();
+                    optimizerNoticeDismissed = booleanValue(notices, "optimizerAdviceDismissed", false);
 
                     JsonObject glow = root.has("glow") && root.get("glow").isJsonObject()
                             ? root.getAsJsonObject("glow")
@@ -103,7 +118,8 @@ public final class CrystalVisualConfig {
                     playerVisuals.glowColor = parseColor(glow, "color", 0xFFC880FF);
                     flashStyle = CrystalFlashStyle.parse(
                             stringValue(glow, "flashStyle", ""), CrystalFlashStyle.EXPLOSION);
-                    playerVisuals.flashScalePercent = clamp(intValue(glow, "flashScalePercent", 100), 50, 300);
+                    playerVisuals.flashScalePercent = clamp(intValue(glow, "flashScalePercent", 100),
+                            CrystalAppearance.MIN_FLASH_SCALE, 300);
                 } catch (Exception exception) {
                     CrystalTweaksClient.LOGGER.warn(
                             "Could not read crystal visual settings from {}; using neutral colors",
@@ -140,7 +156,14 @@ public final class CrystalVisualConfig {
                 // 2.2.7 briefly stored an instant-break toggle here; that behaviour is core now.
                 gameplay.remove("predictCrystalBreak");
                 gameplay.addProperty("ghostCrystals", ghostCrystals);
+                gameplay.addProperty("safeCrystal", safeCrystal);
                 root.add("gameplay", gameplay);
+
+                JsonObject notices = root.has("notices") && root.get("notices").isJsonObject()
+                        ? root.getAsJsonObject("notices")
+                        : new JsonObject();
+                notices.addProperty("optimizerAdviceDismissed", optimizerNoticeDismissed);
+                root.add("notices", notices);
 
                 JsonObject glow = root.has("glow") && root.get("glow").isJsonObject()
                         ? root.getAsJsonObject("glow")
@@ -165,8 +188,17 @@ public final class CrystalVisualConfig {
                 sounds.addProperty("speed", soundSpeed);
                 root.add("sounds", sounds);
 
-                try (Writer writer = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
+                // Written beside the real file and moved over it, so a crash mid-write can never leave
+                // half a JSON file that the next launch would read as "no settings at all".
+                Path temporary = path.resolveSibling(path.getFileName() + ".tmp");
+                try (Writer writer = Files.newBufferedWriter(temporary, StandardCharsets.UTF_8)) {
                     GSON.toJson(root, writer);
+                }
+                try {
+                    Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING,
+                            StandardCopyOption.ATOMIC_MOVE);
+                } catch (AtomicMoveNotSupportedException unsupported) {
+                    Files.move(temporary, path, StandardCopyOption.REPLACE_EXISTING);
                 }
             } catch (Exception exception) {
                 CrystalTweaksClient.LOGGER.warn("Could not save crystal visual settings to {}", path, exception);
@@ -286,6 +318,31 @@ public final class CrystalVisualConfig {
     public static void setGhostCrystals(boolean enabled) {
         load();
         ghostCrystals = enabled;
+    }
+
+    /**
+     * Safe Crystal: keep the obsidian under your crystals from being mined by a stray click. It sends
+     * fewer actions than Vanilla, so a player on a server that forbids input filters can turn it off.
+     */
+    public static boolean safeCrystal() {
+        load();
+        return safeCrystal;
+    }
+
+    public static void setSafeCrystal(boolean enabled) {
+        load();
+        safeCrystal = enabled;
+    }
+
+    /** True once the player asked never to see the optimizer advice again. */
+    public static boolean optimizerNoticeDismissed() {
+        load();
+        return optimizerNoticeDismissed;
+    }
+
+    public static void setOptimizerNoticeDismissed(boolean dismissed) {
+        load();
+        optimizerNoticeDismissed = dismissed;
     }
 
     /** 100 retains the original glow scale; values up to 300 amplify additive light only. */

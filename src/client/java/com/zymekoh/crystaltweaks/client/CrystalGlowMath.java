@@ -17,6 +17,11 @@ public final class CrystalGlowMath {
         return 1 - t * t * (3 - 2 * t);
     }
 
+    /** How far a flash has faded, 0 at the explosion and 1 when it is gone. */
+    public static float progress(long elapsedNanos) {
+        return Math.max(0, Math.min(1, elapsedNanos / (float) FADE_NANOS));
+    }
+
     public static int alpha(float alpha) {
         return Math.round(Math.max(0, Math.min(1, alpha)) * 255);
     }

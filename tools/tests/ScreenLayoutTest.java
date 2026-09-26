@@ -1,196 +1,157 @@
-import com.zymekoh.crystaltweaks.client.GlowEditorLayout;
+import com.zymekoh.crystaltweaks.client.CrystalScreenLayout;
+import com.zymekoh.crystaltweaks.client.CrystalScreenLayout.Content;
+import com.zymekoh.crystaltweaks.client.CrystalScreenLayout.Group;
+import com.zymekoh.crystaltweaks.client.CrystalScreenLayout.Rect;
+import com.zymekoh.crystaltweaks.client.CrystalScreenLayout.Rows;
+import com.zymekoh.crystaltweaks.client.CrystalScreenLayout.Slot;
+import com.zymekoh.crystaltweaks.client.CrystalScreenLayout.Tab;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Looks for widgets that would sit on top of each other in the settings screens.
+ * Checks the settings screen's geometry across thousands of window sizes, every tab and every
+ * combination of optional rows. It calls the same {@link CrystalScreenLayout} the screen places its
+ * widgets from, so a passing run describes the shipping layout rather than a copy of it.
  *
- * <p>The row placement is mirrored from CrystalTweaksScreen, which cannot be built without starting
- * Minecraft. The glow editor split is not mirrored: it calls the real GlowEditorLayout, so that half
- * is checked against the shipping code rather than a copy of it.</p>
+ * <p>Run with tools/test-glow.ps1; no Minecraft instance is needed.</p>
  */
 public final class ScreenLayoutTest {
-    private record Rect(String name, int x, int y, int w, int h) {
-        boolean overlaps(Rect other) {
-            return x < other.x + other.w && other.x < x + w
-                    && y < other.y + other.h && other.y < y + h;
-        }
-    }
-
-    private static final class Layout {
-        int contentX;
-        int contentY;
-        int contentWidth;
-        int contentHeight;
-        int optionsX;
-        int optionsWidth;
-        int previewX;
-        int previewY;
-        int previewWidth;
-        int previewHeight;
-        int controlHeight;
-        int rowGap;
-
-        int rowStep() {
-            return controlHeight + rowGap;
-        }
-    }
-
-    private static int clamp(int value, int low, int high) {
-        return Math.max(low, Math.min(high, value));
-    }
-
-    private static Layout compute(int width, int height, boolean editor) {
-        Layout l = new Layout();
-        int horizontalMargin = clamp(width / 28, 4, 18);
-        int verticalMargin = clamp(height / 28, 4, 14);
-        int panelWidth = Math.min(470, Math.max(1, width - horizontalMargin * 2));
-        int panelHeight = Math.min(255, Math.max(1, height - verticalMargin * 2));
-        int panelX = (width - panelWidth) / 2;
-        int panelY = (height - panelHeight) / 2;
-        int desiredHeader = editor ? 25 : panelHeight < 190 ? 42 : 50;
-        int desiredFooter = panelHeight < 190 ? 25 : 31;
-        int headerHeight = Math.min(desiredHeader, Math.max(1, panelHeight / 2));
-        int footerHeight = Math.min(desiredFooter, Math.max(1, (panelHeight - headerHeight) / 3));
-        int padding = clamp(panelWidth / 48, 5, 11);
-        l.contentX = panelX + padding;
-        l.contentY = panelY + headerHeight;
-        l.contentWidth = Math.max(1, panelWidth - padding * 2);
-        l.contentHeight = Math.max(1, panelY + panelHeight - footerHeight - l.contentY);
-        l.rowGap = Math.min(panelHeight < 190 ? 3 : 5, Math.max(0, (l.contentHeight - 4) / 8));
-        int fourRowHeight = Math.max(1, (l.contentHeight - l.rowGap * 3) / 4);
-        l.controlHeight = Math.min(panelHeight < 190 ? 14 : 18, fourRowHeight);
-
-        int previewGap = l.contentWidth < 390 ? 6 : 10;
-        boolean previewFits = l.contentWidth >= 300 && l.contentHeight >= 86;
-        l.previewWidth = previewFits ? clamp(Math.round(l.contentWidth * 0.24F), 82, 118) : 0;
-        l.optionsX = l.contentX;
-        l.optionsWidth = l.previewWidth > 0
-                ? Math.max(1, l.contentWidth - l.previewWidth - previewGap)
-                : l.contentWidth;
-        l.previewX = l.previewWidth > 0 ? l.contentX + l.contentWidth - l.previewWidth : 0;
-        int previewNote = l.previewWidth > 0 && l.contentHeight >= 125 ? 31 : 0;
-        l.previewHeight = l.previewWidth > 0 ? Math.max(1, l.contentHeight - previewNote) : 0;
-        l.previewY = l.contentY;
-
-        if (editor) {
-            GlowEditorLayout g =
-                    GlowEditorLayout.fit(l.contentX, l.contentY, l.contentWidth, l.contentHeight);
-            l.previewHeight = g.previewHeight();
-            l.previewWidth = g.previewWidth();
-            l.previewX = g.previewX();
-            l.contentY = g.optionsY();
-            l.contentHeight = g.optionsHeight();
-            l.optionsWidth = g.optionsWidth();
-            l.optionsX = g.optionsX();
-        }
-        return l;
-    }
-
-    private static List<Rect> visualsRects(Layout l) {
-        List<Rect> rects = new ArrayList<>();
-        int gap = l.optionsWidth < 250 ? 2 : 5;
-        int layerWidth = Math.max(1, (l.optionsWidth - gap * 3) / 4);
-        String[] names = {"layer:outer", "layer:inner", "layer:core", "layer:glow"};
-        for (int i = 0; i < 4; i++) {
-            rects.add(new Rect(names[i], l.optionsX + (layerWidth + gap) * i, l.contentY,
-                    layerWidth, l.controlHeight));
-        }
-        int hexY = l.contentY + l.rowStep();
-        rects.add(new Rect("hex", l.optionsX, hexY, Math.min(94, l.optionsWidth), l.controlHeight));
-        int pickerY = hexY + l.controlHeight + l.rowGap;
-        int pickerHeight = Math.min(48, Math.max(12, l.contentHeight / 4));
-        rects.add(new Rect("picker", l.optionsX, pickerY, l.optionsWidth, pickerHeight));
-        int rotationY = pickerY + pickerHeight + l.rowGap;
-        rects.add(new Rect("rotation", l.optionsX, rotationY, l.optionsWidth, l.controlHeight));
-        rects.add(new Rect("floating", l.optionsX, rotationY + l.rowStep(), l.optionsWidth,
-                l.controlHeight));
-        rects.add(new Rect("enemy", l.optionsX, rotationY + l.rowStep() * 2, l.optionsWidth,
-                l.controlHeight));
-        return rects;
-    }
-
-    private static List<Rect> glowRects(Layout l) {
-        List<Rect> rects = new ArrayList<>();
-        int y = l.contentY;
-        rects.add(new Rect("power", l.optionsX, y, l.optionsWidth, l.controlHeight));
-        rects.add(new Rect("reflections", l.optionsX, y + l.rowStep(), l.optionsWidth,
-                l.controlHeight));
-        rects.add(new Rect("glowToggle", l.optionsX, y + l.rowStep() * 2, l.optionsWidth,
-                l.controlHeight));
-        rects.add(new Rect("glowHex", l.optionsX, y + l.rowStep() * 3,
-                Math.min(94, l.optionsWidth), l.controlHeight));
-        int pickerHeight = clamp(l.contentHeight - l.rowStep() * 4, 14, 42);
-        rects.add(new Rect("glowPicker", l.optionsX, y + l.rowStep() * 4, l.optionsWidth,
-                pickerHeight));
-        return rects;
-    }
+    private static int problems;
+    private static final List<String> reported = new ArrayList<>();
 
     public static void main(String[] args) {
-        int[][] sizes = {
-                {320, 240}, {427, 240}, {480, 270}, {640, 360}, {854, 480},
-                {1024, 576}, {1280, 720}, {1600, 900}, {1920, 1080}, {2560, 1440},
-                {400, 220}, {300, 200}, {1920, 400}, {600, 1080},
-        };
-
-        int problems = 0;
-        int checked = 0;
-        int needsScroll = 0;
-
-        for (int[] size : sizes) {
-            for (boolean editor : new boolean[] {false, true}) {
-                Layout l = compute(size[0], size[1], editor);
-                List<Rect> rects = editor ? glowRects(l) : visualsRects(l);
-                String tag = size[0] + "x" + size[1] + (editor ? " glow-editor" : " visuals");
-                checked++;
-
-                for (int i = 0; i < rects.size(); i++) {
-                    for (int j = i + 1; j < rects.size(); j++) {
-                        if (rects.get(i).overlaps(rects.get(j))) {
-                            System.out.println("  OVERLAP  " + tag + ": " + rects.get(i).name()
-                                    + " x " + rects.get(j).name());
-                            problems++;
+        int layouts = 0;
+        int needScroll = 0;
+        int legendLayouts = 0;
+        for (int width = 200; width <= 2600; width += 23) {
+            for (int height = 150; height <= 1500; height += 19) {
+                CrystalScreenLayout layout = CrystalScreenLayout.fit(width, height);
+                if (layout.legends) {
+                    legendLayouts++;
+                }
+                String size = width + "x" + height;
+                checkFrame(layout, size);
+                for (Tab tab : Tab.values()) {
+                    for (int flags = 0; flags < 16; flags++) {
+                        Content content = new Content((flags & 1) != 0, (flags & 2) != 0, (flags & 4) != 0,
+                                (flags & 8) != 0);
+                        if (content.enemy() && (tab == Tab.SOUNDS || tab == Tab.TWEAKS)) {
+                            continue;
                         }
-                    }
-                }
-
-                if (l.previewWidth > 0) {
-                    Rect preview =
-                            new Rect("preview", l.previewX, l.previewY, l.previewWidth, l.previewHeight);
-                    for (Rect c : rects) {
-                        if (c.overlaps(preview)) {
-                            System.out.println("  OVERLAP  " + tag + ": " + c.name() + " x preview");
-                            problems++;
+                        Rows rows = layout.rows(tab, content);
+                        checkRows(layout, rows, size + " " + tab + " " + flags);
+                        if (rows.bottom() > layout.content.height()) {
+                            needScroll++;
                         }
+                        layouts++;
                     }
-                }
-
-                for (Rect c : rects) {
-                    if (c.x() + c.w() > l.optionsX + l.optionsWidth) {
-                        System.out.println("  PAST-COLUMN " + tag + ": " + c.name() + " by "
-                                + (c.x() + c.w() - l.optionsX - l.optionsWidth) + "px");
-                        problems++;
-                    }
-                }
-
-                int bottom = 0;
-                for (Rect c : rects) {
-                    bottom = Math.max(bottom, c.y() + c.h());
-                }
-                if (bottom > l.contentY + l.contentHeight) {
-                    needsScroll++;
-                    System.out.println("  scrolls   " + tag + ": content runs "
-                            + (bottom - l.contentY - l.contentHeight) + "px past the viewport");
                 }
             }
         }
-
-        System.out.println();
-        System.out.println("layouts checked: " + checked
-                + "  overlaps: " + problems
-                + "  needing scroll: " + needsScroll);
+        // The sizes players actually use must never need to scroll the colour tab.
+        for (int[] common : new int[][] {{480, 270}, {640, 360}, {854, 480}, {960, 540}, {1280, 720}, {1920, 1080}}) {
+            CrystalScreenLayout layout = CrystalScreenLayout.fit(common[0], common[1]);
+            Rows colours = layout.rows(Tab.COLORS, new Content(false, true, true, true));
+            check(colours.bottom() <= layout.content.height(),
+                    common[0] + "x" + common[1] + ": the colour tab must fit without scrolling");
+        }
+        System.out.println("layouts checked: " + layouts + "  with card titles: " + legendLayouts
+                + " sizes  needing scroll: " + needScroll + "  problems: " + problems);
         if (problems > 0) {
             System.exit(1);
+        }
+    }
+
+    private static void checkFrame(CrystalScreenLayout layout, String tag) {
+        Rect screen = new Rect(0, 0, layout.screenWidth, layout.screenHeight);
+        check(layout.panel.inside(screen), tag + ": panel leaves the screen");
+        check(layout.panel.width() <= CrystalScreenLayout.MAX_PANEL_WIDTH, tag + ": panel wider than its maximum");
+        check(layout.panel.height() <= CrystalScreenLayout.MAX_PANEL_HEIGHT, tag + ": panel taller than its maximum");
+        check(layout.content.inside(layout.panel), tag + ": content leaves the panel");
+        check(layout.content.y() >= layout.panel.y() + layout.headerHeight, tag + ": content under the header");
+        check(layout.content.bottom() <= layout.panel.bottom() - layout.footerHeight, tag + ": content under the footer");
+        check(layout.controlHeight > 0 && layout.content.height() > 0, tag + ": empty viewport");
+        if (layout.preview.width() > 0) {
+            check(layout.preview.inside(layout.content), tag + ": preview leaves the content area");
+            check(layout.optionsX + layout.optionsWidth <= layout.preview.x() - 6,
+                    tag + ": options touch the preview");
+        }
+        for (int count : new int[] {2, 4}) {
+            List<Rect> tabs = layout.tabs(count);
+            for (int i = 0; i < tabs.size(); i++) {
+                check(tabs.get(i).inside(layout.panel), tag + ": tab " + i + " leaves the panel");
+                check(tabs.get(i).bottom() <= layout.panel.y() + layout.headerHeight,
+                        tag + ": tab " + i + " runs into the content");
+                for (int j = i + 1; j < tabs.size(); j++) {
+                    check(!tabs.get(i).overlaps(tabs.get(j)), tag + ": tabs " + i + " and " + j + " overlap");
+                }
+            }
+        }
+        List<Rect> footer = layout.footerButtons();
+        for (Rect button : footer) {
+            check(button.inside(layout.panel), tag + ": footer button leaves the panel");
+            check(button.y() >= layout.content.bottom(), tag + ": footer button over the content");
+        }
+        check(!footer.get(0).overlaps(footer.get(1)), tag + ": footer buttons overlap");
+    }
+
+    private static void checkRows(CrystalScreenLayout layout, Rows rows, String tag) {
+        int optionsRight = layout.optionsX + layout.optionsWidth;
+        List<Slot> slots = rows.slots();
+        for (int i = 0; i < slots.size(); i++) {
+            Slot slot = slots.get(i);
+            Rect rect = slot.rect();
+            check(rect.width() > 0 && rect.height() > 0, tag + ": " + slot.name() + " is empty");
+            check(rect.x() >= layout.optionsX && rect.right() <= optionsRight,
+                    tag + ": " + slot.name() + " leaves the options column");
+            check(rect.y() >= layout.content.y(), tag + ": " + slot.name() + " starts above the content");
+            if (layout.preview.width() > 0) {
+                Rect preview = layout.preview;
+                check(!new Rect(rect.x(), preview.y(), rect.width(), preview.height()).overlaps(preview),
+                        tag + ": " + slot.name() + " reaches under the preview");
+            }
+            for (int j = i + 1; j < slots.size(); j++) {
+                check(!rect.overlaps(slots.get(j).rect()),
+                        tag + ": " + slot.name() + " overlaps " + slots.get(j).name());
+            }
+        }
+        List<Group> groups = rows.groups();
+        for (int i = 0; i < groups.size(); i++) {
+            Rect card = groups.get(i).rect();
+            check(card.x() >= layout.panel.x() && card.right() <= layout.panel.right(),
+                    tag + ": card " + groups.get(i).key() + " leaves the panel");
+            if (layout.preview.width() > 0) {
+                check(card.right() <= layout.preview.x(), tag + ": card " + groups.get(i).key() + " covers the preview");
+            }
+            check(card.y() >= layout.content.y(), tag + ": card " + groups.get(i).key() + " starts above the content");
+            if (layout.legends) {
+                // The title sits four pixels above the card's edge and must stay in the viewport.
+                check(card.y() - 4 >= layout.content.y(), tag + ": title of " + groups.get(i).key() + " is cut off");
+            }
+            for (int j = i + 1; j < groups.size(); j++) {
+                Rect other = groups.get(j).rect();
+                check(!card.overlaps(other), tag + ": cards " + groups.get(i).key() + " and " + groups.get(j).key() + " overlap");
+                if (layout.legends) {
+                    check(other.y() - 5 >= card.bottom(),
+                            tag + ": title of " + groups.get(j).key() + " touches " + groups.get(i).key());
+                }
+            }
+            for (Slot slot : slots) {
+                if (slot.group() == i) {
+                    check(slot.rect().inside(card), tag + ": " + slot.name() + " sticks out of its card");
+                }
+            }
+        }
+        check(rows.bottom() > 0, tag + ": no content");
+    }
+
+    private static void check(boolean condition, String message) {
+        if (!condition) {
+            problems++;
+            if (reported.size() < 25) {
+                reported.add(message);
+                System.out.println("  FAIL " + message);
+            }
         }
     }
 }

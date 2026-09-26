@@ -175,6 +175,8 @@ if (usesRemapping || usesModernRegistrySplit) {
 					'**/ColorPickerWidget.java',
 					'**/PurpleCloseButton.java',
 					'**/CrystalTweaksScreen.java',
+					'**/CrystalNoticeScreen.java',
+					'**/CrystalUi.java',
 					'**/ConflictMonitorScreen.java',
 					'**/CrystalPlacementFeedback.java'
 			]) {

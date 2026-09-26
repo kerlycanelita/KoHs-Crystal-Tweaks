@@ -1,32 +1,32 @@
-# Crystal Tweaks 2.3.0 - Flash styles, and your crystals stay yours
+# Crystal Tweaks 2.3.0 - Fourteen flashes, a brand-new settings screen
 
 ## New
 
-- **Flash styles.** The flash a crystal leaves when it explodes can now take a shape: the original **explosion**, a **skull**, **your own head**, or **lightning** thrown toward the players around the blast. All four use your own glow colour and need glow power above 0%.
-- Every glow control now lives in one place. The **Glow** editor holds power, reflections, the flash style, the custom-colour override, the hex box and the picker together.
+- **Flash styles.** The flash a crystal leaves when it explodes can now take a shape, in your own glow colour: the original **explosion**, a **skull**, **your own head** as a pale ghost, **lightning**, and ten new ones: **heart**, **star**, **shockwave**, **vortex**, **crown**, **crescent**, **snowflake**, **flower**, **gem** and **crossed swords**. The shockwave, vortex, star and flower move as the flash fades.
+- **Flash size** from `10%` to `300%` for every shaped style.
+- **A new settings screen.** Four tabs (**Colors**, **Glow**, **Sound**, **Advanced**), controls grouped on cards, switches with sliding knobs, a status chip that tells you what the optimizer is doing, animated tabs and rows, and an obsidian pedestal under the preview crystal. Click the preview to see your flash; changing the flash style shows it straight away.
+- **Safe Crystal can be switched off** in Advanced, for servers that do not allow input filters. It stays on by default.
+- An **important notice** the first time you open the settings in a session, only when no crystal optimizer is installed: Crystal Tweaks optimizes your client only; for placements that reach the server sooner, Marlow's Crystal Optimizer is recommended. You can turn the notice off for good.
 
 ## Fixed
 
-- Your own crystals were drawn with the enemy profile while spamming. Each base remembered a single placement, so placing, breaking and placing again on the same obsidian produced two crystals against one record: the first took it and the second was read as someone else's. Placements are now queued per base and claimed in the order you sent them.
-- The death flash's light on the ground tore apart as it faded. Each block the explosion destroyed was permanently removing its own patch of light from the flash, and a chunk that reloaded mid-fade never got it back.
-- The same explosion lit the ground only sometimes during a fight. When the terrain sampling budget ran out, a crystal reported no lit surfaces at all and that empty answer was captured into the flash.
+- Your own crystals were drawn with the enemy profile while spamming. Placements are now queued per base and claimed in the order you sent them.
+- The settings preview always exploded with the plain burst instead of your flash style.
+- The death flash's light on the ground tore apart as it faded, and the same explosion lit the ground only sometimes during a fight.
+- Turning on the glow's own colour repainted the crystal's layers. It now belongs to the light alone.
+- A crash while saving could reset every setting on the next launch.
 
-## New versions
+## Fair play
 
-- **Minecraft 26.3.** That release swapped GLFW for SDL and dropped `lwjgl-tinyfd` with it, so the operating system's file chooser is no longer on the classpath. On 26.3 only, a custom explosion sound is chosen by dropping the `.wav`, `.ogg` or `.mp3` into the mod's own sounds folder and pressing the button again; the import, the five-second limit and the formats are unchanged. Mod Menu for 26.3 is still a beta at the time of this release.
+- **Lightning** only points at players you could see when the crystal exploded: not invisible, not spectating, not behind a wall. Every bolt has the same length, so none of them reveals where anyone is.
+- Nothing in this release adds, delays or changes a packet. The only difference from Vanilla on the wire is still Safe Crystal skipping the obsidian you would have mined by mistake, and you can now switch it off.
 
-## Compatibility
+## Versions
 
-This release also carries the 2.2.11 fixes, which were never published:
-
-- The native optimizer no longer stays off when the compatibility check cannot read every mod in your pack. Only a mod actually found to be optimizing crystals turns the helpers off.
-- Performance mods can never stand this mod down. Krypton, Lithium, Sodium, C2ME, ImmediatelyFast, ScalableLux, FerriteCore, MoreCulling, EntityCulling, ModernFix, ViaFabricPlus, ViaVersion and others are named in the detector, because several of them genuinely share the same network and rendering targets and that overlap says nothing about crystals.
-- **Re-check compatibility** in Advanced Tweaks re-runs the detection without restarting the game.
-
-With Marlow's Crystal Optimizer, No Crystal Break or any other detected crystal optimizer installed, **every** interaction helper stays off on purpose: break prediction, ghost crystals, placement tracking and **Safe Crystal**. That mod owns the crystal click, and two mods deciding whether the same swing mines a block is how you end up unable to break obsidian at all. Every visual feature keeps working, flash styles included.
+- **Minecraft 26.3** is supported. It swapped its windowing library and dropped the native file chooser, so on 26.3 a custom explosion sound is chosen by dropping the `.wav`, `.ogg` or `.mp3` into the mod's sounds folder and pressing the button again. Mod Menu for 26.3 is still a beta at the time of this release.
 
 Available for Fabric on **1.21.11, 26.1, 26.1.1, 26.1.2, 26.2 and 26.3**. Each download supports only the Minecraft version named on its file.
 
-Minecraft **1.21.10 and older** are no longer supported. Their last release, 2.2.7, stays available here.
+Minecraft **1.21.10 and older** no longer receive updates. Their last release, 2.2.7, stays available here.
 
 Install the matching **Fabric API**. **Mod Menu** is optional.
