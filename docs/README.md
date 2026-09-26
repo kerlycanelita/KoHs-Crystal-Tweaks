@@ -6,16 +6,18 @@
 
 - [Wiki](WIKI.md)
 - [Release workflow](RELEASING.md)
+- [2.3.0 review and 1.21.10 archival](audits/review-2.3.0.md)
 - [2.2.10 audit](audits/review-2.2.10.md)
 - [Client/server boundary](audits/LEGITIMACY_AUDIT.md)
-- [2.2.10 release notes](releases/modrinth-changelog-2.2.10.md)
+- [2.3.0 release notes](releases/modrinth-changelog-2.3.0.md)
+- [Archived targets](../archive/README.md)
 
 ## Root build
 
 | Setting | Value |
 | --- | --- |
 | Minecraft | `26.2` |
-| Mod version | `2.2.10` |
+| Mod version | `2.3.0` |
 | Loader | Fabric `0.19.3` |
 | Loom | `1.17-SNAPSHOT` |
 | JDK | 25 |

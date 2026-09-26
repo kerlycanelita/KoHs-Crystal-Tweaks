@@ -32,7 +32,7 @@ Raising it without rebuilding locks players out of the mod on that Minecraft ver
 
 1. Bump `mod_version` in `gradle.properties`.
 2. Add the release section to `CHANGELOG.md`.
-3. Update `docs/LEGITIMACY_AUDIT.md` if any client/server behavior changed.
+3. Update `docs/audits/LEGITIMACY_AUDIT.md` if any client/server behavior changed.
 4. Build everything:
 
    ```powershell
@@ -67,8 +67,7 @@ Raising it without rebuilding locks players out of the mod on that Minecraft ver
    ./gradlew runClient -Pmc=1.21.11
    ```
 
-   Reaching the main menu with no Mixin error in the log covers both branches: 26.x goes through
-   `MinecraftPickInvoker`, and the 1.x targets use the public `GameRenderer.pick` instead. Realms
+   Reaching the main menu with no Mixin error in the log covers both mapping families. Realms
    authorisation warnings are expected in a dev client and are unrelated.
 
 8. Move the previous release into `versions\archive\<old-version>\`.
@@ -89,8 +88,8 @@ repository records about a release.
 4. Every one of those flags is declared as an input of `generateLegacyClientSources`. A new flag
    must be declared there too, otherwise Gradle will consider the task up to date across a version
    switch and build the new target from the previous target's rewritten sources.
-5. Widen the `minecraft` range in `src/main/resources/fabric.mod.json` and the supported-version list
-   in `README.md`.
+5. Add the version to the supported-version list in `README.md`. `fabric.mod.json` needs no edit:
+   the build writes the one exact Minecraft version into it.
 
 ## Source layout
 
@@ -113,6 +112,6 @@ The build compiles every target but never launches the game. Before publishing, 
 - placing and breaking crystals at high ping, both tap and hold;
 - main hand and off hand;
 - the obsidian attack guard while holding a crystal;
-- `Instant break` on and off;
+- ghost crystals on and off (26.x);
 - remapped Attack and Use keys;
 - the configuration screen at GUI scale 1 and at the maximum scale.

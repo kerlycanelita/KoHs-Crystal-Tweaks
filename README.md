@@ -19,7 +19,7 @@ Crystal Tweaks brings End Crystal visual and sound controls into one compact con
 
 - Independent colors for the outer layer, inner layer, and crystal core.
 - Glow editor with `0%`–`300%` power, colored reflections, custom glow color, and a smooth afterglow trail.
-- Flash styles for a destroyed crystal, in the same glow color: explosion, skull, Steve head, or bolts thrown toward nearby players.
+- Flash styles for a destroyed crystal, in the same glow color: explosion, skull, your own head, or bolts thrown toward nearby players.
 - Glow that respects walls instead of using an outline drawn through terrain.
 - Separate colors, glow, and animation speeds for crystals that were not placed by you (with approximate identification).
 - Automatic optimizer conflict handling: interaction helpers step aside while visuals, sounds, and the preview stay active.

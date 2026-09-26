@@ -2,7 +2,7 @@
 
 ## New
 
-- **Flash styles.** The flash a crystal leaves when it explodes can now take a shape: the original **explosion**, a **skull**, a **Steve head**, or **lightning** thrown toward the players around the blast. All four use your own glow colour and need glow power above 0%.
+- **Flash styles.** The flash a crystal leaves when it explodes can now take a shape: the original **explosion**, a **skull**, **your own head**, or **lightning** thrown toward the players around the blast. All four use your own glow colour and need glow power above 0%.
 - Every glow control now lives in one place. The **Glow** editor holds power, reflections, the flash style, the custom-colour override, the hex box and the picker together.
 
 ## Fixed
