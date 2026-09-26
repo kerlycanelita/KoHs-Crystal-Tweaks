@@ -78,6 +78,8 @@ public final class CrystalScreenLayout {
     public final int rowGap;
     public final int groupGap;
     public final int cardPadding;
+    /** How far a card's top edge sits above its first row. More than the other sides with a title. */
+    public final int cardTopPadding;
     public final int firstRowInset;
     public final boolean legends;
     public final boolean small;
@@ -123,8 +125,11 @@ public final class CrystalScreenLayout {
         // A card reaches this far past its rows; the gap between groups leaves daylight between two
         // cards, and with titles also room for the title that sits in the next card's top edge.
         this.cardPadding = this.legends ? 3 : 2;
-        this.groupGap = this.legends ? 14 : this.rowGap + 2;
-        this.firstRowInset = this.legends ? 10 : this.cardPadding;
+        // A title spans four pixels above the card's edge to three below it. The first row starts
+        // two pixels under the title's descenders instead of touching them.
+        this.cardTopPadding = this.legends ? 6 : this.cardPadding;
+        this.groupGap = this.legends ? 16 : this.rowGap + 2;
+        this.firstRowInset = this.legends ? 12 : this.cardPadding;
         this.titleY = this.panel.y() + (this.small ? 5 : 7);
         this.tabY = this.panel.y() + this.headerHeight - this.controlHeight - (this.small ? 3 : 5);
     }
@@ -297,10 +302,11 @@ public final class CrystalScreenLayout {
                 return;
             }
             int padding = CrystalScreenLayout.this.cardPadding;
+            int topPadding = CrystalScreenLayout.this.cardTopPadding;
             this.groups.add(new Group(this.groupKey,
-                    new Rect(CrystalScreenLayout.this.optionsX - 4, this.groupTop - padding,
+                    new Rect(CrystalScreenLayout.this.optionsX - 4, this.groupTop - topPadding,
                             CrystalScreenLayout.this.optionsWidth + 8,
-                            this.groupBottom - this.groupTop + padding * 2),
+                            this.groupBottom - this.groupTop + topPadding + padding),
                     this.groupFirstRow));
             this.groupKey = null;
         }

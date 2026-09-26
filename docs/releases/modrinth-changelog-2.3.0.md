@@ -13,6 +13,7 @@
 - Your own crystals were drawn with the enemy profile while spamming. Placements are now queued per base and claimed in the order you sent them.
 - The settings preview always exploded with the plain burst instead of your flash style.
 - The death flash's light on the ground tore apart as it faded, and the same explosion lit the ground only sometimes during a fight.
+- At high power the glow looked distorted: the crystal's turning frames cut it into flickering pieces, and the ground cut it off in a straight line. The halo now sits just behind the crystal and fades out before the ground, and strong reflections fade out at their edge instead of ending in a hard square.
 - Turning on the glow's own colour repainted the crystal's layers. It now belongs to the light alone.
 - A crash while saving could reset every setting on the next launch.
 

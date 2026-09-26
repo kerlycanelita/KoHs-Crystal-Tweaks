@@ -245,3 +245,28 @@ preview explosion showing the chosen style, and a once-per-session notice recomm
 Crystal Optimizer when no crystal optimizer is installed.
 
 F5, F6 and F7 are unchanged. Nothing was launched in game; the owner tests in their instances.
+
+## Second follow-up: what the game showed
+
+The owner tested the new screen on 26.2 and reported text pressed against edges, buttons covered
+by a shiny white layer, and a glow that looked distorted at maximum power. At the owner's request
+the scene was reproduced in a separate 26.2 development client, not in the owner's instances: a
+flat world, the owner's own glow settings (300% power, skull flash at 20%), a crystal placed and
+exploded at several distances, day and night, and every settings tab at GUI scales 2, 3 and 4. The
+same captures were taken again after each fix.
+
+| # | Seen | Cause | Fix |
+| --- | --- | --- | --- |
+| G1 | Every button that had never been pressed was an opaque pale pink, its label nearly invisible | The press flash compared the time since the last press with its length; the "never pressed" sentinel `Long.MIN_VALUE` overflowed that subtraction into a negative number, so the flash was always on and saturated to full opacity | The flash runs only after a real press |
+| G2 | Card titles touched the first row of their card | A title spans 4 px above the card's edge to 3 px below; the first row began 3 px below | Rows start 6 px below a titled edge; the gaps between cards grew to match. `ScreenLayoutTest` now fails any row within 2 px of its card's title |
+| G3 | Slider labels melted into the handle where it sat under the text | White text without a shadow on a light handle | Slider labels carry a shadow |
+| G4 | A grey block swept across the title | The shimmer painted translucent white columns over the text | The letters themselves light up inside a moving clip |
+| G5 | At high power the glow broke into hard-edged magenta pieces that changed every frame | The halo is a billboard through the crystal's centre; the turning frames were half in front of it and cut it apart | A live crystal's halo is drawn 0.9 blocks behind the model, level with the ground and scaled to keep its size on screen; the preview does the same in its own view |
+| G6 | A strong glow or flash ended at the ground in a straight line that slid with the camera | The depth test cut the billboard where it entered the block under the crystal | Every vertex of light fades out over the last 0.7 blocks above the crystal's base |
+| G7 | With reflections at 300% the ground light was a saturated square with hard sides | The spill stopped at the edge of the sampled blocks while still bright | It fades to nothing over the last block |
+
+G1 to G4 existed only in the unreleased 2.3.0 screen. G5 to G7 date from the glow editor of 2.2.9.
+The preview renders through the same picture-in-picture path on 1.21.11, 26.1.x and 26.3 as on
+26.2, and the camera uses the same rotation convention on all of them, so G5 behaves the same on
+every target. All six targets build, `verify-jars` and `verify-mixins` pass, and the layout tests
+pass over 362,880 combinations.

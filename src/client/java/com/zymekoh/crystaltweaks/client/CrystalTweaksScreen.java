@@ -830,7 +830,7 @@ public final class CrystalTweaksScreen extends Screen {
         String brand = " KoHs";
         CrystalUi.label(graphics, this.font, brand, titleRight, titleY, CrystalTheme.fade(0xFF9C7BB8, intro));
         titleRight += this.font.width(brand);
-        CrystalUi.shimmer(graphics, titleX - 2, titleY - 1, titleRight + 2, titleY + 9, seconds + 1.3D);
+        CrystalUi.glint(graphics, this.font, title + brand, titleX, titleY, seconds + 1.3D, intro);
 
         this.status = currentStatus();
         String chip = this.status.chip();
@@ -1131,7 +1131,7 @@ public final class CrystalTweaksScreen extends Screen {
                     ? "El tinte se aplica sobre la textura activa."
                     : "Tint is applied over the active texture.");
             List<FormattedCharSequence> lines = this.font.split(note, Math.max(20, preview.width() - 6));
-            int noteY = preview.bottom() + 2;
+            int noteY = preview.bottom() + 4;
             for (FormattedCharSequence line : lines) {
                 graphics.text(this.font, line, preview.x() + 3, noteY, 0xFFC6B5CC, false);
                 noteY += this.font.lineHeight;
@@ -1461,12 +1461,15 @@ public final class CrystalTweaksScreen extends Screen {
             graphics.fill(handleX, getY() + 1, handleX + 7, getY() + getHeight() - 1,
                     CrystalTheme.fade(hot ? 0xFFF0C8FF : 0xDDD590F3, fade));
             String text = getMessage().getString();
-            int room = Math.max(1, getWidth() - 6);
+            int room = Math.max(1, getWidth() - 8);
             if (Minecraft.getInstance().font.width(text) > room) {
                 text = Minecraft.getInstance().font.plainSubstrByWidth(text, room);
             }
-            CrystalUi.centered(graphics, Minecraft.getInstance().font, text, getX() + getWidth() / 2,
-                    getY() + (getHeight() - 8) / 2, CrystalTheme.fade(0xFFF5E9FA, fade));
+            // Shadowed: wherever the handle sits under the label, the letters keep a dark edge
+            // instead of melting into it.
+            int textX = getX() + (getWidth() - Minecraft.getInstance().font.width(text)) / 2;
+            CrystalUi.label(graphics, Minecraft.getInstance().font, text, textX, getY() + (getHeight() - 8) / 2,
+                    CrystalTheme.fade(0xFFF5E9FA, fade), true);
         }
     }
 }

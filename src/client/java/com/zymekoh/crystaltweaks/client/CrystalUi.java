@@ -77,10 +77,15 @@ final class CrystalUi {
      * opaque, so anything faded below visibility is simply skipped instead.
      */
     static void label(GuiGraphicsExtractor graphics, Font font, String text, int x, int y, int color) {
+        label(graphics, font, text, x, y, color, false);
+    }
+
+    /** With {@code shadow}, text stays readable where it crosses something bright, such as a handle. */
+    static void label(GuiGraphicsExtractor graphics, Font font, String text, int x, int y, int color, boolean shadow) {
         if (((color >>> 24) & 255) < 8 || text.isEmpty()) {
             return;
         }
-        graphics.text(font, text, x, y, color, false);
+        graphics.text(font, text, x, y, color, shadow);
     }
 
     static void centered(GuiGraphicsExtractor graphics, Font font, String text, int centerX, int y, int color) {
@@ -127,24 +132,35 @@ final class CrystalUi {
         return new int[] {x, y + height - 1 - Math.min(p, height - 1)};
     }
 
-    /** A soft band of light sweeping left to right across an area every few seconds. */
-    static void shimmer(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, double seconds) {
+    /**
+     * A glint running through a line of text every few seconds. Only the letters light up: the text
+     * is drawn again, brighter, inside a moving clip, so no block of light is ever painted behind it.
+     */
+    static void glint(GuiGraphicsExtractor graphics, Font font, String text, int x, int y, double seconds, float alpha) {
         double period = 5.0D;
         double sweep = 0.9D;
         double phase = seconds % period;
-        if (phase > sweep || x1 <= x0) {
+        int width = font.width(text);
+        if (phase > sweep || width <= 0 || alpha < 0.98F) {
             return;
         }
-        int band = 18;
-        int center = x0 - band + (int) Math.round((x1 - x0 + band * 2) * (phase / sweep));
-        for (int column = -band; column <= band; column++) {
-            int x = center + column;
-            if (x < x0 || x >= x1) {
-                continue;
-            }
-            float strength = 1.0F - Math.abs(column) / (float) band;
-            graphics.fill(x, y0, x + 1, y1, CrystalTheme.withAlpha(0xFFFFFF, Math.round(70 * strength * strength)));
+        int band = 8;
+        int center = x - band + (int) Math.round((width + band * 2) * (phase / sweep));
+        int left = Math.max(x, center - band);
+        int right = Math.min(x + width, center + band);
+        if (left >= right) {
+            return;
         }
+        graphics.enableScissor(left, y - 1, right, y + 9);
+        label(graphics, font, text, x, y, 0xB4FFFFFF);
+        int coreLeft = Math.max(left, center - 3);
+        int coreRight = Math.min(right, center + 3);
+        if (coreLeft < coreRight) {
+            graphics.enableScissor(coreLeft, y - 1, coreRight, y + 9);
+            label(graphics, font, text, x, y, 0xFFFFFFFF);
+            graphics.disableScissor();
+        }
+        graphics.disableScissor();
     }
 
     /**

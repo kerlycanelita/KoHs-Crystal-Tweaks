@@ -83,6 +83,16 @@
 - The same explosion lit the ground only sometimes during a fight. When the per-tick terrain sampling
   budget ran out, a crystal reported no lit surfaces at all and that empty answer was captured into
   the flash. It now reuses its last result instead.
+- At high power the glow looked distorted around the crystal. The halo was a flat billboard through
+  the crystal's centre, so the turning frames were half in front of it and half behind, and the
+  front half cut hard-edged holes into the light that changed every frame. A live crystal's halo is
+  now drawn just behind the model, at the same size on screen: the crystal stands in front of its
+  own light and the glass shows it through.
+- A strong glow or flash was cut off by the ground along a hard straight line that slid as the
+  camera moved. Every billboard of light now fades out over the last 0.7 blocks above the crystal's
+  base, so it meets the ground already dark.
+- With reflections turned up, the light on the ground ended in a hard square at the edge of the
+  sampled blocks. It now fades to nothing over the last block.
 - For the first moment after the settings opened, the buttons already took clicks but were not
   drawn yet. They now fade in from partly visible, so nothing clickable is ever invisible.
 - The settings file is written beside the real one and moved over it, so a crash mid-write can no

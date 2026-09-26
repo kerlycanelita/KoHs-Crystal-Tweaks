@@ -125,8 +125,16 @@ public final class ScreenLayoutTest {
             }
             check(card.y() >= layout.content.y(), tag + ": card " + groups.get(i).key() + " starts above the content");
             if (layout.legends) {
-                // The title sits four pixels above the card's edge and must stay in the viewport.
-                check(card.y() - 4 >= layout.content.y(), tag + ": title of " + groups.get(i).key() + " is cut off");
+                // The title sits four pixels above the card's edge and must stay in the viewport,
+                // clear of the header line just above it.
+                check(card.y() - 4 >= layout.content.y() + 1, tag + ": title of " + groups.get(i).key() + " is cut off");
+                // It reaches three pixels below the edge; the card's rows keep two pixels from it.
+                for (Slot slot : slots) {
+                    if (slot.group() == i) {
+                        check(slot.rect().y() >= card.y() + 6,
+                                tag + ": title of " + groups.get(i).key() + " touches " + slot.name());
+                    }
+                }
             }
             for (int j = i + 1; j < groups.size(); j++) {
                 Rect other = groups.get(j).rect();

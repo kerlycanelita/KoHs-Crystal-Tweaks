@@ -28,7 +28,8 @@ final class PurpleCloseButton extends AbstractButton {
     private float selectProgress;
     private float switchProgress = -1.0F;
     private long lastFrameNanos = System.nanoTime();
-    private long pressedAtNanos = Long.MIN_VALUE;
+    private long pressedAtNanos;
+    private boolean pressed;
     private Icon icon = Icon.NONE;
     private BooleanSupplier switchState;
     private boolean selected;
@@ -60,6 +61,7 @@ final class PurpleCloseButton extends AbstractButton {
     @Override
     public void onPress(InputWithModifiers input) {
         this.pressedAtNanos = System.nanoTime();
+        this.pressed = true;
         this.action.accept(this);
     }
 
@@ -99,9 +101,12 @@ final class PurpleCloseButton extends AbstractButton {
                 : argb(Math.round((this.active ? 220 : 120) * fade), 210, 112, pulse);
         CrystalUi.outline(graphics, x + 1, y + 1, width - 2, height - 2, border);
 
-        // A short flash from the press, so a click is felt even when nothing else moves.
-        if (now - this.pressedAtNanos < PRESS_FLASH_NANOS) {
-            float t = (now - this.pressedAtNanos) / (float) PRESS_FLASH_NANOS;
+        // A short flash from the press, so a click is felt even when nothing else moves. Only after a
+        // real press: a button that was never pressed has no press time to subtract, and a sentinel
+        // there overflowed and left every such button covered in an opaque pale layer.
+        long sincePress = now - this.pressedAtNanos;
+        if (this.pressed && sincePress >= 0L && sincePress < PRESS_FLASH_NANOS) {
+            float t = sincePress / (float) PRESS_FLASH_NANOS;
             int flash = Math.round(120.0F * (1.0F - t) * (1.0F - t) * fade);
             graphics.fill(x + 1, y + 1, x + width - 1, y + height - 1, argb(flash, 245, 215, 255));
         }

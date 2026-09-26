@@ -1,6 +1,5 @@
 package com.zymekoh.crystaltweaks.client;
 
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.Minecraft;
@@ -142,7 +141,7 @@ public final class CrystalFlashShapes {
      * and no other player's skin is read.</p>
      */
     public static void submitPlayerHead(
-            VertexConsumer buffer, Matrix4f matrix, int color, float radius, float gain) {
+            CrystalGlowBuffer buffer, Matrix4f matrix, int color, float radius, float gain) {
         float half = radius * 0.95F;
         // A skin is 64 wide: the face sits at x 8-16, y 8-16, and the hat layer at x 40-48.
         face(buffer, matrix, color, half, gain * 0.7F, 0.125F, 0.125F, 0.25F, 0.25F);
@@ -154,12 +153,12 @@ public final class CrystalFlashShapes {
      * toward white together, which a multiplied tint cannot do, and that is what makes it pale.
      */
     public static void submitHeadVeil(
-            VertexConsumer buffer, Matrix4f matrix, int color, float radius, float gain) {
+            CrystalGlowBuffer buffer, Matrix4f matrix, int color, float radius, float gain) {
         float half = radius * 0.95F;
         quad(buffer, matrix, color, -half, -half, half, half, gain * 0.34F);
     }
 
-    private static void face(VertexConsumer buffer, Matrix4f matrix, int color, float half,
+    private static void face(CrystalGlowBuffer buffer, Matrix4f matrix, int color, float half,
             float gain, float u0, float v0, float u1, float v1) {
         int alpha = CrystalGlowMath.alpha(gain);
         if (alpha <= 0) {
@@ -176,14 +175,9 @@ public final class CrystalFlashShapes {
         }
     }
 
-    private static void headVertex(VertexConsumer buffer, Matrix4f matrix,
+    private static void headVertex(CrystalGlowBuffer buffer, Matrix4f matrix,
             int r, int g, int b, int alpha, float x, float y, float u, float v) {
-        buffer.addVertex(matrix, x, y, 0F)
-                .setColor(r, g, b, alpha)
-                .setUv(u, v)
-                .setOverlay(NO_OVERLAY)
-                .setLight(FULL_BRIGHT)
-                .setNormal(0F, 0F, 1F);
+        buffer.texturedVertex(matrix, r, g, b, alpha, x, y, u, v, NO_OVERLAY, FULL_BRIGHT);
     }
 
     /**
@@ -251,7 +245,7 @@ public final class CrystalFlashShapes {
      */
     public static void submit(
             CrystalFlashStyle style,
-            VertexConsumer buffer,
+            CrystalGlowBuffer buffer,
             Matrix4f matrix,
             Quaternionf cameraOrientation,
             int color,
@@ -285,7 +279,7 @@ public final class CrystalFlashShapes {
      * burst of light rather than as a flat sticker pasted over the world.
      */
     private static void mask(
-            VertexConsumer buffer,
+            CrystalGlowBuffer buffer,
             Matrix4f matrix,
             String[] rows,
             int color,
@@ -355,7 +349,7 @@ public final class CrystalFlashShapes {
      * the bolt reads from any angle. With nobody to point at it throws a fixed ring instead.
      */
     private static void bolts(
-            VertexConsumer buffer,
+            CrystalGlowBuffer buffer,
             Matrix4f matrix,
             Quaternionf cameraOrientation,
             int color,
@@ -400,14 +394,14 @@ public final class CrystalFlashShapes {
     }
 
     /** A five-pointed star turning slowly as it fades, with a hot star inside it. */
-    private static void star(VertexConsumer buffer, Matrix4f matrix, int color, int hotColor,
+    private static void star(CrystalGlowBuffer buffer, Matrix4f matrix, int color, int hotColor,
             float radius, float gain, float progress) {
         float turn = (float) (-Math.PI / 2.0D) + progress * 0.9F;
         starPolygon(buffer, matrix, color, radius * 1.05F, 0.42F, turn, gain, gain * 0.35F);
         starPolygon(buffer, matrix, hotColor, radius * 0.5F, 0.42F, turn, gain * 0.85F, gain * 0.2F);
     }
 
-    private static void starPolygon(VertexConsumer buffer, Matrix4f matrix, int color, float outer,
+    private static void starPolygon(CrystalGlowBuffer buffer, Matrix4f matrix, int color, float outer,
             float innerRatio, float turn, float centreGain, float edgeGain) {
         int points = 10;
         float[] xs = new float[points];
@@ -422,7 +416,7 @@ public final class CrystalFlashShapes {
     }
 
     /** A ring that runs outward as the flash fades, a second one lagging behind it. */
-    private static void shockwave(VertexConsumer buffer, Matrix4f matrix, int color, int hotColor,
+    private static void shockwave(CrystalGlowBuffer buffer, Matrix4f matrix, int color, int hotColor,
             float radius, float gain, float progress) {
         float outer = radius * (0.35F + 0.95F * progress);
         ring(buffer, matrix, color, outer, radius * (0.24F - 0.1F * progress), gain);
@@ -432,7 +426,7 @@ public final class CrystalFlashShapes {
     }
 
     /** Three arms spiralling out of the blast and turning as it fades. */
-    private static void vortex(VertexConsumer buffer, Matrix4f matrix, int color, int hotColor,
+    private static void vortex(CrystalGlowBuffer buffer, Matrix4f matrix, int color, int hotColor,
             float radius, float gain, float progress) {
         int points = 16;
         for (int arm = 0; arm < 3; arm++) {
@@ -452,7 +446,7 @@ public final class CrystalFlashShapes {
     }
 
     /** Six arms with two pairs of branches each, turning slightly as the flash fades. */
-    private static void snowflake(VertexConsumer buffer, Matrix4f matrix, int color, int hotColor,
+    private static void snowflake(CrystalGlowBuffer buffer, Matrix4f matrix, int color, int hotColor,
             float radius, float gain, float progress) {
         float turn = progress * 0.35F;
         for (int arm = 0; arm < 6; arm++) {
@@ -479,7 +473,7 @@ public final class CrystalFlashShapes {
     }
 
     /** Six petals around a hot heart, with a smaller ring of petals between them. */
-    private static void flower(VertexConsumer buffer, Matrix4f matrix, int color, int hotColor,
+    private static void flower(CrystalGlowBuffer buffer, Matrix4f matrix, int color, int hotColor,
             float radius, float gain, float progress) {
         float turn = progress * 0.5F;
         for (int petal = 0; petal < 6; petal++) {
@@ -496,7 +490,7 @@ public final class CrystalFlashShapes {
     }
 
     /** Two swords crossed at the middle of their blades, hilts down. */
-    private static void swords(VertexConsumer buffer, Matrix4f matrix, int color, int hotColor,
+    private static void swords(CrystalGlowBuffer buffer, Matrix4f matrix, int color, int hotColor,
             float radius, float gain) {
         for (int side = -1; side <= 1; side += 2) {
             double angle = side * Math.toRadians(40);
@@ -519,7 +513,7 @@ public final class CrystalFlashShapes {
     }
 
     /** One axis-aligned rectangle of a sword, rotated into place around the crossing point. */
-    private static void swordPart(VertexConsumer buffer, Matrix4f matrix, int color, float cos,
+    private static void swordPart(CrystalGlowBuffer buffer, Matrix4f matrix, int color, float cos,
             float sin, float pivot, float cx, float cy, float halfWidth, float halfHeight, float gain) {
         float[] xs = {cx - halfWidth, cx + halfWidth, cx + halfWidth, cx - halfWidth};
         float[] ys = {cy - halfHeight, cy - halfHeight, cy + halfHeight, cy + halfHeight};
@@ -534,7 +528,7 @@ public final class CrystalFlashShapes {
         triangle(buffer, matrix, color, rx[0], ry[0], gain, rx[2], ry[2], gain, rx[3], ry[3], gain);
     }
 
-    private static void swordTip(VertexConsumer buffer, Matrix4f matrix, int color, float cos,
+    private static void swordTip(CrystalGlowBuffer buffer, Matrix4f matrix, int color, float cos,
             float sin, float pivot, float base, float tip, float halfWidth, float gain) {
         float[] xs = {-halfWidth, halfWidth, 0F};
         float[] ys = {base - pivot, base - pivot, tip - pivot};
@@ -556,7 +550,7 @@ public final class CrystalFlashShapes {
      * of the two segments meeting there, which is what closes the gap.</p>
      */
     private static void jagged(
-            VertexConsumer buffer,
+            CrystalGlowBuffer buffer,
             Matrix4f matrix,
             int color,
             int hotColor,
@@ -585,7 +579,7 @@ public final class CrystalFlashShapes {
 
     /** Emits a tapering strip through the points, mitring the normal at every joint. */
     private static void strip(
-            VertexConsumer buffer,
+            CrystalGlowBuffer buffer,
             Matrix4f matrix,
             int color,
             float[] xs,
@@ -643,7 +637,7 @@ public final class CrystalFlashShapes {
     }
 
     /** A straight bar from one point to another, brightest at its start. */
-    private static void line(VertexConsumer buffer, Matrix4f matrix, int color, float x0, float y0,
+    private static void line(CrystalGlowBuffer buffer, Matrix4f matrix, int color, float x0, float y0,
             float x1, float y1, float halfWidth, float gain0, float gain1) {
         float dx = x1 - x0, dy = y1 - y0;
         float length = (float) Math.sqrt(dx * dx + dy * dy);
@@ -658,7 +652,7 @@ public final class CrystalFlashShapes {
     }
 
     /** A closed polygon filled from its centre, bright in the middle and dimmer at the rim. */
-    private static void fan(VertexConsumer buffer, Matrix4f matrix, int color, float[] xs, float[] ys,
+    private static void fan(CrystalGlowBuffer buffer, Matrix4f matrix, int color, float[] xs, float[] ys,
             float centreGain, float edgeGain) {
         for (int i = 0; i < xs.length; i++) {
             int next = (i + 1) % xs.length;
@@ -668,7 +662,7 @@ public final class CrystalFlashShapes {
     }
 
     /** A petal: an ellipse whose long axis points away from the centre at {@code angle}. */
-    private static void ellipse(VertexConsumer buffer, Matrix4f matrix, int color, double angle,
+    private static void ellipse(CrystalGlowBuffer buffer, Matrix4f matrix, int color, double angle,
             float distance, float along, float across, float centreGain, float edgeGain) {
         int segments = 20;
         float cos = (float) Math.cos(angle), sin = (float) Math.sin(angle);
@@ -689,7 +683,7 @@ public final class CrystalFlashShapes {
     }
 
     /** A band of light around the centre, fading to nothing at both edges. */
-    private static void ring(VertexConsumer buffer, Matrix4f matrix, int color, float radius,
+    private static void ring(CrystalGlowBuffer buffer, Matrix4f matrix, int color, float radius,
             float thickness, float gain) {
         int segments = 48;
         float inner = Math.max(0F, radius - thickness), outer = radius + thickness;
@@ -708,11 +702,11 @@ public final class CrystalFlashShapes {
         }
     }
 
-    private static void disc(VertexConsumer buffer, Matrix4f matrix, int color, float radius, float gain) {
+    private static void disc(CrystalGlowBuffer buffer, Matrix4f matrix, int color, float radius, float gain) {
         disc(buffer, matrix, color, radius, gain, 0F, 0F);
     }
 
-    private static void disc(VertexConsumer buffer, Matrix4f matrix, int color, float radius, float gain,
+    private static void disc(CrystalGlowBuffer buffer, Matrix4f matrix, int color, float radius, float gain,
             float cx, float cy) {
         int segments = 20;
         for (int segment = 0; segment < segments; segment++) {
@@ -726,7 +720,7 @@ public final class CrystalFlashShapes {
     }
 
     private static void quad(
-            VertexConsumer buffer,
+            CrystalGlowBuffer buffer,
             Matrix4f matrix,
             int color,
             float x0,
@@ -749,7 +743,7 @@ public final class CrystalFlashShapes {
     }
 
     private static void triangle(
-            VertexConsumer buffer,
+            CrystalGlowBuffer buffer,
             Matrix4f matrix,
             int color,
             float ax, float ay, float aa,
@@ -766,8 +760,7 @@ public final class CrystalFlashShapes {
     }
 
     private static void vertex(
-            VertexConsumer buffer, Matrix4f matrix, int color, float x, float y, float alpha) {
-        buffer.addVertex(matrix, x, y, 0F)
-                .setColor((color >> 16) & 255, (color >> 8) & 255, color & 255, CrystalGlowMath.alpha(alpha));
+            CrystalGlowBuffer buffer, Matrix4f matrix, int color, float x, float y, float alpha) {
+        buffer.vertex(matrix, color, x, y, alpha);
     }
 }
