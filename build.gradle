@@ -53,6 +53,9 @@ def usesModernRegistrySplit = project.minecraft_version.toString() in ['26.2', '
 // 26.3 swapped GLFW for SDL and dropped lwjgl-tinyfd with it, renamed the use-item packet's
 // accessors to record components, and removed PoseStack.mulPose(Quaternionf).
 def usesSdlWindowing = project.minecraft_version.toString() in ['26.3']
+// 26.3 also gave EntityRenderer.shouldRender a trailing float, so the Mixin that hides a predicted
+// break has to name the new signature and accept the extra argument.
+def usesPartialTickCulling = project.minecraft_version.toString() in ['26.3']
 apply plugin: usesRemapping ? 'net.fabricmc.fabric-loom-remap' : 'net.fabricmc.fabric-loom'
 
 def legacyGuiTransform = { String line -> line
@@ -85,6 +88,14 @@ def sdlEraTransform = { String line -> line
 		.replace('packet.getHitResult()', 'packet.hitResult()')
 		.replace('packet.getSequence()', 'packet.sequence()')
 		.replace('poses.mulPose(camera.orientation)', 'poses.rotate(camera.orientation)') }
+
+def partialTickCullingTransform = { String line -> line
+		.replace(
+				'+ "Lnet/minecraft/client/renderer/culling/Frustum;DDD)Z",',
+				'+ "Lnet/minecraft/client/renderer/culling/Frustum;DDDF)Z",')
+		.replace(
+				'            double cameraZ,',
+				'            double cameraZ,' + System.lineSeparator() + '            float partialTick,') }
 
 def modernRegistryTransform = { String line -> line
 		.replace(
@@ -131,12 +142,18 @@ if (usesRemapping || usesModernRegistrySplit) {
 		inputs.property 'usesRemapping', usesRemapping
 		inputs.property 'usesModernRegistrySplit', usesModernRegistrySplit
 		inputs.property 'usesSdlWindowing', usesSdlWindowing
+		inputs.property 'usesPartialTickCulling', usesPartialTickCulling
 
 		from('src/client/java') {
 			if (usesSdlWindowing) {
 				exclude 'com/zymekoh/crystaltweaks/client/SoundFilePicker.java'
 				filesMatching('**/*.java') {
 					filter { line -> sdlEraTransform(line) }
+				}
+			}
+			if (usesPartialTickCulling) {
+				filesMatching('**/EndCrystalRendererMixin.java') {
+					filter { line -> partialTickCullingTransform(line) }
 				}
 			}
 			if (usesRemapping) {
