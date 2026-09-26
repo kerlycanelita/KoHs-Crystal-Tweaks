@@ -12,6 +12,9 @@ versions/
 backup/
 .mixincheck/
 
+# Archived targets are tracked; their local builds are not
+archive/builds/
+
 # Machine-local settings and diagnostics
 .claude/settings.local.json
 .env

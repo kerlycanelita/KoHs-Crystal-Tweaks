@@ -40,9 +40,7 @@
   (`hand()`, `hitResult()`, `sequence()`) and removed `PoseStack.mulPose(Quaternionf)`. Without a
   native file dialog on that target, a custom sound is chosen by dropping the file into the mod's
   own sounds folder; everything after that is unchanged.
-- 1.21.10 builds again. `RenderTypes` and its package arrived in 1.21.11, so every earlier 1.x
-  target now rewrites it back to `RenderType`.
-- Published for 1.21.10, 1.21.11, 26.1, 26.1.1, 26.1.2, 26.2 and 26.3.
+- Built for 1.21.11, 26.1, 26.1.1, 26.1.2, 26.2 and 26.3.
 
 ### Fixed
 
@@ -68,6 +66,13 @@
 - The same explosion lit the ground only sometimes during a fight. When the per-tick terrain sampling
   budget ran out, a crystal reported no lit surfaces at all and that empty answer was captured into
   the flash. It now reuses its last result instead.
+
+### Removed
+
+- Minecraft 1.21 through 1.21.10. Crystal Tweaks supports 1.21.11 and later: the code only those
+  targets used and their matrix rows moved to `archive/`, and `build.gradle` now refuses them with a
+  pointer there. Their last release, 2.2.7, stays on Modrinth. The rewrite that briefly brought
+  1.21.10 back in this release is kept in `archive/gradle/build-2.3.0.gradle`.
 
 ## 2.2.11
 

@@ -39,21 +39,22 @@ See the [Crystal Tweaks Wiki](docs/WIKI.md) for installation, configuration, pre
 - Fabric Loader: each JAR declares the exact minimum it was built against; see
   [`gradle/versions.properties`](gradle/versions.properties).
 - The Fabric API version matching your Minecraft installation.
-- Java 21 for Minecraft 1.21–1.21.11.
+- Java 21 for Minecraft 1.21.11.
 - Java 25 for Minecraft 26.1–26.3.
 - Mod Menu is optional but recommended for opening the configuration screen.
 
 ## Supported Minecraft versions
 
-The source build matrix contains these exact Minecraft targets:
+Crystal Tweaks supports **Minecraft 1.21.11 and later**. The build matrix contains these exact
+targets:
 
 ```text
-1.21, 1.21.1, 1.21.2, 1.21.3, 1.21.4, 1.21.5,
-1.21.6, 1.21.7, 1.21.8, 1.21.9, 1.21.10, 1.21.11,
-26.1, 26.1.1, 26.1.2, 26.2, and 26.3
+1.21.11, 26.1, 26.1.1, 26.1.2, 26.2, and 26.3
 ```
 
-The 2.3.0 release notes cover **1.21.10, 1.21.11, 26.1, 26.1.1, 26.1.2, 26.2, and 26.3**. Earlier targets remain in the source matrix; use the release available for your exact game version. Each JAR declares one exact Minecraft version.
+Each JAR declares one exact Minecraft version. Minecraft 1.21 through 1.21.10 were archived on
+26 September 2026: their last release, 2.2.7, stays downloadable on Modrinth, and
+[archive/README.md](archive/README.md) lists what was kept and how to rebuild one.
 
 ## Compatibility and multiplayer
 
@@ -105,6 +106,7 @@ version.
 | `gradle/` | Wrapper and the exact Minecraft dependency matrix. |
 | `docs/` | Wiki, release workflow, audits and version notes. |
 | `tools/` | Build, artifact, Mixin and appearance checks. |
+| `archive/` | Code and matrix rows of the archived 1.21–1.21.10 targets; never compiled. |
 | `versions/`, `dist/` | Local generated JAR collections; excluded from Git. |
 
 Start with the [documentation index](docs/README.md). Build output and local

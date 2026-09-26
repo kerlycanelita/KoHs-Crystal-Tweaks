@@ -83,10 +83,9 @@ repository records about a release.
    for that version.
 2. Try a build: `.\gradlew.bat build -Pmc=<new version>`.
 3. If it fails on renamed vanilla APIs, extend the source transforms near the top of `build.gradle`.
-   Those are keyed off `usesRemapping`, `usesPreIdentifierNames`, `usesLegacyMouseApi`,
-   `usesLegacyEntityPreview`, `usesLegacyStateDispatcher`, `usesOldCrystalRenderer`,
-   `usesOldIconBlit`, `usesRenderTypeIconBlit`, `usesLegacyTextureConstructor` and
-   `usesModernRegistrySplit`.
+   Those are keyed off `usesRemapping` (1.21.11), `usesModernRegistrySplit` (26.2 and later) and
+   `usesSdlWindowing` (26.3). The rewrites the archived 1.21–1.21.10 targets needed are kept in
+   `archive/gradle/build-2.3.0.gradle`.
 4. Every one of those flags is declared as an input of `generateLegacyClientSources`. A new flag
    must be declared there too, otherwise Gradle will consider the task up to date across a version
    switch and build the new target from the previous target's rewritten sources.
@@ -99,16 +98,17 @@ repository records about a release.
 | --- | --- |
 | `src/main` | Version-independent entrypoint and mod metadata. |
 | `src/client` | The real implementation. Written against the newest API and rewritten per target. |
-| `src/legacy` | Replacements used only by the `1.x` targets. |
-| `src/legacyOld` | Additional replacements for 1.21 and 1.21.1, which still use the old crystal renderer. |
+| `src/legacy` | Replacements used only by the 1.21.11 target. |
+| `src/sdl` | Replacements for 26.3, which ships no native file dialog. |
+| `archive/` | Code and matrix rows of the archived 1.21–1.21.10 targets. Never compiled. |
 
 `src/client` is copied into `build/generated/sources/crystalTweaksLegacy` and rewritten there. Never
 edit the generated copy; it is replaced on every build.
 
 ## Runtime checks that the build cannot do
 
-The build compiles every target but never launches the game. Before publishing, verify by hand on at
-least one modern and one legacy target:
+The build compiles every target but never launches the game. Before publishing, verify by hand on
+1.21.11 and at least one 26.x target:
 
 - placing and breaking crystals at high ping, both tap and hold;
 - main hand and off hand;

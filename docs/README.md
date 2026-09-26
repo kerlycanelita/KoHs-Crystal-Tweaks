@@ -20,7 +20,8 @@
 | Loom | `1.17-SNAPSHOT` |
 | JDK | 25 |
 
-Official Minecraft names for the 26.x root target. Older 1.21.x targets use the remapping branch in `build.gradle`.
+Official Minecraft names for the 26.x root target. The 1.21.11 target uses the remapping branch in
+`build.gradle`; 1.21 through 1.21.10 are [archived](../archive/README.md).
 The source of truth is [gradle.properties](../gradle.properties) and
 [build.gradle](../build.gradle); each additional target declares its own dependencies.
 

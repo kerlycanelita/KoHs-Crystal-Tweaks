@@ -14,7 +14,6 @@
 ## New versions
 
 - **Minecraft 26.3.** That release swapped GLFW for SDL and dropped `lwjgl-tinyfd` with it, so the operating system's file chooser is no longer on the classpath. On 26.3 only, a custom explosion sound is chosen by dropping the `.wav`, `.ogg` or `.mp3` into the mod's own sounds folder and pressing the button again; the import, the five-second limit and the formats are unchanged. Mod Menu for 26.3 is still a beta at the time of this release.
-- **Minecraft 1.21.10** builds again.
 
 ## Compatibility
 
@@ -26,6 +25,8 @@ This release also carries the 2.2.11 fixes, which were never published:
 
 With Marlow's Crystal Optimizer, No Crystal Break or any other detected crystal optimizer installed, **every** interaction helper stays off on purpose: break prediction, ghost crystals, placement tracking and **Safe Crystal**. That mod owns the crystal click, and two mods deciding whether the same swing mines a block is how you end up unable to break obsidian at all. Every visual feature keeps working, flash styles included.
 
-Available for Fabric on **1.21.10, 1.21.11, 26.1, 26.1.1, 26.1.2, 26.2 and 26.3**. Each download supports only the Minecraft version named on its file.
+Available for Fabric on **1.21.11, 26.1, 26.1.1, 26.1.2, 26.2 and 26.3**. Each download supports only the Minecraft version named on its file.
+
+Minecraft **1.21.10 and older** are no longer supported. Their last release, 2.2.7, stays available here.
 
 Install the matching **Fabric API**. **Mod Menu** is optional.
