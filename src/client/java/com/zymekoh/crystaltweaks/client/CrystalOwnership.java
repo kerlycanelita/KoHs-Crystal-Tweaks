@@ -1,10 +1,10 @@
 package com.zymekoh.crystaltweaks.client;
 
+import com.google.common.collect.MapMaker;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.WeakHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
 
@@ -33,7 +33,9 @@ public final class CrystalOwnership {
     // Access order is insertion order here, which is what the eviction below wants: the base whose
     // first attempt is oldest leaves first.
     private static final Map<BlockPos, Deque<Long>> ATTEMPTS = new LinkedHashMap<>();
-    private static final Map<EndCrystal, Boolean> OWN = new WeakHashMap<>();
+    // Weak keys compared by identity: Entity.hashCode() reads the entity id, which from 26.2 throws
+    // for a crystal that was never added to a level, as client-side stand-ins are.
+    private static final Map<EndCrystal, Boolean> OWN = new MapMaker().weakKeys().makeMap();
     private static Object world;
 
     private CrystalOwnership() { }

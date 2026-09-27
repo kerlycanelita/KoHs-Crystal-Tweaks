@@ -260,7 +260,21 @@ public final class PracticeSetupScreen extends Screen {
                     ? "Sin bot: practica colocar y romper cristales y anclas a tu ritmo."
                     : "No bot: practise placing and breaking crystals and anchors at your own pace.", CrystalTheme.TEXT_MUTED);
         }
-        PracticeSettings.Difficulty difficulty = CrystalVisualConfig.practice().difficulty;
+        PracticeSettings settings = CrystalVisualConfig.practice();
+        PracticeSettings.Difficulty difficulty = settings.difficulty;
+        label(this.columnX, y, this.spanish ? "Estilo" : "Style");
+        y += 11;
+        PracticeSettings.BotStyle[] styles = PracticeSettings.BotStyle.values();
+        int styleWidth = (this.columnWidth - GAP) / 2;
+        for (int index = 0; index < styles.length; index++) {
+            PracticeSettings.BotStyle style = styles[index];
+            PurpleCloseButton button = place(new PurpleCloseButton(this.columnX + (styleWidth + GAP) * index, y, styleWidth, ROW,
+                    Component.literal(style.label(this.spanish)), ignored -> selectStyle(style)));
+            button.setSelected(settings.style == style);
+            button.setTooltip(Tooltip.create(Component.literal(style.note(this.spanish))));
+        }
+        y += ROW + GAP + 2;
+        y = paragraph(this.columnX, y, this.columnWidth, settings.style.note(this.spanish), CrystalTheme.TEXT_MUTED) + 4;
         y = paragraph(this.columnX, y, this.columnWidth, timing(difficulty), CrystalTheme.TEXT_MUTED) + 4;
         y = paragraph(this.columnX, y, this.columnWidth, this.spanish
                 ? "Sus habilidades vienen con la dificultad y no se pueden desactivar. Pasa el ratón por cada una para ver cómo se hace."
@@ -271,7 +285,7 @@ public final class PracticeSetupScreen extends Screen {
         }
         // Without room for the preview, the skills list goes in the column itself.
         this.skillsTop = y;
-        for (BotSkill skill : BotSkill.of(difficulty)) {
+        for (BotSkill skill : BotSkill.of(difficulty, settings.style)) {
             this.lines.add(new Line(this.columnX, y, () -> "• " + skill.label(this.spanish), () -> skillColor(skill), false));
             y += 10;
         }
@@ -482,6 +496,12 @@ public final class PracticeSetupScreen extends Screen {
         rebuildWidgets();
     }
 
+    private void selectStyle(PracticeSettings.BotStyle style) {
+        CrystalVisualConfig.setPracticeBotStyle(style.name());
+        CrystalVisualConfig.save();
+        rebuildWidgets();
+    }
+
     private void cycleDifficulty() {
         CrystalVisualConfig.setPracticeBotDifficulty(CrystalVisualConfig.practice().difficulty.next().name());
         CrystalVisualConfig.save();
@@ -676,13 +696,14 @@ public final class PracticeSetupScreen extends Screen {
         CrystalUi.card(graphics, this.font, x, y, width, height, null, 0.3F, settings.bot ? enter : enter * 0.45F);
         String title = settings.bot
                 ? (this.spanish ? "Lo que hará el bot · " : "What the bot will do · ") + settings.difficulty.label(this.spanish)
+                        + " · " + settings.style.label(this.spanish)
                 : (this.spanish ? "Sin bot" : "No bot");
         CrystalUi.centered(graphics, this.font, fit(width - 8, title), x + width / 2, y + 5,
                 CrystalTheme.fade(settings.bot ? CrystalTheme.ACCENT_BRIGHT : CrystalTheme.TEXT_DISABLED, enter));
         if (!settings.bot) {
             return;
         }
-        List<BotSkill> skills = BotSkill.of(settings.difficulty);
+        List<BotSkill> skills = BotSkill.of(settings.difficulty, settings.style);
         int lineHeight = skills.size() * 10 <= height - 22 ? 10 : 9;
         int columns = skills.size() * lineHeight > height - 22 && width >= 200 ? 2 : 1;
         int perColumn = (skills.size() + columns - 1) / columns;
@@ -712,7 +733,8 @@ public final class PracticeSetupScreen extends Screen {
                 || mouseY > this.contentBottom) {
             return;
         }
-        List<BotSkill> skills = BotSkill.of(CrystalVisualConfig.practice().difficulty);
+        PracticeSettings current = CrystalVisualConfig.practice();
+        List<BotSkill> skills = BotSkill.of(current.difficulty, current.style);
         int index = (mouseY + this.scroll - this.skillsTop) / 10;
         if (mouseY + this.scroll >= this.skillsTop && index >= 0 && index < skills.size()) {
             skillTooltip(graphics, skills.get(index), mouseX, mouseY);

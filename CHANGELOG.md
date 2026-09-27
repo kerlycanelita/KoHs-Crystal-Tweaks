@@ -60,10 +60,20 @@
   - **Bot**: four difficulties, each adding techniques that cannot be switched off. The tab lists
     them with how each one works: hit-crystal, respawn anchors, face-placing and pearling in on
     Normal; the d-tap timed to the end of the player's damage immunity, the safe anchor behind
-    glowstone, top-blocking, hiding in holes, mending and pearling out on Hard; the butterfly, the
-    double anchor, the triple tap, chain pops, crits with W-tap and fall prediction on Extreme. The bot
-    carries the player's own kit, totems, apples and pearls included, and is held to human timing:
-    its fastest combo is obsidian, crystal and hit on three consecutive ticks.
+    glowstone, top-blocking, hiding in holes and mending on Hard; the butterfly, the double anchor,
+    the triple tap, chain pops, crits with W-tap and fall prediction on Extreme. Every bot mines its
+    way out with its pickaxe, at Vanilla's mining speed, when it is boxed in. The bot carries the
+    player's own kit, totems, apples and pearls included, and is held to human timing: its fastest
+    combo is obsidian, crystal and hit on three consecutive ticks.
+  - Two **styles**. **Smart** keeps its distance: it blocks off, putting a block in front of itself
+    toward the player when threatened and there is ground to set it on, hides in holes and, low on
+    health, pearls away to heal instead of hopping backwards. **Aggressive** rushes: it never backs
+    off, pearls in from further out, eats without giving ground and accepts a slightly losing trade
+    while it holds a totem.
+  - Pearls are aimed, not thrown blind: before a throw the bot simulates the flight tick by tick as
+    Minecraft moves a pearl (gravity, drag and the first block in its path), over dozens of pitches
+    and a few headings, and throws only when it lands on safe ground near the target spot. Paths
+    through a crystal, which a pearl would set off, are ruled out.
   - **World**: a flat of netherite blocks, where crystals only go on obsidian someone places; a hole
     arena, an obsidian floor dotted with bedrock-bottomed holes and a few steps; or an almost flat
     natural meadow with few trees and no caves, in one of eight biomes (plains, desert, taiga, snowy
@@ -108,6 +118,11 @@
   optimizer installed, the obsidian click reaches Vanilla untouched.
 
 ### Fixed
+
+- **Ghost crystals crashed Minecraft 26.2 and 26.3** ("Tried to access entity ID before ID
+  assignment"). The stand-in crystal is never added to the world, and from 26.2 an entity without an
+  id throws when anything asks for its id or hash code, as the glow cache did. The stand-in now
+  carries its own negative id, and the glow cache and the ownership map compare crystals by identity.
 
 - Minecraft 26.3 could not start with the mod installed: the Mixin that hides a predicted break
   still named the old `shouldRender` signature and aborted the game when the crystal renderer

@@ -83,6 +83,20 @@ public final class PracticeKit {
         return pickaxe;
     }
 
+    /** The kit's pickaxe, for the bot mining its way out. */
+    public static ItemStack pickaxeFor(ServerLevel level, PracticeSettings settings) {
+        return pickaxe(level, settings);
+    }
+
+    /** The mining speed of the kit's pickaxe before Efficiency: netherite 9, diamond 8, iron 6. */
+    public static float pickaxeSpeed(PracticeSettings settings) {
+        return switch (settings.armor) {
+            case NETHERITE -> 9.0F;
+            case DIAMOND -> 8.0F;
+            case IRON -> 6.0F;
+        };
+    }
+
     /** The real item stack for one slot of a kit. */
     public static ItemStack stack(ServerLevel level, PracticeSettings settings, KitLayout.Entry entry) {
         return switch (entry.item()) {

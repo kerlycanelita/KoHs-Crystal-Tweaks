@@ -1,11 +1,11 @@
 package com.zymekoh.crystaltweaks.client;
 
+import com.google.common.collect.MapMaker;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.WeakHashMap;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EndCrystalRenderer;
 import net.minecraft.client.renderer.entity.state.EndCrystalRenderState;
@@ -36,7 +36,9 @@ public final class CrystalGlowRenderer {
 
     public record Surface(float x0, float y, float z0, float x1, float z1) { }
     private record Cached(long at, Vec3 position, List<Surface> surfaces) { }
-    private static final Map<EndCrystal, Cached> CACHE = new WeakHashMap<>();
+    // Weak keys compared by identity: Entity.hashCode() reads the entity id, which from 26.2 throws
+    // for a crystal that was never added to a level, as client-side stand-ins are.
+    private static final Map<EndCrystal, Cached> CACHE = new MapMaker().weakKeys().makeMap();
     private static long budgetTick = Long.MIN_VALUE;
     private static int sampledThisTick;
 

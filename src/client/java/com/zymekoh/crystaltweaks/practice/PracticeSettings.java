@@ -102,6 +102,48 @@ public final class PracticeSettings {
         }
     }
 
+    /**
+     * How the bot fights, on top of what its difficulty lets it do. The smart one keeps its distance,
+     * covers itself with blocks and pearls out to heal; the aggressive one rushes and never backs off.
+     */
+    public enum BotStyle {
+        SMART("Inteligente", "Smart",
+                "Mide la distancia: se cubre con bloques, se esconde en hoyos y se retira con perlas para curarse.",
+                "Keeps its distance: covers itself with blocks, hides in holes and pearls out to heal."),
+        AGGRESSIVE("Agresivo", "Aggressive",
+                "Rush: no se retira nunca. Te persigue, persigue con perlas antes, come sin dar un paso atrás y arriesga más.",
+                "Rush: never backs off. Chases you, pearls in sooner, eats without stepping back and takes more risks.");
+
+        private final String spanish;
+        private final String english;
+        private final String spanishNote;
+        private final String englishNote;
+
+        BotStyle(String spanish, String english, String spanishNote, String englishNote) {
+            this.spanish = spanish;
+            this.english = english;
+            this.spanishNote = spanishNote;
+            this.englishNote = englishNote;
+        }
+
+        public String label(boolean useSpanish) {
+            return useSpanish ? this.spanish : this.english;
+        }
+
+        public String note(boolean useSpanish) {
+            return useSpanish ? this.spanishNote : this.englishNote;
+        }
+
+        static BotStyle parse(String value) {
+            for (BotStyle style : values()) {
+                if (style.name().equalsIgnoreCase(value)) {
+                    return style;
+                }
+            }
+            return SMART;
+        }
+    }
+
     /** The ground the fight happens on. */
     public enum WorldType {
         FLAT("Plano de netherite", "Netherite flat"),
@@ -170,17 +212,19 @@ public final class PracticeSettings {
     public final int blastPieces;
     public final boolean bot;
     public final Difficulty difficulty;
+    public final BotStyle style;
     public final int knockback;
     public final KitPreset preset;
     public final WorldType worldType;
     public final Biome biome;
 
-    public PracticeSettings(Armor armor, int blastPieces, boolean bot, Difficulty difficulty, int knockback,
-            KitPreset preset, WorldType worldType, Biome biome) {
+    public PracticeSettings(Armor armor, int blastPieces, boolean bot, Difficulty difficulty, BotStyle style,
+            int knockback, KitPreset preset, WorldType worldType, Biome biome) {
         this.armor = armor;
         this.blastPieces = sanitize(blastPieces);
         this.bot = bot;
         this.difficulty = difficulty;
+        this.style = style;
         this.knockback = clampKnockback(knockback);
         this.preset = preset;
         this.worldType = worldType;
@@ -188,16 +232,21 @@ public final class PracticeSettings {
     }
 
     /** Settings from their stored form, as the configuration file keeps them. */
-    public static PracticeSettings from(String armor, int blastPieces, boolean bot, String difficulty, int knockback,
-            String preset, String worldType, String biome) {
-        return new PracticeSettings(Armor.parse(armor), blastPieces, bot, Difficulty.parse(difficulty), knockback,
-                KitPreset.parse(preset), WorldType.parse(worldType), Biome.parse(biome));
+    public static PracticeSettings from(String armor, int blastPieces, boolean bot, String difficulty, String style,
+            int knockback, String preset, String worldType, String biome) {
+        return new PracticeSettings(Armor.parse(armor), blastPieces, bot, Difficulty.parse(difficulty),
+                BotStyle.parse(style), knockback, KitPreset.parse(preset), WorldType.parse(worldType), Biome.parse(biome));
     }
 
     /** The same settings on another ground, for a world whose type is fixed by its save folder. */
     public PracticeSettings on(WorldType type, Biome groundBiome) {
-        return new PracticeSettings(this.armor, this.blastPieces, this.bot, this.difficulty, this.knockback, this.preset,
-                type, groundBiome);
+        return new PracticeSettings(this.armor, this.blastPieces, this.bot, this.difficulty, this.style, this.knockback,
+                this.preset, type, groundBiome);
+    }
+
+    /** Whether a bot of these settings uses a skill: its difficulty must reach it and its style use it. */
+    public boolean uses(BotSkill skill) {
+        return this.difficulty.has(skill) && skill.fits(this.style);
     }
 
     public boolean blast(int piece) {

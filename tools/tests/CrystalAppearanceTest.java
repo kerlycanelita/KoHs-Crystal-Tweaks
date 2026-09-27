@@ -322,11 +322,11 @@ public final class CrystalAppearanceTest {
             int clean = PracticeSettings.sanitize(mask);
             check(Integer.bitCount(clean) <= 2 && (clean & ~mask) == 0, "Blast pieces " + mask + " sanitize to at most two of them");
         }
-        PracticeSettings settings = PracticeSettings.from("diamond", 0b1111, true, "hard", 1, "standard", "FLAT", "plains");
+        PracticeSettings settings = PracticeSettings.from("diamond", 0b1111, true, "hard", "smart", 1, "standard", "FLAT", "plains");
         check(settings.armor == PracticeSettings.Armor.DIAMOND && settings.difficulty == PracticeSettings.Difficulty.HARD,
                 "Stored names parse case-insensitively");
         check(Integer.bitCount(settings.blastPieces) == 2, "A tampered file cannot give four blast pieces");
-        PracticeSettings unknown = PracticeSettings.from("gold", 0, false, "impossible", 1, "standard", "FLAT", "plains");
+        PracticeSettings unknown = PracticeSettings.from("gold", 0, false, "impossible", "smart", 1, "standard", "FLAT", "plains");
         check(unknown.armor == PracticeSettings.Armor.NETHERITE && unknown.difficulty == PracticeSettings.Difficulty.NORMAL,
                 "Unknown values fall back to Netherite and Normal");
         PracticeSettings.Difficulty level = PracticeSettings.Difficulty.EASY;

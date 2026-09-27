@@ -16,11 +16,15 @@
 - **Crystal Practice** (experimental), a practice world of its own:
   - **A bot that plays real crystal PvP techniques** by difficulty: hit-crystal, respawn anchors, face-placing and pearls on Normal; d-taps timed to the end of your damage immunity, safe anchors behind glowstone, top-blocking, hiding in holes and mending on Hard; the butterfly, double anchors, triple taps, chain pops, crits and fall prediction on Extreme. None of them can be switched off: the menu lists them, with how each one works. The bot carries your own kit and is held to human timing.
   - **Your kit:** netherite, diamond or iron armour (Protection IV, Unbreaking III and Mending, Blast Protection IV on up to two pieces), a sword with **Knockback I or II**, **1 to 20 totems** or a full inventory, and presets modelled on **MCTiers**, **MCPVP** and **PVPHQ**. None of those ladders publishes its crystal kit item by item, so the presets say what they are based on.
+  - **Two styles:** **Smart** blocks off with a block in front of itself when you threaten it, hides in holes and pearls away to heal instead of hopping backwards; **Aggressive** rushes, never backs off and pearls in from further out. Both mine their way out with the pickaxe if you box them in.
+  - **Aimed pearls:** before throwing, the bot simulates the pearl's flight tick by tick against the terrain and throws only when it lands on safe ground where it wants to be.
   - **Arrange inventory:** a kit editor with a kit room, click or drag to move, right click to empty, **Save** and **Reset**. The kit is handed out exactly as you arranged it.
   - **Three grounds:** a flat of netherite blocks, a hole arena, or an almost flat meadow with few trees and no caves in one of eight biomes (plains, desert, taiga, snowy plains, savanna, cherry grove, badlands, the End). Every death starts a new round on a rebuilt arena.
 - **Herzium integration:** dimmed without [Herzium](https://modrinth.com/mod/herzium); with it, sets Herzium's hotbar order from here.
 
 ## Fixed
+
+- **Ghost crystals crashed the game on 26.2 and 26.3** ("Tried to access entity ID before ID assignment"). Fixed: the stand-in crystal now has an id of its own, and nothing looks crystals up by id any more.
 
 - Your own crystals were drawn with the enemy profile while spamming. Placements are now queued per base and claimed in the order you sent them.
 - The settings preview always exploded with the plain burst instead of your flash style.

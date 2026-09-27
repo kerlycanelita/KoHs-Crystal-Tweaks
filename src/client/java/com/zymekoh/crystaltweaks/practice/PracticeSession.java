@@ -229,8 +229,8 @@ public final class PracticeSession {
         player.sendSystemMessage(Component.literal(this.settings.describe(spanish)).withStyle(ChatFormatting.GRAY));
         player.sendSystemMessage(Component.literal(this.settings.bot
                 ? (spanish
-                        ? "Bot " + this.settings.difficulty.label(true) + " con tu mismo kit. Cristales, obsidiana, anclas y piedra luminosa se reponen solos; cada muerte empieza una ronda nueva."
-                        : this.settings.difficulty.label(false) + " bot with your same kit. Crystals, obsidian, anchors and glowstone refill by themselves; every death starts a new round.")
+                        ? "Bot " + this.settings.difficulty.label(true) + " · " + this.settings.style.label(true) + " con tu mismo kit. Cristales, obsidiana, anclas y piedra luminosa se reponen solos; cada muerte empieza una ronda nueva."
+                        : this.settings.difficulty.label(false) + " · " + this.settings.style.label(false) + " bot with your same kit. Crystals, obsidian, anchors and glowstone refill by themselves; every death starts a new round.")
                 : (spanish
                         ? "Sin bot: practica colocando y rompiendo. Lo que se gasta se repone solo."
                         : "No bot: practise placing and breaking. What you use refills by itself."))

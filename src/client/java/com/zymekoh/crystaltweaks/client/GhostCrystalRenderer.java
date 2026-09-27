@@ -26,6 +26,8 @@ import net.minecraft.world.phys.Vec3;
  * zero-latency player would not already have.</p>
  */
 public final class GhostCrystalRenderer {
+    /** The stand-in's entity id: negative, so it can never be a real entity's. */
+    private static final int GHOST_ENTITY_ID = -0x43525954;
     private static EndCrystal template;
     private static boolean initialized;
 
@@ -62,6 +64,10 @@ public final class GhostCrystalRenderer {
         if (template == null || template.level() != minecraft.level) {
             template = new EndCrystal(minecraft.level, 0.0D, 0.0D, 0.0D);
             template.setShowBottom(false);
+            // The stand-in is never added to the level, so it never gets an entity id, and from 26.2
+            // Entity.getId() and hashCode() throw for an entity without one. Renderers, ours and
+            // other mods', may ask for it; a negative id can never match a real entity.
+            template.setId(GHOST_ENTITY_ID);
         }
 
         // Vanilla animates a crystal from its own age, so borrow the level's clock to keep the

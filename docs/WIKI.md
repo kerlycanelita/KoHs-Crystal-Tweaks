@@ -260,10 +260,30 @@ to see how it works, which is also how to do it yourself.
 
 | Difficulty | Reaction | Combo step | Adds |
 | --- | --- | --- | --- |
-| Easy | 450 ms | 200 ms | Moves and dodges, places and breaks crystals, obsidian next to you, re-equips totems, eats golden apples |
-| Normal | 300 ms | 150 ms | Hit-crystal, respawn anchors, face-placing, pearls in |
-| Hard | 200 ms | 100 ms | D-tap, safe anchor, top-blocking, hides in holes, mends its armour, pearls out |
+| Easy | 450 ms | 200 ms | Moves and dodges, places and breaks crystals, obsidian next to you, re-equips totems, eats golden apples, mines its way out |
+| Normal | 300 ms | 150 ms | Hit-crystal, respawn anchors, face-placing, pearls in; the smart bot also blocks off and pearls out |
+| Hard | 200 ms | 100 ms | D-tap, safe anchor, top-blocking, mends its armour; the smart bot also hides in holes |
 | Extreme | 100 ms | 50 ms | Butterfly, double anchor, triple tap, chain pops, crits and W-tap, predicts your fall |
+
+It also has a **style**:
+
+- **Smart** keeps its distance. Threatened (you hold crystals, obsidian, anchors or glowstone, or it is
+  getting low), it **blocks off**: it puts obsidian in front of itself toward you, where there is
+  ground to set it on, and stays behind it for a second. Low on health with apples left, it does not
+  hop backwards: it turns and runs, or **pearls away** and eats where it lands. It hides in holes.
+- **Aggressive** rushes. It never backs off, stays within two blocks, goes for the hit and the
+  hit-crystal at every chance, pearls in from eight blocks away instead of fourteen, eats where it
+  stands, and accepts a slightly losing trade while it holds a totem.
+
+Both **mine their way out**: box the bot in, or put a wall it cannot jump in its way, and it breaks
+the block in the way with its pickaxe at Vanilla's speed for that pickaxe and block (about two
+seconds for obsidian with netherite and Efficiency V), cracks showing.
+
+**Pearls are aimed.** Before throwing, the bot simulates the pearl's flight tick by tick as Minecraft
+moves it: gravity, then drag, then the move, stopped by the first block in its path, with its own
+movement added as a real throw adds it. It tries dozens of pitches and a few headings and throws
+only when the pearl lands on safe ground near where it wants to be, never through a crystal, which
+the pearl would set off. The search costs about a millisecond.
 
 - **Hit-crystal**: a Knockback hit lifts you, and a crystal goes off under you while you are in the
   air, when all of you is exposed.

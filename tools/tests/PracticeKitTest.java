@@ -143,11 +143,14 @@ public final class PracticeKitTest {
 
     private static void settings() {
         check(PracticeSettings.clampKnockback(0) == 1 && PracticeSettings.clampKnockback(3) == 2, "knockback stays I or II");
-        PracticeSettings parsed = PracticeSettings.from("nonsense", 0b1111, true, "nonsense", 9, "nonsense", "nonsense",
-                "nonsense");
+        PracticeSettings parsed = PracticeSettings.from("nonsense", 0b1111, true, "nonsense", "nonsense", 9, "nonsense",
+                "nonsense", "nonsense");
         check(parsed.armor == PracticeSettings.Armor.NETHERITE, "unknown armour falls back to netherite");
         check(Integer.bitCount(parsed.blastPieces) == 2, "at most two Blast Protection pieces");
         check(parsed.difficulty == PracticeSettings.Difficulty.NORMAL, "unknown difficulty falls back to normal");
+        check(parsed.style == PracticeSettings.BotStyle.SMART, "unknown style falls back to the smart bot");
+        check(PracticeSettings.from("netherite", 0, true, "hard", "AGGRESSIVE", 1, "standard", "FLAT", "plains").style
+                == PracticeSettings.BotStyle.AGGRESSIVE, "the aggressive style parses");
         check(parsed.knockback == 2, "knockback clamps to II");
         check(parsed.preset == KitPreset.STANDARD, "unknown preset falls back");
         check(parsed.worldType == PracticeSettings.WorldType.FLAT, "unknown world falls back to the flat");
@@ -174,17 +177,32 @@ public final class PracticeKitTest {
     }
 
     private static void skills() {
-        List<BotSkill> previous = List.of();
-        for (PracticeSettings.Difficulty difficulty : PracticeSettings.Difficulty.values()) {
-            List<BotSkill> skills = BotSkill.of(difficulty);
-            check(skills.containsAll(previous), difficulty + " loses a skill of the easier difficulty");
-            check(skills.size() > previous.size(), difficulty + " adds nothing");
-            for (BotSkill skill : skills) {
-                check(difficulty.has(skill), difficulty + " lists a skill it does not have: " + skill);
+        for (PracticeSettings.BotStyle style : PracticeSettings.BotStyle.values()) {
+            List<BotSkill> previous = List.of();
+            for (PracticeSettings.Difficulty difficulty : PracticeSettings.Difficulty.values()) {
+                List<BotSkill> skills = BotSkill.of(difficulty, style);
+                check(skills.containsAll(previous), difficulty + " " + style + " loses a skill of the easier difficulty");
+                check(skills.size() > previous.size(), difficulty + " " + style + " adds nothing");
+                PracticeSettings settings = new PracticeSettings(PracticeSettings.Armor.NETHERITE, 0, true, difficulty, style,
+                        1, KitPreset.STANDARD, PracticeSettings.WorldType.FLAT, PracticeSettings.Biome.PLAINS);
+                for (BotSkill skill : skills) {
+                    check(settings.uses(skill), difficulty + " " + style + " lists a skill it does not use: " + skill);
+                }
+                previous = skills;
             }
-            previous = skills;
         }
-        check(previous.size() == BotSkill.values().length, "extreme has every skill");
+        List<BotSkill> smart = BotSkill.of(PracticeSettings.Difficulty.EXTREME, PracticeSettings.BotStyle.SMART);
+        List<BotSkill> aggressive = BotSkill.of(PracticeSettings.Difficulty.EXTREME, PracticeSettings.BotStyle.AGGRESSIVE);
+        check(smart.contains(BotSkill.BLOCK_OFF) && smart.contains(BotSkill.PEARL_ESCAPE) && smart.contains(BotSkill.HOLES)
+                && !smart.contains(BotSkill.RUSH), "the smart bot covers itself, pearls out and hides, and never rushes");
+        check(aggressive.contains(BotSkill.RUSH) && !aggressive.contains(BotSkill.BLOCK_OFF)
+                && !aggressive.contains(BotSkill.PEARL_ESCAPE) && !aggressive.contains(BotSkill.HOLES),
+                "the aggressive bot rushes and never backs off");
+        for (PracticeSettings.BotStyle style : PracticeSettings.BotStyle.values()) {
+            check(BotSkill.of(PracticeSettings.Difficulty.EASY, style).contains(BotSkill.MINE_OUT),
+                    style + " mines its way out from Easy up");
+            check(!style.note(true).isBlank() && !style.note(false).isBlank(), style + ": missing note");
+        }
         for (BotSkill skill : BotSkill.values()) {
             check(!skill.label(true).isBlank() && !skill.label(false).isBlank(), skill + ": missing name");
             check(skill.how(true).length() > 20 && skill.how(false).length() > 20, skill + ": missing explanation");

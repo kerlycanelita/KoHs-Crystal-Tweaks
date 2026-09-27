@@ -39,6 +39,7 @@ public final class CrystalVisualConfig {
     private static volatile int practiceBlastPieces = 0b0100;
     private static volatile boolean practiceBot = true;
     private static volatile String practiceBotDifficulty = "NORMAL";
+    private static volatile String practiceBotStyle = "SMART";
     private static volatile int practiceKnockback = 1;
     private static volatile String practicePreset = "standard";
     private static volatile String practiceWorld = "FLAT";
@@ -127,6 +128,7 @@ public final class CrystalVisualConfig {
                     practiceBlastPieces = intValue(practice, "blastPieces", 0b0100) & 0b1111;
                     practiceBot = booleanValue(practice, "bot", true);
                     practiceBotDifficulty = stringValue(practice, "botDifficulty", "NORMAL");
+                    practiceBotStyle = stringValue(practice, "botStyle", "SMART");
                     practiceKnockback = clamp(intValue(practice, "knockback", 1), 1, 2);
                     practicePreset = stringValue(practice, "preset", "standard");
                     practiceWorld = stringValue(practice, "world", "FLAT");
@@ -232,6 +234,7 @@ public final class CrystalVisualConfig {
                 practice.addProperty("blastPieces", practiceBlastPieces);
                 practice.addProperty("bot", practiceBot);
                 practice.addProperty("botDifficulty", practiceBotDifficulty);
+                practice.addProperty("botStyle", practiceBotStyle);
                 practice.addProperty("knockback", practiceKnockback);
                 practice.addProperty("preset", practicePreset);
                 practice.addProperty("world", practiceWorld);
@@ -506,7 +509,7 @@ public final class CrystalVisualConfig {
     public static com.zymekoh.crystaltweaks.practice.PracticeSettings practice() {
         load();
         return com.zymekoh.crystaltweaks.practice.PracticeSettings.from(practiceArmor, practiceBlastPieces, practiceBot,
-                practiceBotDifficulty, practiceKnockback, practicePreset, practiceWorld, practiceBiome);
+                practiceBotDifficulty, practiceBotStyle, practiceKnockback, practicePreset, practiceWorld, practiceBiome);
     }
 
     /** The kit a preset gives: the player's saved arrangement of it, or the preset as it ships. */
@@ -539,6 +542,11 @@ public final class CrystalVisualConfig {
                 practiceKits.put(preset.id, layout.encode());
             }
         }
+    }
+
+    public static void setPracticeBotStyle(String style) {
+        load();
+        practiceBotStyle = style == null ? "SMART" : style;
     }
 
     public static int practiceKnockback() {

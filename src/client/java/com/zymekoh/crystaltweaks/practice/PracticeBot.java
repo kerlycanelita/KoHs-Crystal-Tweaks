@@ -15,6 +15,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.InteractionHand;
@@ -130,11 +131,24 @@ final class PracticeBot {
     private BlockPos refuge;
     /** Ticks before looking for a new combo again after finding nothing worth doing. */
     private int searchCooldown;
+    private final boolean aggressive;
+    /** Ticks it stays behind a block it just placed to cover itself. */
+    private int holdTicks;
+    private int blockOffCooldown;
+    /** Whether steering asked to move this tick, and for how long that has gone nowhere. */
+    private boolean wantsMove;
+    private int stuckTicks;
+    private Vec3 lastPosition;
+    private BlockPos miningPos;
+    private float miningProgress;
+    /** Its last pearl, until it lands: one pearl at a time, as a player waits for theirs. */
+    private ThrownEnderpearl pearlInFlight;
 
     private PracticeBot(ServerLevel level, PracticeSettings settings, Mannequin body, ItemStack sword, KitLayout kit) {
         this.level = level;
         this.settings = settings;
         this.difficulty = settings.difficulty;
+        this.aggressive = settings.style == PracticeSettings.BotStyle.AGGRESSIVE;
         this.body = body;
         this.sword = sword;
         this.random = level.getRandom();
@@ -157,8 +171,9 @@ final class PracticeBot {
         body.addTag(TAG);
         body.setCustomName(Component.literal("Crystal Bot"));
         body.setCustomNameVisible(true);
-        ((MannequinAccessor) body).crystalTweaks$setDescription(
-                Component.literal("Bot · " + settings.difficulty.label(CrystalUi.spanish())));
+        boolean spanish = CrystalUi.spanish();
+        ((MannequinAccessor) body).crystalTweaks$setDescription(Component.literal(
+                "Bot · " + settings.difficulty.label(spanish) + " · " + settings.style.label(spanish)));
         PracticeKit.dress(body, level, settings);
         ItemStack sword = PracticeKit.sword(level, settings);
         body.setItemSlot(EquipmentSlot.MAINHAND, sword);
@@ -186,7 +201,7 @@ final class PracticeBot {
     }
 
     private boolean has(BotSkill skill) {
-        return this.difficulty.has(skill);
+        return this.settings.uses(skill);
     }
 
     // ------------------------------------------------------------------------------------------
@@ -202,10 +217,21 @@ final class PracticeBot {
             this.body.xxa = 0.0F;
             this.body.setJumping(false);
             this.body.setSprinting(false);
+            this.wantsMove = false;
+            return;
+        }
+        if (this.miningPos != null) {
+            // Mining its way out: it stands still, looking at the block.
+            face(Vec3.atCenterOf(this.miningPos));
+            this.body.zza = 0.0F;
+            this.body.xxa = 0.0F;
+            this.body.setJumping(false);
+            this.body.setSprinting(false);
+            this.wantsMove = false;
             return;
         }
         Combo current = this.combo;
-        face(current != null && current.focus != null ? current.focus : target.getEyePosition());
+        Vec3 look = current != null && current.focus != null ? current.focus : target.getEyePosition();
         Vec3 self = this.body.position();
         Vec3 flat = new Vec3(target.getX() - self.x, 0.0D, target.getZ() - self.z);
         double distance = flat.length();
@@ -221,19 +247,40 @@ final class PracticeBot {
         BlockPos hole = seekRefuge(low || this.eating);
         Vec3 wanted;
         boolean sprint = false;
+        boolean retreating = false;
         if (hole != null) {
             Vec3 to = Vec3.atBottomCenterOf(hole).subtract(self);
             wanted = new Vec3(to.x, 0.0D, to.z);
             wanted = wanted.lengthSqr() < 0.04D ? Vec3.ZERO : wanted.normalize();
-        } else if (this.eating || (low && this.apples > 0 && distance < 6.0D)) {
-            wanted = toward.scale(-1.0D).add(side.scale(this.strafe * 0.6D));
+            retreating = true;
+        } else if (!this.aggressive && (this.eating || (low && this.apples > 0 && distance < 6.0D))) {
+            retreating = true;
+            if (this.eating) {
+                // Eating slows it to a walk: it sidesteps away while it keeps an eye on you.
+                wanted = toward.scale(-0.7D).add(side.scale(this.strafe * 0.5D));
+            } else {
+                // It turns and runs rather than hopping backwards: nobody sprints in reverse.
+                wanted = toward.scale(-1.0D).add(side.scale(this.strafe * 0.25D)).normalize();
+                look = this.body.getEyePosition().add(wanted.scale(4.0D));
+                sprint = this.sprintReset <= 0;
+            }
+        } else if (this.aggressive) {
+            // Rush: always on top of you, never a step back.
+            double ideal = wantsToHit() ? 1.8D : 2.4D;
+            double approach = distance > ideal + 0.4D ? 1.0D : 0.0D;
+            wanted = toward.scale(approach).add(side.scale(this.strafe * 0.35D));
+            sprint = approach > 0.0D && distance > 2.6D && this.sprintReset <= 0;
+        } else if (this.holdTicks > 0) {
+            // Behind the block it just placed: stepping out from behind it would waste it.
+            wanted = Vec3.ZERO;
         } else {
             double ideal = wantsToHit() ? 2.2D : 3.4D;
             double approach = distance > ideal + 0.8D ? 1.0D : distance < ideal - 0.8D ? -0.7D : 0.0D;
             wanted = toward.scale(approach).add(side.scale(this.strafe * 0.7D));
             sprint = approach > 0.0D && distance > 3.2D && this.sprintReset <= 0;
         }
-        wanted = wanted.add(avoidCrystals());
+        face(look);
+        wanted = wanted.add(avoidCrystals().scale(this.aggressive ? 0.4D : 1.0D));
         double limit = PracticeArena.RADIUS - 4;
         if (Math.abs(self.x) > limit || Math.abs(self.z) > limit) {
             wanted = new Vec3(-self.x, 0.0D, -self.z).normalize();
@@ -248,18 +295,22 @@ final class PracticeBot {
         float cos = Mth.cos(yaw);
         this.body.zza = (float) (-wanted.x * sin + wanted.z * cos);
         this.body.xxa = (float) (wanted.x * cos + wanted.z * sin);
+        // Like a player, it only sprints moving forward.
+        sprint = sprint && this.body.zza > 0.6F;
         this.body.setSprinting(sprint);
         this.body.setSpeed(sprint ? 0.13F : 0.1F);
+        this.wantsMove = wanted.lengthSqr() > 0.04D;
 
         if (this.jumpTimer > 0) {
             this.jumpTimer--;
         }
-        boolean critJump = has(BotSkill.CRITS) && distance <= 3.6D && this.meleeCooldown <= 5
+        // Retreating it only jumps to clear an obstacle: no hopping away.
+        boolean critJump = !retreating && has(BotSkill.CRITS) && distance <= 3.6D && this.meleeCooldown <= 5
                 && PracticeCombat.immunity(target) <= 10;
         boolean jump = this.body.onGround() && (this.body.horizontalCollision
                 || critJump
-                || (this.flinch > 0 && this.random.nextFloat() < 0.35F)
-                || (this.jumpTimer == 0 && this.random.nextFloat() < 0.025F));
+                || (!retreating && this.flinch > 0 && this.random.nextFloat() < 0.35F)
+                || (!retreating && this.jumpTimer == 0 && this.random.nextFloat() < 0.025F));
         if (jump) {
             this.jumpTimer = 12;
         }
@@ -388,6 +439,15 @@ final class PracticeBot {
             return;
         }
         senseTarget(target);
+        trackStuck();
+        if (mineOut(target)) {
+            this.combo = null;
+            return;
+        }
+        if (retreatWithPearl(target)) {
+            this.combo = null;
+            return;
+        }
         if (eat(target)) {
             this.combo = null;
             return;
@@ -444,6 +504,24 @@ final class PracticeBot {
         if (this.sprintReset > 0) {
             this.sprintReset--;
         }
+        if (this.holdTicks > 0) {
+            this.holdTicks--;
+        }
+        if (this.blockOffCooldown > 0) {
+            this.blockOffCooldown--;
+        }
+    }
+
+    /** Counts the ticks it has been walking into something without getting anywhere. */
+    private void trackStuck() {
+        Vec3 now = this.body.position();
+        if (this.lastPosition != null && this.wantsMove && this.body.horizontalCollision
+                && now.subtract(this.lastPosition).horizontalDistanceSqr() < 4.0E-4D) {
+            this.stuckTicks++;
+        } else if (this.stuckTicks > 0) {
+            this.stuckTicks--;
+        }
+        this.lastPosition = now;
     }
 
     private void senseSelf() {
@@ -478,7 +556,11 @@ final class PracticeBot {
     }
 
     private float minimumDamage() {
-        return chainWindow() ? 1.0F : this.difficulty.minimumDamage;
+        if (chainWindow()) {
+            return 1.0F;
+        }
+        // A rusher takes the smaller hits too rather than wait for the perfect one.
+        return this.aggressive ? this.difficulty.minimumDamage * 0.8F : this.difficulty.minimumDamage;
     }
 
     private void keepTotem() {
@@ -513,6 +595,13 @@ final class PracticeBot {
         }
         float health = PracticeCombat.effectiveHealth(this.body);
         double distance = this.body.distanceTo(target);
+        if (this.aggressive) {
+            // It eats where it stands, only when it has to, and keeps pushing while it does.
+            if (health >= 8.0F) {
+                return false;
+            }
+            return startEating();
+        }
         boolean hurt = health < 12.0F;
         // The best keep their absorption up between exchanges, not only when already in trouble.
         boolean topUp = has(BotSkill.CHAIN_POP) && this.body.getAbsorptionAmount() <= 0.0F && health < 18.0F
@@ -525,6 +614,10 @@ final class PracticeBot {
         if (health >= 8.0F && !safe) {
             return false;
         }
+        return startEating();
+    }
+
+    private boolean startEating() {
         hold(new ItemStack(Items.GOLDEN_APPLE, 1));
         this.body.startUsingItem(InteractionHand.MAIN_HAND);
         if (this.body.isUsingItem()) {
@@ -578,6 +671,14 @@ final class PracticeBot {
     }
 
     private float hitCrystalChance() {
+        if (this.aggressive) {
+            return switch (this.difficulty) {
+                case EASY -> 0.0F;
+                case NORMAL -> 0.8F;
+                case HARD -> 0.95F;
+                case EXTREME -> 1.0F;
+            };
+        }
         return switch (this.difficulty) {
             case EASY -> 0.0F;
             case NORMAL -> 0.45F;
@@ -979,7 +1080,9 @@ final class PracticeBot {
         if (toSelf >= health - 1.0F && !(lethal && PracticeCombat.holdsTotem(this.body) && has(BotSkill.CHAIN_POP))) {
             return false;
         }
-        float ratio = has(BotSkill.CHAIN_POP) ? 1.0F : 0.8F;
+        // A rusher with a totem in hand accepts a slightly losing trade; the rest never do.
+        float ratio = this.aggressive && PracticeCombat.holdsTotem(this.body) ? 1.2F
+                : has(BotSkill.CHAIN_POP) ? 1.0F : 0.8F;
         return lethal || toSelf <= toTarget * ratio;
     }
 
@@ -1082,7 +1185,186 @@ final class PracticeBot {
 
     /** Covering its own flank, mending, or getting out. */
     private boolean defend(ServerPlayer target) {
-        return topBlock(target) || mend(target) || escape(target);
+        return blockOff(target) || topBlock(target) || mend(target) || escape(target);
+    }
+
+    /**
+     * Puts a block in front of itself, between the player and it, where there is ground to set it
+     * on: the blasts of crystals and anchors on the player's side hit the block instead. Only when
+     * threatened, and it then stays behind it for a second instead of strafing out.
+     */
+    private boolean blockOff(ServerPlayer target) {
+        if (!has(BotSkill.BLOCK_OFF) || this.blockOffCooldown > 0) {
+            return false;
+        }
+        double distance = this.body.distanceTo(target);
+        if (distance < 1.5D || distance > 6.0D || !threatened(target)) {
+            return false;
+        }
+        Vec3 to = target.position().subtract(this.body.position());
+        Direction side = Math.abs(to.x) > Math.abs(to.z)
+                ? (to.x > 0.0D ? Direction.EAST : Direction.WEST)
+                : (to.z > 0.0D ? Direction.SOUTH : Direction.NORTH);
+        BlockPos front = this.body.blockPosition().relative(side);
+        if (!solid(front.below()) || !canPlaceBlock(front)) {
+            return false;
+        }
+        Vec3 point = Vec3.atCenterOf(front);
+        if (!aim(point)) {
+            return false;
+        }
+        placeBlock(front, Blocks.OBSIDIAN.defaultBlockState(), new ItemStack(Items.OBSIDIAN, 64));
+        this.holdTicks = 20;
+        this.blockOffCooldown = 30 + this.difficulty.reaction * 2;
+        return true;
+    }
+
+    /** The player is about to crystal or anchor it: holding the tools for it, or it is getting low. */
+    private boolean threatened(ServerPlayer target) {
+        ItemStack held = target.getMainHandItem();
+        return held.is(Items.END_CRYSTAL) || held.is(Items.OBSIDIAN) || held.is(Items.RESPAWN_ANCHOR)
+                || held.is(Items.GLOWSTONE) || PracticeCombat.effectiveHealth(this.body) < 14.0F;
+    }
+
+    private boolean solid(BlockPos position) {
+        return !this.level.getBlockState(position).getCollisionShape(this.level, position).isEmpty();
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Mining its way out
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * Boxed in, or walking into a wall it cannot jump: it breaks the block in the way with its
+     * pickaxe, at Vanilla's mining speed for that pickaxe and block, with the cracks showing.
+     */
+    private boolean mineOut(ServerPlayer target) {
+        if (!has(BotSkill.MINE_OUT)) {
+            return false;
+        }
+        if (this.miningPos != null) {
+            return continueMining();
+        }
+        if (this.stuckTicks < 20 && !enclosed()) {
+            return false;
+        }
+        BlockPos block = blockInTheWay(target);
+        if (block == null) {
+            this.stuckTicks = 0;
+            return false;
+        }
+        this.miningPos = block;
+        this.miningProgress = 0.0F;
+        hold(PracticeKit.pickaxeFor(this.level, this.settings));
+        return continueMining();
+    }
+
+    private boolean continueMining() {
+        BlockPos position = this.miningPos;
+        BlockState state = this.level.getBlockState(position);
+        if (!minable(state, position) || this.body.getEyePosition().distanceToSqr(Vec3.atCenterOf(position)) > 25.0D) {
+            stopMining();
+            return false;
+        }
+        this.miningProgress += miningRate(state, position);
+        if (this.age % 4 == 0) {
+            swingArm();
+        }
+        if (this.miningProgress >= 1.0F) {
+            this.level.destroyBlockProgress(this.body.getId(), position, -1);
+            this.level.destroyBlock(position, false, this.body, 512);
+            stopMining();
+            this.stuckTicks = 0;
+        } else {
+            this.level.destroyBlockProgress(this.body.getId(), position, (int) (this.miningProgress * 10.0F) - 1);
+        }
+        return true;
+    }
+
+    private void stopMining() {
+        if (this.miningPos != null) {
+            this.level.destroyBlockProgress(this.body.getId(), this.miningPos, -1);
+        }
+        this.miningPos = null;
+        this.miningProgress = 0.0F;
+    }
+
+    /** No way to walk or jump out in any direction. */
+    private boolean enclosed() {
+        BlockPos feet = this.body.blockPosition();
+        boolean ceiling = solid(feet.above(2));
+        for (Direction direction : Direction.Plane.HORIZONTAL) {
+            BlockPos step = feet.relative(direction);
+            if (!solid(step) && !solid(step.above())) {
+                return false;
+            }
+            if (solid(step) && !ceiling && !solid(step.above()) && !solid(step.above(2))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * The block to break: toward the player first, then the other sides. At head height when that
+     * is what blocks the way, otherwise at the feet.
+     */
+    private BlockPos blockInTheWay(ServerPlayer target) {
+        BlockPos feet = this.body.blockPosition();
+        Vec3 to = target.position().subtract(this.body.position());
+        List<Direction> order = new ArrayList<>(Direction.Plane.HORIZONTAL.stream().toList());
+        order.sort(Comparator.comparingDouble(direction -> -(direction.getStepX() * to.x + direction.getStepZ() * to.z)));
+        boolean ceiling = solid(feet.above(2));
+        for (Direction direction : order) {
+            BlockPos head = feet.relative(direction).above();
+            BlockPos low = feet.relative(direction);
+            if (solid(head) && minable(this.level.getBlockState(head), head)) {
+                return head;
+            }
+            if (solid(low) && (ceiling || solid(low.above(2))) && minable(this.level.getBlockState(low), low)) {
+                return low;
+            }
+        }
+        return null;
+    }
+
+    private boolean minable(BlockState state, BlockPos position) {
+        return !state.isAir() && !state.is(Blocks.BEDROCK) && state.getFluidState().isEmpty()
+                && state.getDestroySpeed(this.level, position) >= 0.0F;
+    }
+
+    /**
+     * Vanilla's mining progress per tick: tool speed over hardness, divided by 30 with the right
+     * tool and 100 without. Efficiency V adds 26 to a pickaxe's speed; in the air it is five times
+     * slower.
+     */
+    private float miningRate(BlockState state, BlockPos position) {
+        float hardness = state.getDestroySpeed(this.level, position);
+        if (hardness <= 0.0F) {
+            return 1.0F;
+        }
+        boolean pickaxe = state.is(BlockTags.MINEABLE_WITH_PICKAXE);
+        float speed = pickaxe ? PracticeKit.pickaxeSpeed(this.settings) + 26.0F : 1.0F;
+        boolean tierTooLow = state.is(BlockTags.NEEDS_DIAMOND_TOOL) && this.settings.armor == PracticeSettings.Armor.IRON;
+        boolean correct = pickaxe ? !tierTooLow : !state.requiresCorrectToolForDrops();
+        float rate = speed / hardness / (correct ? 30.0F : 100.0F);
+        return this.body.onGround() ? rate : rate / 5.0F;
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Ender pearls, aimed by simulating their flight
+    // ------------------------------------------------------------------------------------------
+
+    /**
+     * The smart bot's retreat: low, with apples left and the player close, it does not back away
+     * hopping. It pearls away to a spot it has checked it will land on, and eats there.
+     */
+    private boolean retreatWithPearl(ServerPlayer target) {
+        if (!has(BotSkill.PEARL_ESCAPE) || this.eating || this.pearls <= 0 || this.pearlCooldown > 0 || this.apples <= 0
+                || PracticeCombat.effectiveHealth(this.body) >= 10.0F || this.body.distanceTo(target) > 5.5D) {
+            return false;
+        }
+        return pearlAway(target);
     }
 
     /**
@@ -1153,75 +1435,186 @@ final class PracticeBot {
                 || PracticeCombat.holdsTotem(this.body) || PracticeCombat.effectiveHealth(this.body) > 6.0F) {
             return false;
         }
+        return pearlAway(target);
+    }
+
+    /**
+     * Pearls away from the player: straight back first, then turning up to ninety degrees either
+     * way, to the first direction with a landing it has checked.
+     */
+    private boolean pearlAway(ServerPlayer target) {
         Vec3 away = this.body.position().subtract(target.position());
         away = new Vec3(away.x, 0.0D, away.z);
         if (away.lengthSqr() < 1.0E-3D) {
             away = new Vec3(1.0D, 0.0D, 0.0D);
         }
-        Vec3 destination = this.body.position().add(away.normalize().scale(14.0D));
+        away = away.normalize();
         double limit = PracticeArena.RADIUS - 6;
-        destination = new Vec3(Mth.clamp(destination.x, -limit, limit), destination.y, Mth.clamp(destination.z, -limit, limit));
-        throwPearl(destination);
-        return true;
+        for (double turn : new double[] {0.0D, 35.0D, -35.0D, 70.0D, -70.0D, 100.0D, -100.0D}) {
+            double radians = Math.toRadians(turn);
+            Vec3 direction = new Vec3(away.x * Math.cos(radians) - away.z * Math.sin(radians), 0.0D,
+                    away.x * Math.sin(radians) + away.z * Math.cos(radians));
+            Vec3 destination = this.body.position().add(direction.scale(12.0D));
+            destination = new Vec3(Mth.clamp(destination.x, -limit, limit), destination.y, Mth.clamp(destination.z, -limit, limit));
+            if (throwPearl(destination, 5.0D, target.position())) {
+                return true;
+            }
+        }
+        return false;
     }
 
-    /** Far from the player: an ender pearl to close the gap. */
+    /** Far from the player: an ender pearl to land just in front of them. */
     private boolean chase(ServerPlayer target) {
+        double range = this.aggressive ? 8.0D : 14.0D;
         if (!has(BotSkill.PEARL_CHASE) || this.pearls <= 0 || this.pearlCooldown > 0
-                || this.body.distanceTo(target) < 14.0D) {
+                || this.body.distanceTo(target) < range) {
             return false;
         }
-        throwPearl(target.position());
-        return true;
+        Vec3 back = this.body.position().subtract(target.position());
+        back = new Vec3(back.x, 0.0D, back.z);
+        Vec3 destination = back.lengthSqr() > 1.0E-3D ? target.position().add(back.normalize().scale(2.5D)) : target.position();
+        return throwPearl(destination, 3.5D, null);
     }
 
-    private void throwPearl(Vec3 destination) {
-        Vec3 eye = this.body.getEyePosition();
-        double dx = destination.x - eye.x;
-        double dz = destination.z - eye.z;
-        double horizontal = Math.sqrt(dx * dx + dz * dz);
-        float yaw = (float) (Mth.atan2(dz, dx) * Mth.RAD_TO_DEG) - 90.0F;
-        float pitch = pearlPitch(Math.max(0.0D, horizontal - 1.5D), destination.y - eye.y);
-        this.body.setYRot(yaw);
-        this.body.setYHeadRot(yaw);
-        this.body.setXRot(pitch);
+    /** A throw it has worked out: where to look, and where it will land. */
+    private record PearlShot(float yaw, float pitch, Vec3 landing, double error) {
+    }
+
+    /**
+     * Throws a pearl only when the flight it simulated lands within {@code tolerance} of the
+     * destination on safe ground; otherwise keeps the pearl.
+     *
+     * @param avoid a point the landing must stay six blocks from, or {@code null}
+     */
+    private boolean throwPearl(Vec3 destination, double tolerance, Vec3 avoid) {
+        if (this.pearlInFlight != null && !this.pearlInFlight.isRemoved()) {
+            return false;
+        }
+        PearlShot shot = aimPearl(destination, tolerance, avoid);
+        if (shot == null) {
+            return false;
+        }
+        this.body.setYRot(shot.yaw());
+        this.body.setYHeadRot(shot.yaw());
+        this.body.setXRot(shot.pitch());
         hold(new ItemStack(Items.ENDER_PEARL, 16));
         ThrownEnderpearl pearl = new ThrownEnderpearl(this.level, this.body, new ItemStack(Items.ENDER_PEARL));
-        pearl.shootFromRotation(this.body, pitch, yaw, 0.0F, 1.5F, 1.0F);
+        pearl.shootFromRotation(this.body, shot.pitch(), shot.yaw(), 0.0F, 1.5F, 1.0F);
         this.level.addFreshEntity(pearl);
+        this.pearlInFlight = pearl;
         this.level.playSound(null, this.body.getX(), this.body.getY(), this.body.getZ(), SoundEvents.ENDER_PEARL_THROW,
                 SoundSource.NEUTRAL, 0.5F, 0.4F / (this.random.nextFloat() * 0.4F + 0.8F));
         swingArm();
         this.pearls--;
         this.pearlCooldown = 20;
+        return true;
     }
 
-    /** The pitch that lands a pearl {@code distance} blocks away, by stepping its flight. */
-    private static float pearlPitch(double distance, double rise) {
-        float best = -20.0F;
-        double bestError = Double.MAX_VALUE;
-        for (float pitch = -70.0F; pitch <= 10.0F; pitch += 2.0F) {
-            double radians = pitch * Mth.DEG_TO_RAD;
-            double horizontalSpeed = 1.5D * Math.cos(radians);
-            double verticalSpeed = -1.5D * Math.sin(radians);
-            double x = 0.0D;
-            double y = 0.0D;
-            for (int tick = 0; tick < 120; tick++) {
-                x += horizontalSpeed;
-                y += verticalSpeed;
-                horizontalSpeed *= 0.99D;
-                verticalSpeed = verticalSpeed * 0.99D - 0.03D;
-                if (verticalSpeed < 0.0D && y <= rise) {
-                    break;
+    /**
+     * Tries pitches from steep to flat, then small turns left and right, simulating each flight,
+     * and keeps the one landing closest to the destination. About a thousand short ray casts for a
+     * straight throw: well under a millisecond.
+     */
+    private PearlShot aimPearl(Vec3 destination, double tolerance, Vec3 avoid) {
+        Vec3 start = new Vec3(this.body.getX(), this.body.getEyeY() - 0.1D, this.body.getZ());
+        Vec3 moving = this.body.getDeltaMovement();
+        // The thrower's own movement is added to the pearl's, as shootFromRotation does.
+        Vec3 carried = new Vec3(moving.x, this.body.onGround() ? 0.0D : moving.y, moving.z);
+        float baseYaw = (float) (Mth.atan2(destination.z - start.z, destination.x - start.x) * Mth.RAD_TO_DEG) - 90.0F;
+        PearlShot best = null;
+        for (float offset : new float[] {0.0F, -6.0F, 6.0F, -12.0F, 12.0F}) {
+            float yaw = baseYaw + offset;
+            for (float pitch = -65.0F; pitch <= 25.0F; pitch += 2.5F) {
+                Vec3 landing = simulatePearl(start, pearlVelocity(yaw, pitch).add(carried));
+                Vec3 ground = landing == null ? null : safeGround(landing);
+                if (ground == null || (avoid != null && ground.distanceToSqr(avoid) < 36.0D)) {
+                    continue;
+                }
+                double dx = ground.x - destination.x;
+                double dz = ground.z - destination.z;
+                double error = Math.sqrt(dx * dx + dz * dz);
+                if (best == null || error < best.error()) {
+                    best = new PearlShot(yaw, pitch, ground, error);
                 }
             }
-            double error = Math.abs(x - distance);
-            if (error < bestError) {
-                bestError = error;
-                best = pitch;
+            if (best != null && best.error() <= tolerance * 0.5D) {
+                break;
             }
         }
-        return best;
+        return best != null && best.error() <= tolerance ? best : null;
+    }
+
+    /** The direction shootFromRotation gives a pitch and yaw, at a pearl's speed. */
+    private static Vec3 pearlVelocity(float yaw, float pitch) {
+        double x = -Mth.sin(yaw * Mth.DEG_TO_RAD) * Mth.cos(pitch * Mth.DEG_TO_RAD);
+        double y = -Mth.sin(pitch * Mth.DEG_TO_RAD);
+        double z = Mth.cos(yaw * Mth.DEG_TO_RAD) * Mth.cos(pitch * Mth.DEG_TO_RAD);
+        return new Vec3(x, y, z).normalize().scale(1.5D);
+    }
+
+    /**
+     * A pearl's flight, tick by tick as ThrowableProjectile moves it: gravity 0.03, then drag 0.99,
+     * then the move, stopped by the first block in its path. The thrower lands where the pearl was
+     * at the start of the tick it hit, which is what this returns; {@code null} for a pearl that
+     * hits at once, sets off a crystal on the way or never lands.
+     */
+    private Vec3 simulatePearl(Vec3 start, Vec3 velocity) {
+        Vec3 position = start;
+        Vec3 motion = velocity;
+        for (int tick = 0; tick < 100; tick++) {
+            motion = new Vec3(motion.x, motion.y - 0.03D, motion.z).scale(0.99D);
+            Vec3 next = position.add(motion);
+            BlockHitResult hit = this.level.clip(new ClipContext(position, next, ClipContext.Block.COLLIDER,
+                    ClipContext.Fluid.NONE, CollisionContext.empty()));
+            if (hit.getType() != HitResult.Type.MISS) {
+                return tick == 0 ? null : position;
+            }
+            if (crossesCrystal(position, next)) {
+                return null;
+            }
+            position = next;
+            if (position.y < this.level.getMinY()) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    /** A pearl touching a crystal sets it off, so a path through one is ruled out. */
+    private boolean crossesCrystal(Vec3 from, Vec3 to) {
+        for (EndCrystal crystal : this.level.getEntitiesOfClass(EndCrystal.class, new AABB(from, to).inflate(0.5D))) {
+            if (crystal.getBoundingBox().inflate(0.3D).clip(from, to).isPresent()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Where it ends up after landing: the ground under the landing point, within a four-block drop,
+     * with room to stand, nothing that burns or pricks, and inside the arena.
+     */
+    private Vec3 safeGround(Vec3 landing) {
+        BlockPos.MutableBlockPos cursor = BlockPos.containing(landing).mutable();
+        double limit = PracticeArena.RADIUS - 4;
+        for (int depth = 0; depth < 5; depth++) {
+            BlockPos below = cursor.below();
+            BlockState floor = this.level.getBlockState(below);
+            if (!floor.getCollisionShape(this.level, below).isEmpty()) {
+                if (solid(cursor) || solid(cursor.above()) || hurts(this.level.getBlockState(cursor)) || hurts(floor)
+                        || Math.abs(landing.x) > limit || Math.abs(landing.z) > limit) {
+                    return null;
+                }
+                return new Vec3(landing.x, cursor.getY(), landing.z);
+            }
+            cursor.move(Direction.DOWN);
+        }
+        return null;
+    }
+
+    private static boolean hurts(BlockState state) {
+        return state.is(Blocks.FIRE) || state.is(Blocks.SOUL_FIRE) || state.is(Blocks.LAVA) || state.is(Blocks.CACTUS)
+                || state.is(Blocks.MAGMA_BLOCK);
     }
 
     /**
