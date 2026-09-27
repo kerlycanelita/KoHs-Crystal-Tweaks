@@ -160,9 +160,22 @@ The **Advanced** tab holds the crystal helpers and the compatibility tools.
 - **Re-check compatibility** runs the optimizer detection again without restarting the game.
 
 The detection stands the interaction helpers down only for a mod actually found to be optimizing
-crystals: one that names itself an optimizer, or one whose Mixins land on the same interaction path
-*and* whose id, name or Mixin is about crystals. Sharing a network method is not enough on its own,
-and a scan that cannot read every mod says so instead of disabling anything.
+crystals:
+
+- a known one: Marlow's Crystal Optimizer, Client Side Crystals, Client-Sided Crystals, HCsCR,
+  FastCrystal and No Crystal Break;
+- one whose id or name pairs "crystal" with optimizing or client-side handling, which covers the
+  many "... Crystal Optimizer" mods;
+- one whose Mixin lands on the same send path or crystal renderer *and* is named for acting on
+  crystals (attacking, breaking, placing, predicting).
+
+Saying "crystal" is not enough. End Crystal skins, spin and size tweaks, crystals-per-second
+counters, Safe Crystals and PvP clients such as ClickCrystals never stand the helpers down, and a
+scan that cannot read every mod says so instead of disabling anything.
+
+Client Side Crystals counts as an optimizer: it draws a stand-in crystal the moment you place one,
+as the ghost crystals do, and its stand-in would be matched as your placement, leaving your real
+crystal to read as someone else's.
 
 **What a detected optimizer turns off.** Every interaction helper, with no exception: break
 prediction, ghost crystals, placement tracking and Safe Crystal. Safe Crystal matters most here: it
@@ -171,7 +184,8 @@ deciding, the usual result is obsidian you cannot break at all. Every visual fea
 
 **What never turns anything off.** Performance mods. Krypton, Lithium, Sodium, C2ME, ImmediatelyFast,
 ScalableLux, FerriteCore, MoreCulling, EntityCulling, ModernFix, LazyDFU, DynamicFPS, MemoryLeakFix,
-Noxesium, ViaFabricPlus and ViaVersion are named in the detector so that no Mixin overlap can be read
+Noxesium, ViaFabricPlus, ViaVersion, PacketFixer, BadOptimizations, VMP, Nvidium, Sodium Extra, Iris,
+GPU Booster, Ixeris and Particle Core are named in the detector so that no Mixin overlap can be read
 as a rival crystal optimizer.
 
 Instant crystal break is part of the mod's core and has no setting. It only hides a crystal you hit

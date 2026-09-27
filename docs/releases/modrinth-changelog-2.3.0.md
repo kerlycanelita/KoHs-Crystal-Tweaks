@@ -6,6 +6,7 @@
 - **Flash size** from `10%` to `300%` for every shaped style.
 - **A new settings screen.** Four tabs (**Colors**, **Glow**, **Sound**, **Advanced**), controls grouped on cards, switches with sliding knobs, a status chip that tells you what the optimizer is doing, animated tabs and rows, and an obsidian pedestal under the preview crystal. Click the preview to see your flash; changing the flash style shows it straight away.
 - **Safe Crystal can be switched off** in Advanced, for servers that do not allow input filters. It stays on by default.
+- **Better crystal optimizer detection.** Marlow's Crystal Optimizer, Client Side Crystals, Client-Sided Crystals, HCsCR, FastCrystal, No Crystal Break and the many "... Crystal Optimizer" mods are recognized, and Crystal Tweaks steps its interaction helpers aside for them. Mods that only say "crystal" no longer do that: End Crystal skins, spin and size tweaks, crystals-per-second counters and PvP clients keep every helper running, and performance mods such as Krypton, Sodium or Lithium never count.
 - An **important notice** the first time you open the settings in a session, only when no crystal optimizer is installed: Crystal Tweaks optimizes your client only; for placements that reach the server sooner, Marlow's Crystal Optimizer is recommended. You can turn the notice off for good.
 
 ## Fixed
@@ -13,7 +14,9 @@
 - Your own crystals were drawn with the enemy profile while spamming. Placements are now queued per base and claimed in the order you sent them.
 - The settings preview always exploded with the plain burst instead of your flash style.
 - The death flash's light on the ground tore apart as it faded, and the same explosion lit the ground only sometimes during a fight.
+- **On 26.2 and 26.3 the glow cut dark discs into the light around it**: those versions made the material the glow is drawn with hide everything behind it, including the light on the ground and other crystals' glow. The glow now uses its own copy of that material that lets lights add up again.
 - At high power the glow looked distorted: the crystal's turning frames cut it into flickering pieces, and the ground cut it off in a straight line. The halo now sits just behind the crystal and fades out before the ground, and strong reflections fade out at their edge instead of ending in a hard square.
+- The Conflict Monitor drew a found mod's icon as a solid strip over the report's text. The icon now sits in its card.
 - Turning on the glow's own colour repainted the crystal's layers. It now belongs to the light alone.
 - A crash while saving could reset every setting on the next launch.
 

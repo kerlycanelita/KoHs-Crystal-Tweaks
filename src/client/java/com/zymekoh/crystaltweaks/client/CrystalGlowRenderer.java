@@ -117,7 +117,7 @@ public final class CrystalGlowRenderer {
         float power = CrystalGlowMath.power(look.glowPowerPercent);
         float centerY = 2F + EndCrystalRenderer.getY(state.ageInTicks * look.floatingSpeedPercent / 100F);
         int color = look.haloColor();
-        // Vanilla dragon-ray material: additive blending, depth test on, depth writes off.
+        // Additive, depth-tested, writing no depth: see CrystalGlowMaterial.
         poses.pushPose();
         poses.translate(0, centerY, 0);
         float sizeScale = behindModel ? moveBehindModel(poses, camera.orientation) : 1F;
@@ -142,7 +142,7 @@ public final class CrystalGlowRenderer {
                         (pose, buffer) -> CrystalFlashShapes.submitPlayerHead(
                                 new CrystalGlowBuffer(buffer, centerY, upX, upY), pose.pose(), pale, headRadius,
                                 power * opacity));
-                collector.submitCustomGeometry(poses, RenderTypes.dragonRays(), (pose, buffer) -> {
+                collector.submitCustomGeometry(poses, CrystalGlowMaterial.glow(), (pose, buffer) -> {
                     CrystalGlowBuffer glow = new CrystalGlowBuffer(buffer, centerY, upX, upY);
                     disk(glow, pose.pose(), pale, headRadius * 1.4F, 0.4F * power * opacity);
                     CrystalFlashShapes.submitHeadVeil(glow, pose.pose(), 0xFFFFFFFF, headRadius,
@@ -153,7 +153,7 @@ public final class CrystalGlowRenderer {
             submitReflections(state, look, poses, collector, color, power, opacity, centerY);
             return;
         }
-        collector.submitCustomGeometry(poses, RenderTypes.dragonRays(), (pose, buffer) -> {
+        collector.submitCustomGeometry(poses, CrystalGlowMaterial.glow(), (pose, buffer) -> {
             CrystalGlowBuffer glow = new CrystalGlowBuffer(buffer, centerY, upX, upY);
             Matrix4f matrix = pose.pose();
             float radius = CrystalGlowMath.radius(power) * shapeScale;
@@ -233,7 +233,7 @@ public final class CrystalGlowRenderer {
         if (surfaces.isEmpty()) return;
         float strength = power * CrystalGlowMath.power(look.glowReflectionsPercent) * 0.65F * opacity;
         int reflectionPasses = Math.max(1, (int) Math.ceil(strength));
-        collector.submitCustomGeometry(poses, RenderTypes.dragonRays(), (pose, buffer) -> {
+        collector.submitCustomGeometry(poses, CrystalGlowMaterial.glow(), (pose, buffer) -> {
             for (int pass = 0; pass < reflectionPasses; pass++) for (Surface surface : surfaces) {
                 for (int ix = 0; ix < 4; ix++) for (int iz = 0; iz < 4; iz++) {
                     float x0 = surface.x0 + (surface.x1 - surface.x0) * ix / 4;

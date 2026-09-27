@@ -15,6 +15,20 @@
 
 Crystal Tweaks brings End Crystal visual and sound controls into one animated configuration screen. Version 2.3.0 adds fourteen flash styles for a destroyed crystal, rebuilds the settings into four tabs of tidy cards around a live preview, fixes your own crystals being drawn with the enemy profile while spamming, and supports Minecraft 1.21.11 through 26.3.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/images/glow.png" alt="Your crystals glowing purple and an enemy crystal glowing red at night" width="880">
+</p>
+
+<p align="center">
+  <img src="docs/images/flash-styles.png" alt="Twelve of the fourteen flash styles a destroyed crystal can leave" width="880">
+</p>
+
+| Colors | Glow | Advanced |
+| --- | --- | --- |
+| ![Colors tab](docs/images/settings-colors.png) | ![Glow tab with a heart flash in the preview](docs/images/settings-glow.png) | ![Advanced tab](docs/images/settings-advanced.png) |
+
 ## What it changes
 
 - Independent colors for the outer layer, inner layer, and crystal core.

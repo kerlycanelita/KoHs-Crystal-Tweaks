@@ -15,8 +15,9 @@ import net.minecraft.client.Minecraft;
  *
  * <p>Two signals are used. A mod that names itself a crystal optimizer is taken at its word. Beyond
  * that, the Conflict Monitor's own scan is consulted: a mod whose Mixins land on the same
- * interaction path <em>and</em> whose own name or Mixin is about crystals is optimizing them too,
- * whatever it calls itself.</p>
+ * interaction path <em>and</em> whose overlapping Mixin is named for acting on crystals is optimizing
+ * them too, whatever the mod calls itself. Saying "crystal" is not enough on its own: counters,
+ * skins and spin tweaks for the End Crystal say it too.</p>
  *
  * <p>The scan reads jars and parses class files, so it runs off the render thread. Until it
  * finishes, the fast metadata check has already yielded to known/named optimizers.</p>
@@ -95,12 +96,15 @@ public final class OptimizerConflictDetector {
      * itself lives in {@link CrystalOptimizerGuard} so it can be exercised without a game client.
      */
     private static boolean optimizesCrystals(ConflictScanner.ConflictEntry entry) {
-        List<String> networkMixins = entry.points().stream()
-                .filter(point -> point.area() == ConflictScanner.ConflictArea.NETWORK_OBSERVER)
+        // The send path and the crystal renderer are where an optimizer acts: the packet it speeds
+        // up and the crystal it hides early. Sound and other overlaps say nothing about that.
+        List<String> interactionMixins = entry.points().stream()
+                .filter(point -> point.area() == ConflictScanner.ConflictArea.NETWORK_OBSERVER
+                        || point.area() == ConflictScanner.ConflictArea.CRYSTAL_RENDERING)
                 .map(ConflictScanner.ConflictPoint::foreignMixinClass)
                 .toList();
         return CrystalOptimizerGuard.overlapOptimizesCrystals(
-                entry.modId(), entry.modName(), networkMixins);
+                entry.modId(), entry.modName(), interactionMixins);
     }
 
     private static void standDown(String modName, String reason) {

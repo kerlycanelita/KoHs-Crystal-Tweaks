@@ -16,8 +16,8 @@ import java.util.Locale;
  */
 public final class CrystalOptimizerGuard {
     /**
-     * Mod ids known to optimize crystal interaction. The behavioural check below catches the rest;
-     * this list only shortens the path for the ones already known by name.
+     * Mod ids known to drive crystal interaction on the client. The name and Mixin checks below
+     * catch the rest; this list covers the popular ones whatever they call themselves.
      */
     private static final String[] KNOWN_OPTIMIZER_IDS = {
             "marlowcrystal",
@@ -27,6 +27,14 @@ public final class CrystalOptimizerGuard {
             "fastcrystal",
             "crystaloptimize",
             "nocrystalbreak",
+            // HCsCR removes a hit crystal before the server answers, as the break prediction does.
+            "hcscr",
+            // Client Side Crystals draws a stand-in crystal the moment one is placed, which is what
+            // the ghost crystals do, and its stand-in would be matched as the player's placement,
+            // leaving the real crystal to read as someone else's.
+            "clientsidecrystals",
+            // Client-Sided Crystals lets the client interact with crystals ahead of the server.
+            "clientsidedcrystals",
             // The retired KoHs Crystal Tweaks drives crystals from its own Connection mixin. Naming it
             // here turns a silent stand-down into a notice that says which JAR to remove.
             "kohs_crystal_tweaks",
@@ -34,10 +42,47 @@ public final class CrystalOptimizerGuard {
     };
 
     /**
-     * Visual-only crystal mods. They draw, they do not predict, so they are not a conflict.
+     * Words that, next to "crystal", describe driving crystals ahead of the server. "Fast" is not
+     * one of them: FastCrystalSpin, Crystal Speed and their like only change how a crystal looks.
      */
-    private static final String[] VISUAL_ONLY_IDS = {
-            "clientsidecrystals",
+    private static final String[] OPTIMIZER_WORDS = {
+            "optimi",
+            "client side",
+            "clientside",
+            "client-side",
+            "client_side",
+            "client sided",
+            "client-sided",
+            "clientsided",
+    };
+
+    /**
+     * What a crystal optimizer's own Mixin class tends to be named after. Only read for a Mixin that
+     * already overlaps this mod's interaction path.
+     */
+    private static final String[] INTERACTION_WORDS = {
+            "optimi",
+            "clientside",
+            "client_side",
+            "predict",
+            "instant",
+            "attack",
+            "break",
+            "place",
+    };
+
+    /**
+     * Crystal mods that read the same packets to count or display them. A crystals-per-second
+     * counter hooks {@code Connection.send} and says "crystal" everywhere, and it predicts nothing.
+     */
+    private static final String[] READOUT_WORDS = {
+            "count",
+            "cps",
+            "persecond",
+            "per_second",
+            "hud",
+            "stat",
+            "display",
     };
 
     /**
@@ -67,6 +112,15 @@ public final class CrystalOptimizerGuard {
             "viafabricplus",
             "viafabric",
             "viaversion",
+            "packetfixer",
+            "badoptimizations",
+            "vmp",
+            "nvidium",
+            "sodium-extra",
+            "iris",
+            "gpu_booster",
+            "ixeris",
+            "particle_core",
     };
 
     private enum Status { CHECKING, READY, INCOMPLETE, CONFLICT }
@@ -132,36 +186,53 @@ public final class CrystalOptimizerGuard {
      *
      * <p>{@code Connection.send} is one of the busiest Mixin targets in the ecosystem: performance
      * mods, protocol translators and ping readouts all sit there without ever touching a crystal.
-     * Landing on the same method is therefore not enough on its own. The mod also has to be about
-     * crystals, by its id, its name, or the Mixin class doing the overlapping.</p>
+     * Landing on the same method is therefore not enough on its own, and neither is saying
+     * "crystal": crystals-per-second counters and End Crystal skins do that too. The mod has to name
+     * itself a crystal optimizer, or the overlapping Mixin has to be about acting on crystals.</p>
      *
-     * @param networkMixinClasses the foreign Mixin classes that overlap this mod on the interaction
-     *                            path; empty when the overlap is somewhere else entirely
+     * @param mixinClasses the foreign Mixin classes that overlap this mod on the interaction or
+     *                     crystal rendering path; empty when the overlap is somewhere else entirely
      */
     public static boolean overlapOptimizesCrystals(
             String modId,
             String modName,
-            List<String> networkMixinClasses
+            List<String> mixinClasses
     ) {
-        if (networkMixinClasses == null || networkMixinClasses.isEmpty()) {
+        if (mixinClasses == null || mixinClasses.isEmpty()) {
             return false;
         }
         if (optimizesTheGame(modId)) {
             return false;
         }
-        if (mentionsCrystals(modId) || mentionsCrystals(modName)) {
+        if (looksLikeOptimizer(modId, modName)) {
             return true;
         }
-        for (String mixinClass : networkMixinClasses) {
-            if (mentionsCrystals(mixinClass)) {
+        for (String mixinClass : mixinClasses) {
+            if (actsOnCrystals(mixinClass)) {
                 return true;
             }
         }
         return false;
     }
 
-    private static boolean mentionsCrystals(String value) {
-        return value != null && value.toLowerCase(Locale.ROOT).contains("crystal");
+    /** A Mixin class whose own name says it acts on crystals, and not that it counts them. */
+    private static boolean actsOnCrystals(String mixinClass) {
+        if (mixinClass == null) {
+            return false;
+        }
+        String simpleName = mixinClass.substring(mixinClass.lastIndexOf('.') + 1).toLowerCase(Locale.ROOT);
+        return simpleName.contains("crystal")
+                && containsAny(simpleName, INTERACTION_WORDS)
+                && !containsAny(simpleName, READOUT_WORDS);
+    }
+
+    private static boolean containsAny(String value, String[] words) {
+        for (String word : words) {
+            if (value.contains(word)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** True for a mod that speeds the game up rather than driving crystals. Exact ids only. */
@@ -178,27 +249,22 @@ public final class CrystalOptimizerGuard {
         return false;
     }
 
-    /** Matches a mod id or name that names itself a crystal optimizer. */
+    /**
+     * Matches a mod that is a crystal optimizer: a known id, or an id or name that pairs "crystal"
+     * with optimizing or client-side handling. A crystal that only looks different, spins faster or
+     * is counted is not one.
+     */
     public static boolean looksLikeOptimizer(String modId, String modName) {
         String id = modId == null ? "" : modId.toLowerCase(Locale.ROOT);
         if (optimizesTheGame(id)) {
             return false;
-        }
-        for (String visual : VISUAL_ONLY_IDS) {
-            if (id.equals(visual)) {
-                return false;
-            }
         }
         for (String known : KNOWN_OPTIMIZER_IDS) {
             if (id.equals(known)) {
                 return true;
             }
         }
-
         String haystack = (id + " " + (modName == null ? "" : modName)).toLowerCase(Locale.ROOT);
-        if (!haystack.contains("crystal")) {
-            return false;
-        }
-        return haystack.contains("optimi") || haystack.contains("aura") || haystack.contains("fast");
+        return haystack.contains("crystal") && containsAny(haystack, OPTIMIZER_WORDS);
     }
 }

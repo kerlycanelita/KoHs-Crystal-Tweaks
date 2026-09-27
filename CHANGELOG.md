@@ -50,6 +50,18 @@
   to anyone who was not already on screen.
 - Turning on the glow's own colour no longer asks for confirmation; it only ever changed the light.
 - **Reset** on the Glow tab restores the shipped glow instead of switching it off.
+- The optimizer detection knows the popular crystal optimizers by their own ids (Marlow's Crystal
+  Optimizer, Client Side Crystals, Client-Sided Crystals, HCsCR, FastCrystal, No Crystal Break) and
+  the rest by a name that pairs "crystal" with optimizing or client-side handling. It no longer
+  stands down for a mod that only says "crystal": FastCrystalSpin was matched for the word "fast",
+  and any crystal mod on the send path, a crystals-per-second counter included, was matched for
+  the word "crystal". A Mixin overlap now counts only when the overlapping Mixin is named for
+  acting on crystals.
+- Client Side Crystals now stands the interaction helpers down. It draws a stand-in crystal the
+  moment one is placed, as the ghost crystals do, and its stand-in was matched as the player's
+  placement, so the real crystal was read as someone else's.
+- More performance mods are named so they can never stand the helpers down: PacketFixer,
+  BadOptimizations, VMP, Nvidium, Sodium Extra, Iris, GPU Booster, Ixeris and Particle Core.
 - Safe Crystal now states its stand-down as one named decision instead of a condition folded into the
   click handler. With Marlow's Crystal Optimizer, No Crystal Break or any other detected crystal
   optimizer installed, the obsidian click reaches Vanilla untouched.
@@ -83,6 +95,12 @@
 - The same explosion lit the ground only sometimes during a fight. When the per-tick terrain sampling
   budget ran out, a crystal reported no lit surfaces at all and that empty answer was captured into
   the flash. It now reuses its last result instead.
+- On 26.2 and 26.3 every glow cut dark discs into the light around it. Those versions gave vanilla's
+  dragon-ray material, which the glow is drawn with, the default depth state, so each halo wrote
+  depth and hid every light drawn after it: the spill on the ground behind a crystal, other
+  crystals' glow and the flash of the next explosion. The glow now uses a copy of that material,
+  read from vanilla's own pipeline, with only the depth writes turned off. 1.21.11 and 26.1.x keep
+  vanilla's material, which never wrote depth there.
 - At high power the glow looked distorted around the crystal. The halo was a flat billboard through
   the crystal's centre, so the turning frames were half in front of it and half behind, and the
   front half cut hard-edged holes into the light that changed every frame. A live crystal's halo is
@@ -93,6 +111,9 @@
   base, so it meets the ground already dark.
 - With reflections turned up, the light on the ground ended in a hard square at the edge of the
   sampled blocks. It now fades to nothing over the last block.
+- The Conflict Monitor drew a found mod's icon as a solid strip down the left of the report,
+  covering the first letters of every line, and left the card's icon space empty. The icon was
+  drawn with a size where the far corner goes; it now sits in its card.
 - For the first moment after the settings opened, the buttons already took clicks but were not
   drawn yet. They now fade in from partly visible, so nothing clickable is ever invisible.
 - The settings file is written beside the real one and moved over it, so a crash mid-write can no

@@ -246,7 +246,10 @@ public final class ConflictMonitorScreen extends Screen {
         int iconY = y + 6;
         Identifier icon = iconFor(entry);
         if (icon != null) {
-            graphics.blit(icon, iconX, iconY, iconSize, iconSize, 0.0F, 0.0F, 1.0F, 1.0F);
+            // This overload takes the two corners and then u0, u1, v0, v1. Passing a size where the
+            // far corner goes, with the UVs in x/y order, stretched a single column of the icon
+            // from (size, size) to the card, a solid strip across the report's text.
+            graphics.blit(icon, iconX, iconY, iconX + iconSize, iconY + iconSize, 0.0F, 1.0F, 0.0F, 1.0F);
         } else {
             graphics.fill(iconX, iconY, iconX + iconSize, iconY + iconSize, 0xFF351044);
             drawOutline(graphics, iconX, iconY, iconSize, iconSize, 0xFFC06BE8);
@@ -278,7 +281,8 @@ public final class ConflictMonitorScreen extends Screen {
                 0xFFBFAFC7,
                 false);
 
-        int lineY = Math.max(y + 6 + iconSize, y + 10 + this.font.lineHeight * 2);
+        // Three pixels under the icon, so the first reason does not sit on its edge.
+        int lineY = Math.max(y + 9 + iconSize, y + 13 + this.font.lineHeight * 2);
         for (String reason : reasons(entry)) {
             lineY += drawWrapped(
                     graphics,
@@ -341,7 +345,7 @@ public final class ConflictMonitorScreen extends Screen {
 
     private int cardHeight(ConflictEntry entry) {
         int width = Math.max(20, this.bodyWidth - 20);
-        int height = 10 + Math.max(34, this.font.lineHeight * 2);
+        int height = 13 + Math.max(34, this.font.lineHeight * 2);
         for (String reason : reasons(entry)) {
             height += wrappedHeight("• " + reason, width);
         }

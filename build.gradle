@@ -145,6 +145,11 @@ if (usesRemapping || usesModernRegistrySplit) {
 		inputs.property 'usesPartialTickCulling', usesPartialTickCulling
 
 		from('src/client/java') {
+			if (usesModernRegistrySplit) {
+				// 26.2 and 26.3 each bring their own glow material: vanilla's dragon rays, which the
+				// base copy uses, write depth on those targets.
+				exclude 'com/zymekoh/crystaltweaks/client/CrystalGlowMaterial.java'
+			}
 			if (usesSdlWindowing) {
 				exclude 'com/zymekoh/crystaltweaks/client/SoundFilePicker.java'
 				filesMatching('**/*.java') {
@@ -191,6 +196,9 @@ if (usesRemapping || usesModernRegistrySplit) {
 		}
 		if (usesRemapping) {
 			from('src/legacy/java')
+		}
+		if (usesModernRegistrySplit && !usesSdlWindowing) {
+			from('src/modern/java')
 		}
 		if (usesSdlWindowing) {
 			from('src/sdl/java')

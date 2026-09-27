@@ -270,3 +270,18 @@ The preview renders through the same picture-in-picture path on 1.21.11, 26.1.x 
 26.2, and the camera uses the same rotation convention on all of them, so G5 behaves the same on
 every target. All six targets build, `verify-jars` and `verify-mixins` pass, and the layout tests
 pass over 362,880 combinations.
+
+## Third follow-up: the material, the detector and the monitor
+
+New captures with reflections on showed a dark disc behind every glowing crystal on 26.2, cutting
+into the light on the ground and into the neighbouring crystals' glow.
+
+| # | Seen | Cause | Fix |
+| --- | --- | --- | --- |
+| G8 | Dark discs behind every glow on 26.2 | 26.2 and 26.3 give vanilla's `DRAGON_RAYS` pipeline `DepthStencilState.DEFAULT`, which writes depth; 1.21.11 and 26.1.x build it with depth writes off. Every halo therefore hid the light drawn after it | `CrystalGlowMaterial`: on 26.2 (`src/modern`) and 26.3 (`src/sdl`) a copy of vanilla's pipeline, read through its own getters, with only `writeDepth` false; 26.3 keeps vanilla's OIT set. The other targets use vanilla's material as before |
+| G9 | The Conflict Monitor drew a found mod's icon as a solid strip down the report | `blit(Identifier, x0, y0, x1, y1, u0, u1, v0, v1)` was given a size for the far corner and UVs in x/y order | Corners and UVs in the right order, and 3 px between the icon and the first reason |
+| D1 | Crystal-themed mods that optimize nothing could stand the helpers down | The name rule accepted "crystal" with "fast" (FastCrystalSpin), and the overlap rule accepted any crystal mod on `Connection.send` (crystals-per-second counters) | Known optimizers by their own ids (Client Side Crystals, Client-Sided Crystals and HCsCR added, read from their sources); names must pair "crystal" with optimizing or client-side handling; an overlapping Mixin counts only when named for acting on crystals and not for counting them |
+
+Client Side Crystals moved from "visual only" to optimizer: it spawns a client-side stand-in the
+moment a crystal is placed, the same job as the ghost crystals, and the stand-in would be matched
+as the player's own placement.

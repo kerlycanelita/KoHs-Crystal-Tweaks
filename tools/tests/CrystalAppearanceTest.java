@@ -85,8 +85,28 @@ public final class CrystalAppearanceTest {
         check(CrystalOptimizerGuard.looksLikeOptimizer("nocrystalbreak", ""), "No Crystal Break detected by exact id");
         check(CrystalOptimizerGuard.looksLikeOptimizer("kohs_crystal_tweaks", "KoHs Crystal Tweaks"), "Retired KoHs Crystal Tweaks detected by exact id");
         check(CrystalOptimizerGuard.looksLikeOptimizer("unknown", "Crystal Optimizer"), "Unknown optimizer detected by name");
-        check(!CrystalOptimizerGuard.looksLikeOptimizer("clientsidecrystals", "Clientside Crystals"), "Visual mods are not interaction optimizers");
         check(!CrystalOptimizerGuard.looksLikeOptimizer("krypton", "Krypton"), "Network performance mods are not crystal optimizers");
+        // The popular client-side crystal mods, by the ids in their own fabric.mod.json.
+        check(CrystalOptimizerGuard.looksLikeOptimizer("clientsidecrystals", "Client Side Crystals"),
+                "Client Side Crystals draws its own placement stand-in, so the helpers yield");
+        check(CrystalOptimizerGuard.looksLikeOptimizer("clientsidedcrystals", "Client-Sided Crystals"),
+                "Client-Sided Crystals detected by exact id");
+        check(CrystalOptimizerGuard.looksLikeOptimizer("hcscr", "HCsCR"), "HCsCR detected though its name says nothing");
+        for (String name : new String[] {"Kind's Crystal Optimizer", "G1ax Crystal Optimizer",
+                "Shikaru's Crystal Optimizer", "Hazel Crystal Optimizer - HCO", "Psychodreams CrystalOptimizer",
+                "Rawnet's Crystal Optimizer", "Ryuu Crystal Optimizer", "Akinoko Crystal Optimizer"}) {
+            check(CrystalOptimizerGuard.looksLikeOptimizer("unknown_id", name), name + " detected by name");
+        }
+        // Mods about End Crystals that optimize nothing must never stand the helpers down.
+        for (String[] visual : new String[][] {{"fastcrystalspin", "FastCrystalSpin"},
+                {"crystal_speed", "Crystal Speed"}, {"custom_end_crystals", "Custom End Crystals"},
+                {"crystalglow", "Crystal Glow"}, {"smallercrystals", "Smaller Crystals"},
+                {"safecrystal", "Safe Crystals"}, {"crystal_anchor_counter", "Crystal Anchor Counter"},
+                {"cps", "crystals-per-second"}, {"clickcrystals", "ClickCrystals"},
+                {"no_end_crystal_damage", "No End Crystal Damage"}}) {
+            check(!CrystalOptimizerGuard.looksLikeOptimizer(visual[0], visual[1]),
+                    visual[1] + " is not a crystal optimizer by name");
+        }
         // The overlap rule, against the mods that actually sit on Connection.send in a real pack.
         List<String> onSend = List.of("me.example.mixin.ConnectionMixin");
         check(!CrystalOptimizerGuard.overlapOptimizesCrystals("krypton", "Krypton", onSend),
@@ -109,6 +129,20 @@ public final class CrystalAppearanceTest {
                 "A crystal Mixin gives away a mod whose name does not");
         check(!CrystalOptimizerGuard.overlapOptimizesCrystals("crystalskins", "Crystal Skins", List.of()),
                 "An overlap away from the interaction path is not a conflict, whatever the mod is called");
+        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("crystal_anchor_counter", "Crystal Anchor Counter",
+                        List.of("com.example.mixin.CrystalCountMixin", "com.example.mixin.ConnectionMixin")),
+                "A crystals-per-second counter reads the send path without optimizing anything");
+        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("custom_end_crystals", "Custom End Crystals",
+                        List.of("com.example.mixin.EndCrystalRendererMixin")),
+                "A crystal skin on the renderer is not an optimizer");
+        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("fastcrystalspin", "FastCrystalSpin",
+                        List.of("com.example.mixin.EndCrystalRendererMixin")),
+                "A faster spin is not a faster crystal");
+        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("clickcrystals", "ClickCrystals", onSend),
+                "A PvP client on the send path is not a crystal optimizer by being called ClickCrystals");
+        check(CrystalOptimizerGuard.overlapOptimizesCrystals("lunartweaks", "LunarTweaks",
+                        List.of("dev.example.lunartweaks.mixin.CrystalOptimizerMixin")),
+                "A crystal optimizer module inside a larger mod gives itself away by its Mixin");
         check(!CrystalOptimizerGuard.overlapOptimizesCrystals("krypton", "Krypton", null),
                 "A missing overlap list must not be read as a conflict");
         // Performance mods share this mod's Mixin targets and must never stand it down.
@@ -124,8 +158,10 @@ public final class CrystalAppearanceTest {
         }
         check(!CrystalOptimizerGuard.optimizesTheGame("marlowcrystal"), "Marlow is not a game optimizer");
         check(!CrystalOptimizerGuard.optimizesTheGame("kryptonite"), "Allowlist matches exact ids only");
-        check(CrystalOptimizerGuard.overlapOptimizesCrystals("SOME_CRYSTAL_MOD", null, onSend),
+        check(CrystalOptimizerGuard.overlapOptimizesCrystals("SOME_CRYSTAL_OPTIMIZER", null, onSend),
                 "Detection is case-insensitive and survives a null name");
+        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("SOME_CRYSTAL_MOD", null, onSend),
+                "Saying crystal on the send path is not enough");
         CrystalOptimizerGuard.reportConflict("Marlow");
         check(!CrystalOptimizerGuard.optimizationsAllowed(), "Interaction core yields");
         CrystalOptimizerGuard.completeScan();
