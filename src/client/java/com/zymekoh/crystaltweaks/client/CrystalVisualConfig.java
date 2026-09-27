@@ -15,7 +15,9 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.LinkedHashMap;
 import java.util.Locale;
+import java.util.Map;
 
 public final class CrystalVisualConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -37,6 +39,12 @@ public final class CrystalVisualConfig {
     private static volatile int practiceBlastPieces = 0b0100;
     private static volatile boolean practiceBot = true;
     private static volatile String practiceBotDifficulty = "NORMAL";
+    private static volatile int practiceKnockback = 1;
+    private static volatile String practicePreset = "standard";
+    private static volatile String practiceWorld = "FLAT";
+    private static volatile String practiceBiome = "plains";
+    /** Kits the player rearranged and saved, by preset id, in {@link com.zymekoh.crystaltweaks.practice.KitLayout}'s text form. */
+    private static final Map<String, String> practiceKits = new LinkedHashMap<>();
     private static volatile CrystalFlashStyle flashStyle = CrystalFlashStyle.EXPLOSION;
     private static volatile boolean loaded;
     private static final CrystalAppearance playerVisuals = new CrystalAppearance();
@@ -119,6 +127,18 @@ public final class CrystalVisualConfig {
                     practiceBlastPieces = intValue(practice, "blastPieces", 0b0100) & 0b1111;
                     practiceBot = booleanValue(practice, "bot", true);
                     practiceBotDifficulty = stringValue(practice, "botDifficulty", "NORMAL");
+                    practiceKnockback = clamp(intValue(practice, "knockback", 1), 1, 2);
+                    practicePreset = stringValue(practice, "preset", "standard");
+                    practiceWorld = stringValue(practice, "world", "FLAT");
+                    practiceBiome = stringValue(practice, "biome", "plains");
+                    practiceKits.clear();
+                    JsonObject kits = section(practice, "kits");
+                    for (String key : kits.keySet()) {
+                        String layout = stringValue(kits, key, "");
+                        if (!layout.isBlank()) {
+                            practiceKits.put(key.toLowerCase(Locale.ROOT), layout);
+                        }
+                    }
 
                     JsonObject glow = section(root, "glow");
                     // Read first: migrating a profile needs to know which style its flash size meant.
@@ -212,6 +232,17 @@ public final class CrystalVisualConfig {
                 practice.addProperty("blastPieces", practiceBlastPieces);
                 practice.addProperty("bot", practiceBot);
                 practice.addProperty("botDifficulty", practiceBotDifficulty);
+                practice.addProperty("knockback", practiceKnockback);
+                practice.addProperty("preset", practicePreset);
+                practice.addProperty("world", practiceWorld);
+                practice.addProperty("biome", practiceBiome);
+                JsonObject kits = new JsonObject();
+                synchronized (practiceKits) {
+                    for (Map.Entry<String, String> kit : practiceKits.entrySet()) {
+                        kits.addProperty(kit.getKey(), kit.getValue());
+                    }
+                }
+                practice.add("kits", kits);
                 root.add("practice", practice);
 
                 JsonObject notices = root.has("notices") && root.get("notices").isJsonObject()
@@ -475,7 +506,64 @@ public final class CrystalVisualConfig {
     public static com.zymekoh.crystaltweaks.practice.PracticeSettings practice() {
         load();
         return com.zymekoh.crystaltweaks.practice.PracticeSettings.from(practiceArmor, practiceBlastPieces, practiceBot,
-                practiceBotDifficulty);
+                practiceBotDifficulty, practiceKnockback, practicePreset, practiceWorld, practiceBiome);
+    }
+
+    /** The kit a preset gives: the player's saved arrangement of it, or the preset as it ships. */
+    public static com.zymekoh.crystaltweaks.practice.KitLayout practiceKit(com.zymekoh.crystaltweaks.practice.KitPreset preset) {
+        load();
+        String saved;
+        synchronized (practiceKits) {
+            saved = practiceKits.get(preset.id);
+        }
+        com.zymekoh.crystaltweaks.practice.KitLayout layout = com.zymekoh.crystaltweaks.practice.KitLayout.decode(saved);
+        return layout != null ? layout : preset.defaultLayout();
+    }
+
+    /** True when the player saved their own arrangement of this preset. */
+    public static boolean practiceKitCustomized(com.zymekoh.crystaltweaks.practice.KitPreset preset) {
+        load();
+        synchronized (practiceKits) {
+            return practiceKits.containsKey(preset.id);
+        }
+    }
+
+    /** Stores a rearranged kit; one identical to the shipped preset is forgotten instead. */
+    public static void setPracticeKit(com.zymekoh.crystaltweaks.practice.KitPreset preset,
+            com.zymekoh.crystaltweaks.practice.KitLayout layout) {
+        load();
+        synchronized (practiceKits) {
+            if (layout == null || layout.isEmpty() || layout.equals(preset.defaultLayout())) {
+                practiceKits.remove(preset.id);
+            } else {
+                practiceKits.put(preset.id, layout.encode());
+            }
+        }
+    }
+
+    public static int practiceKnockback() {
+        load();
+        return practiceKnockback;
+    }
+
+    public static void setPracticeKnockback(int level) {
+        load();
+        practiceKnockback = clamp(level, 1, 2);
+    }
+
+    public static void setPracticePreset(String preset) {
+        load();
+        practicePreset = preset == null ? "standard" : preset;
+    }
+
+    public static void setPracticeWorld(String world) {
+        load();
+        practiceWorld = world == null ? "FLAT" : world;
+    }
+
+    public static void setPracticeBiome(String biome) {
+        load();
+        practiceBiome = biome == null ? "plains" : biome;
     }
 
     public static String practiceArmor() {

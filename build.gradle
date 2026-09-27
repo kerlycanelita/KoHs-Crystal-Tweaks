@@ -92,7 +92,9 @@ def sdlEraTransform = { String line -> line
 		// 26.3 swings name the animation and whether the swinging player is told too.
 		.replace('this.body.swing(InteractionHand.MAIN_HAND);',
 				'this.body.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);')
-		.replace('poses.mulPose(camera.orientation)', 'poses.rotate(camera.orientation)') }
+		.replace('poses.mulPose(camera.orientation)', 'poses.rotate(camera.orientation)')
+		// 26.3 renamed the flag that makes the entity tracker resend a knocked-back entity's motion.
+		.replace('target.hurtMarked = false;', 'target.syncVelocity = false;') }
 
 def partialTickCullingTransform = { String line -> line
 		.replace(

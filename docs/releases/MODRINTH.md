@@ -36,9 +36,21 @@ The helpers also stay off while compatibility is being checked. If the check can
 
 You also get optional ghost crystals (off by default), a scroll hint when more options are available, and a conflict monitor that warns about possible mod clashes.
 
+## Crystal Practice (experimental)
+
+Practice crystal PvP against a bot in a world of its own, from **Advanced → Crystal Practice…**:
+
+- **A bot that plays real techniques**, by difficulty: hit-crystal, respawn anchors and face-placing on Normal; d-taps timed to the end of your damage immunity, safe anchors behind glowstone, top-blocking and hiding in holes on Hard; the butterfly, double anchors, triple taps and chain pops on Extreme. Its techniques cannot be switched off: the menu lists them, with how each one works. It carries your own kit and is held to human timing.
+- **Your kit, your layout:** netherite, diamond or iron armour, a Knockback I or II sword, 1 to 20 totems or a full inventory, and presets modelled on MCTiers, MCPVP and PVPHQ. Arrange the inventory in a kit editor with a kit room, **Save** and **Reset**.
+- **Three grounds:** a flat of netherite blocks, a hole arena, or an almost flat meadow with few trees and no caves in one of eight biomes. Every death starts a new round on a rebuilt arena.
+
+![Crystal Practice](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/practice-gear.png)
+
+![Practice grounds](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/practice-worlds.png)
+
 ## Built for fair play
 
-Crystal Tweaks only changes local presentation and local helpers. It does not change reach, camera, cooldowns or click timing, and it does not invent or repeat actions. Server rules can differ, so always check the rules of the server you play on.
+Crystal Tweaks only changes local presentation and local helpers. It does not change reach, camera, cooldowns or click timing, and it does not invent or repeat actions. Crystal Practice and its bot only exist in their own singleplayer worlds. Server rules can differ, so always check the rules of the server you play on.
 
 ## Compatibility
 

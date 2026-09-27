@@ -13,6 +13,7 @@ Welcome to the Crystal Tweaks documentation. This guide covers installation, con
 - [Glow](#glow)
 - [Sound](#sound)
 - [Advanced](#advanced)
+- [Crystal Practice](#crystal-practice)
 - [Interactive preview](#interactive-preview)
 - [Languages](#languages)
 - [Compatibility and multiplayer](#compatibility-and-multiplayer)
@@ -167,9 +168,8 @@ The **Advanced** tab holds the crystal helpers and the compatibility tools.
 - **Advanced optimizer benchmark** measures your own placements and breaks while you play and
   compares runs, for example with and without Marlow's Crystal Optimizer. It only observes. The
   **Normal**/**Dev** switch at the top picks plain explanations or the full statistics.
-- **Crystal Practice** (experimental) opens a local flat world with an obsidian arena, a kit of your
-  choice (Mending, Unbreaking III, Protection IV, Blast Protection IV on up to two pieces) and an
-  optional bot with the same kit. Singleplayer only.
+- **Crystal Practice** (experimental) opens a local practice world with a bot, a kit you arrange
+  yourself and three kinds of ground. Singleplayer only; see [Crystal Practice](#crystal-practice).
 - **Herzium integration** is dimmed unless [Herzium](https://modrinth.com/mod/herzium) is installed;
   then it sets Herzium's hotbar order. Herzium does not handle crystals, so the optimizer needs no
   adapting.
@@ -207,6 +207,105 @@ Instant crystal break is part of the mod's core and has no setting. It only hide
 when the server is expected to accept the hit: the crystal must be inside your interaction range,
 not already removed, and you must be alive, not spectating, and able to deal damage. The crystal
 stays in the world; it is only not drawn until the server confirms the break.
+
+## Crystal Practice
+
+**Crystal Practice** is in **Advanced**, behind a red warning: it is experimental, so errors and
+frame drops are possible. It opens a singleplayer world of its own and never touches your other
+worlds or any server. Its window has three tabs; what you choose is saved.
+
+### Gear
+
+- **Armour**: netherite, diamond or iron. Every piece carries Protection IV, Unbreaking III and
+  Mending; up to two pieces take Blast Protection IV instead of Protection IV, since Minecraft does
+  not allow both on one piece.
+- **Sword**: Sharpness V with **Knockback I**, what crystal PvP kits carry, or **Knockback II**.
+  Knockback I lifts the opponent just enough for a hit-crystal without sending them away.
+- **Totems**: from 1 to 20, or **Full**, which fills every free slot. Each testing community sets
+  its own rule on its Discord, and MCTiers Vanilla lets you bring your own kit, so the choice is
+  yours. The bot carries as many as you.
+- **Kit**: five presets. None of the ladders publishes its crystal kit item by item, so each preset
+  follows what the ladder does publish and says so on hover.
+
+| Preset | Totems | What it is |
+| --- | --- | --- |
+| CPvP standard | 10 | The community's classic kit: two stacks of crystals and obsidian, anchors, pearls, apples. |
+| MCTiers style | Full | MCTiers Vanilla hands out no kit ("Bring your own"); a full one, filled with totems. |
+| MCPVP style | 12 | After MCPVP's End Game tier: several totems and advanced resources. |
+| PVPHQ style | 14 | After PVPHQ's Vanilla queue, "crystals and anchors": more anchors and glowstone. |
+| Light | 3 | For practising closing out fights with no room for error. |
+
+**Arrange inventory** opens the chosen kit in an inventory, the way a server's kit editor works:
+
+- Click an item to pick it up and click a slot to put it down, swapping with what was there; you can
+  also drag from one slot to another. Right click empties a slot.
+- The **kit room** above hands out a full stack of any item of the kit, which is how an emptied slot
+  gets filled again.
+- The counter at the top sets how many totems the kit holds.
+- **Save** keeps the arrangement for that preset; **Reset** brings the preset back as it ships.
+  Leaving with unsaved changes asks first.
+
+In the practice world the kit is handed out exactly as arranged, off hand included. Crystals,
+obsidian, anchors and glowstone refill into the slots they started in, so the hotbar stays where
+your hands expect it; totems, apples and pearls do not refill, since running out is part of it.
+
+### Bot
+
+The bot is a Vanilla mannequin with your own kit. Everything it does goes through the same code a
+player's action reaches: real crystals, real anchors set off by Vanilla's own explosion, sword hits
+with the Knockback sword's knockback, Vanilla totems and golden apples.
+
+Each difficulty adds techniques, and none of them can be switched off. The tab lists them; hover one
+to see how it works, which is also how to do it yourself.
+
+| Difficulty | Reaction | Combo step | Adds |
+| --- | --- | --- | --- |
+| Easy | 450 ms | 200 ms | Moves and dodges, places and breaks crystals, obsidian next to you, re-equips totems, eats golden apples |
+| Normal | 300 ms | 150 ms | Hit-crystal, respawn anchors, face-placing, pearls in |
+| Hard | 200 ms | 100 ms | D-tap, safe anchor, top-blocking, hides in holes, mends its armour, pearls out |
+| Extreme | 100 ms | 50 ms | Butterfly, double anchor, triple tap, chain pops, crits and W-tap, predicts your fall |
+
+- **Hit-crystal**: a Knockback hit lifts you, and a crystal goes off under you while you are in the
+  air, when all of you is exposed.
+- **D-tap**: a second crystal in the same airtime, timed to land as your half second of damage
+  immunity ends. Within that half second Minecraft only applies what a new hit exceeds the last one
+  by, which is why the second crystal waits. It kills at seven hearts or less.
+- **Safe anchor**: glowstone between the bot and its anchor before it goes off, so the blast only
+  reaches you. **Double anchor** sets off a second anchor as your immunity ends.
+- **Butterfly**: after the d-tap, a second obsidian stacked on the first while you are still
+  rising, and another crystal on it.
+- **Chain pops**: right after your totem pops, anything that lands before you re-equip kills you.
+
+The bot is held to what a player can do with a Vanilla client: at most one action per tick, and its
+fastest combo, obsidian, crystal and hit on three consecutive ticks, is the fastest the community
+documents doing by hand. Kills and deaths show on the action bar.
+
+### World
+
+- **Netherite flat**: a floor of netherite blocks. Crystals only go on obsidian someone places,
+  like the flats of tier tests.
+- **Holes**: an obsidian floor, so a crystal fits anywhere, dotted with one-block holes floored with
+  bedrock and a few raised steps: the ground of hole fights.
+- **Natural**: an almost flat meadow with a few trees, a few plants and no caves, in one of eight
+  biomes: plains, desert, taiga, snowy plains, savanna, cherry grove, badlands and the End. Each biome
+  is a world of its own, generated in that biome so its sky and colours are the biome's.
+
+Every death starts a new round: the arena is rebuilt from scratch, craters and trees included, and
+both sides come back with a full kit. The practice worlds are ordinary saves called
+**Crystal Practice (Crystal Tweaks)** and **Crystal Practice · Biome (Crystal Tweaks)**, which you
+can also open or delete from the world list.
+
+### Sources
+
+The techniques and their numbers come from the community's own write-ups:
+[Simply Vanilla's PvP guide](https://simplyvanilla.miraheze.org/wiki/PvP_Guide),
+[GenesisEC's crystal PvP page](https://genesisec.miraheze.org/wiki/Crystal_PvP) (Knockback I, not
+II, on the sword), DRAC0Q's
+[Every Mechanic in CPvP Explained](https://www.youtube.com/watch?v=-kJHvLbAg0U) and its technique
+document (the two-tick obsidian crystal, the three-tick anchor, damage immunity), and Vitreall's
+[Every Crystal PvP Technique Explained](https://www.youtube.com/watch?v=pyw4qcLk0gQ). The ladders'
+kits: MCTiers' Vanilla kit card ("Bring your own"), PVPHQ's Vanilla ladders and
+[MCPVP's kits](https://www.boardmc.com/post/mcpvp-guide-kits-tiers-rankings).
 
 ## Interactive preview
 

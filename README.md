@@ -13,7 +13,7 @@
 
 ## About
 
-Crystal Tweaks brings End Crystal visual and sound controls into one animated configuration screen. Version 2.3.0 adds fourteen flash styles for a destroyed crystal, rebuilds the settings into four tabs of tidy cards around a live preview, fixes your own crystals being drawn with the enemy profile while spamming, and supports Minecraft 1.21.11 through 26.3.
+Crystal Tweaks brings End Crystal visual and sound controls into one animated configuration screen. Version 2.3.0 adds fourteen flash styles for a destroyed crystal, rebuilds the settings into four tabs of tidy cards around a live preview, adds Crystal Practice (a practice world against a bot that plays real crystal PvP techniques, with your own kit arranged in a kit editor), fixes your own crystals being drawn with the enemy profile while spamming, and supports Minecraft 1.21.11 through 26.3.
 
 ## Screenshots
 
@@ -29,6 +29,14 @@ Crystal Tweaks brings End Crystal visual and sound controls into one animated co
 | --- | --- | --- |
 | ![Colors tab](docs/images/settings-colors.png) | ![Glow tab with a heart flash in the preview](docs/images/settings-glow.png) | ![Advanced tab](docs/images/settings-advanced.png) |
 
+| Crystal Practice | Kit editor | What the bot does |
+| --- | --- | --- |
+| ![Crystal Practice gear tab](docs/images/practice-gear.png) | ![Kit editor with the kit room and the practice inventory](docs/images/practice-kit.png) | ![Bot tab listing the Hard bot's techniques](docs/images/practice-bot.png) |
+
+<p align="center">
+  <img src="docs/images/practice-worlds.png" alt="The practice grounds: netherite flat, hole arena and natural meadows" width="880">
+</p>
+
 ## What it changes
 
 - Independent colors for the outer layer, inner layer, and crystal core.
@@ -41,6 +49,7 @@ Crystal Tweaks brings End Crystal visual and sound controls into one animated co
 - A settings screen in four tabs (Colors, Glow, Sound, Advanced) with an optimizer status chip, animated tabs and cards, and an interactive preview that shows your flash when you click it.
 - Automatic optimizer conflict handling: interaction helpers step aside while visuals, sounds, and the preview stay active.
 - Safe Crystal (switchable), optional ghost crystals (off by default), and a local Conflict Monitor.
+- Crystal Practice (experimental): a singleplayer world against a bot that plays real crystal PvP techniques by difficulty (hit-crystal, d-tap, safe and double anchors, butterfly and more, listed with how each works), your own kit arranged in a kit editor with presets modelled on MCTiers, MCPVP and PVPHQ, a Knockback I or II sword, your choice of totems, and a netherite flat, a hole arena or a natural meadow in eight biomes.
 - Spanish localization for Minecraft language codes beginning with `es`; English for every other locale.
 - Optional Mod Menu integration.
 

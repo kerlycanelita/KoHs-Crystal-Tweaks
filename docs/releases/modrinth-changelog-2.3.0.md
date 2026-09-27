@@ -1,4 +1,4 @@
-# Crystal Tweaks 2.3.0 - Fourteen flashes, a brand-new settings screen
+# Crystal Tweaks 2.3.0 - Fourteen flashes, a brand-new settings screen and Crystal Practice
 
 ## New
 
@@ -8,6 +8,17 @@
 - **Safe Crystal can be switched off** in Advanced, for servers that do not allow input filters. It stays on by default.
 - **Better crystal optimizer detection.** Marlow's Crystal Optimizer, Client Side Crystals, Client-Sided Crystals, HCsCR, FastCrystal, No Crystal Break and the many "... Crystal Optimizer" mods are recognized, and Crystal Tweaks steps its interaction helpers aside for them. Mods that only say "crystal" no longer do that: End Crystal skins, spin and size tweaks, crystals-per-second counters and PvP clients keep every helper running, and performance mods such as Krypton, Sodium or Lithium never count.
 - An **important notice** the first time you open the settings in a session, only when no crystal optimizer is installed: Crystal Tweaks optimizes your client only; for placements that reach the server sooner, Marlow's Crystal Optimizer is recommended. You can turn the notice off for good.
+- **Glow and Flash on explosion switches.** Each has its own switch, and its options fold away while it is off. The flash gets its own **size**, **opacity** (`10%`-`100%`) and **duration**.
+- **Paused crystal helpers say why** on hover in Advanced.
+- **Obsidian debounce** (off by default): refuses an obsidian placement that follows the previous one within the window you choose, Vanilla to `10 s`, whatever key Use is bound to.
+- **Force off optimizations** turns every crystal helper of this mod off. Visuals stay.
+- **Advanced optimizer benchmark:** measures your real placements and breaks while you play (placed → shown, hit → gone, hit → confirmed by the server, next crystal on the same block, FPS) under the crystal optimizer in charge, Marlow's included. It only observes. A **Normal**/**Dev** switch picks plain explanations or the full statistics.
+- **Crystal Practice** (experimental), a practice world of its own:
+  - **A bot that plays real crystal PvP techniques** by difficulty: hit-crystal, respawn anchors, face-placing and pearls on Normal; d-taps timed to the end of your damage immunity, safe anchors behind glowstone, top-blocking, hiding in holes and mending on Hard; the butterfly, double anchors, triple taps, chain pops, crits and fall prediction on Extreme. None of them can be switched off: the menu lists them, with how each one works. The bot carries your own kit and is held to human timing.
+  - **Your kit:** netherite, diamond or iron armour (Protection IV, Unbreaking III and Mending, Blast Protection IV on up to two pieces), a sword with **Knockback I or II**, **1 to 20 totems** or a full inventory, and presets modelled on **MCTiers**, **MCPVP** and **PVPHQ**. None of those ladders publishes its crystal kit item by item, so the presets say what they are based on.
+  - **Arrange inventory:** a kit editor with a kit room, click or drag to move, right click to empty, **Save** and **Reset**. The kit is handed out exactly as you arranged it.
+  - **Three grounds:** a flat of netherite blocks, a hole arena, or an almost flat meadow with few trees and no caves in one of eight biomes (plains, desert, taiga, snowy plains, savanna, cherry grove, badlands, the End). Every death starts a new round on a rebuilt arena.
+- **Herzium integration:** dimmed without [Herzium](https://modrinth.com/mod/herzium); with it, sets Herzium's hotbar order from here.
 
 ## Fixed
 

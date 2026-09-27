@@ -19,8 +19,9 @@ import net.minecraft.world.item.enchantment.Enchantments;
  * The gear for Crystal Practice, built on the integrated server of the practice world only.
  *
  * <p>Every armour piece carries Mending, Unbreaking III and Protection IV; up to two carry Blast
- * Protection IV instead of Protection, since the two cannot share a piece. The bot is dressed from
- * the very same method, so its armour always matches the player's.</p>
+ * Protection IV instead of Protection, since the two cannot share a piece. The sword carries
+ * Sharpness V and the chosen Knockback. The bot is dressed and armed from the very same methods, so
+ * its gear always matches the player's.</p>
  */
 public final class PracticeKit {
     private static final EquipmentSlot[] ARMOR_SLOTS = {
@@ -61,6 +62,8 @@ public final class PracticeKit {
         ItemStack sword = new ItemStack(item);
         HolderLookup.RegistryLookup<Enchantment> enchantments = level.registryAccess().lookupOrThrow(Registries.ENCHANTMENT);
         sword.enchant(enchantment(enchantments, Enchantments.SHARPNESS), 5);
+        // Knockback I is what crystal PvP kits carry: enough to lift a player into a hit-crystal.
+        sword.enchant(enchantment(enchantments, Enchantments.KNOCKBACK), settings.knockback);
         sword.enchant(enchantment(enchantments, Enchantments.UNBREAKING), 3);
         sword.enchant(enchantment(enchantments, Enchantments.MENDING), 1);
         return sword;
@@ -80,68 +83,97 @@ public final class PracticeKit {
         return pickaxe;
     }
 
+    /** The real item stack for one slot of a kit. */
+    public static ItemStack stack(ServerLevel level, PracticeSettings settings, KitLayout.Entry entry) {
+        return switch (entry.item()) {
+            case SWORD -> sword(level, settings);
+            case PICKAXE -> pickaxe(level, settings);
+            case END_CRYSTAL -> new ItemStack(Items.END_CRYSTAL, entry.count());
+            case OBSIDIAN -> new ItemStack(Items.OBSIDIAN, entry.count());
+            case RESPAWN_ANCHOR -> new ItemStack(Items.RESPAWN_ANCHOR, entry.count());
+            case GLOWSTONE -> new ItemStack(Items.GLOWSTONE, entry.count());
+            case TOTEM -> new ItemStack(Items.TOTEM_OF_UNDYING);
+            case GOLDEN_APPLE -> new ItemStack(Items.GOLDEN_APPLE, entry.count());
+            case ENDER_PEARL -> new ItemStack(Items.ENDER_PEARL, entry.count());
+            case EXPERIENCE_BOTTLE -> new ItemStack(Items.EXPERIENCE_BOTTLE, entry.count());
+        };
+    }
+
+    private static Item item(KitItem kind) {
+        return switch (kind) {
+            case SWORD -> Items.NETHERITE_SWORD;
+            case PICKAXE -> Items.NETHERITE_PICKAXE;
+            case END_CRYSTAL -> Items.END_CRYSTAL;
+            case OBSIDIAN -> Items.OBSIDIAN;
+            case RESPAWN_ANCHOR -> Items.RESPAWN_ANCHOR;
+            case GLOWSTONE -> Items.GLOWSTONE;
+            case TOTEM -> Items.TOTEM_OF_UNDYING;
+            case GOLDEN_APPLE -> Items.GOLDEN_APPLE;
+            case ENDER_PEARL -> Items.ENDER_PEARL;
+            case EXPERIENCE_BOTTLE -> Items.EXPERIENCE_BOTTLE;
+        };
+    }
+
     /**
-     * A full crystal PvP loadout: armour, sword, crystals, obsidian, totems, golden apples, pearls,
-     * a pickaxe and experience bottles to mend with.
+     * Gives the player the kit exactly as laid out in the kit editor: every stack in its slot, the
+     * off hand's included, and the armour worn.
      */
-    public static void equipPlayer(ServerPlayer player, PracticeSettings settings) {
+    public static void equipPlayer(ServerPlayer player, PracticeSettings settings, KitLayout layout) {
         ServerLevel level = (ServerLevel) player.level();
         Inventory inventory = player.getInventory();
         inventory.clearContent();
         dress(player, level, settings);
-        inventory.setItem(0, sword(level, settings));
-        inventory.setItem(1, new ItemStack(Items.END_CRYSTAL, 64));
-        inventory.setItem(2, new ItemStack(Items.OBSIDIAN, 64));
-        inventory.setItem(3, new ItemStack(Items.GOLDEN_APPLE, 64));
-        inventory.setItem(4, new ItemStack(Items.TOTEM_OF_UNDYING));
-        inventory.setItem(5, new ItemStack(Items.ENDER_PEARL, 16));
-        inventory.setItem(6, pickaxe(level, settings));
-        inventory.setItem(7, new ItemStack(Items.EXPERIENCE_BOTTLE, 64));
-        inventory.setItem(8, new ItemStack(Items.END_CRYSTAL, 64));
-        for (int slot = 9; slot < 18; slot++) {
-            inventory.setItem(slot, new ItemStack(Items.TOTEM_OF_UNDYING));
+        int selected = 0;
+        for (int slot = 0; slot < KitLayout.INVENTORY; slot++) {
+            KitLayout.Entry entry = layout.get(slot);
+            if (entry != null) {
+                inventory.setItem(slot, stack(level, settings, entry));
+                if (slot < KitLayout.HOTBAR && entry.item() == KitItem.SWORD) {
+                    selected = slot;
+                }
+            }
         }
-        for (int slot = 18; slot < 24; slot++) {
-            inventory.setItem(slot, new ItemStack(Items.END_CRYSTAL, 64));
-        }
-        for (int slot = 24; slot < 30; slot++) {
-            inventory.setItem(slot, new ItemStack(Items.OBSIDIAN, 64));
-        }
-        inventory.setItem(30, new ItemStack(Items.EXPERIENCE_BOTTLE, 64));
-        inventory.setItem(31, new ItemStack(Items.GOLDEN_APPLE, 64));
-        inventory.setItem(32, new ItemStack(Items.ENDER_PEARL, 16));
-        player.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.TOTEM_OF_UNDYING));
-        inventory.setSelectedSlot(1);
+        KitLayout.Entry offhand = layout.get(KitLayout.OFFHAND);
+        player.setItemSlot(EquipmentSlot.OFFHAND, offhand == null ? ItemStack.EMPTY : stack(level, settings, offhand));
+        inventory.setSelectedSlot(selected);
         player.inventoryMenu.broadcastChanges();
     }
 
     /**
-     * Tops the crystals and obsidian back up during practice, so a long fight never ends because a
-     * stack ran out; totems and apples are left alone, running out of those is part of it.
+     * Tops crystals, obsidian, anchors and glowstone back up during practice, into the slots the kit
+     * editor gave them, so a long fight never ends because a stack ran out and the hotbar stays where
+     * the hands expect it. Totems, apples and pearls are left alone: running out is part of it.
      */
-    public static void restock(ServerPlayer player) {
+    public static void restock(ServerPlayer player, KitLayout layout) {
         Inventory inventory = player.getInventory();
-        topUp(inventory, Items.END_CRYSTAL, 64 * 3);
-        topUp(inventory, Items.OBSIDIAN, 64 * 3);
-    }
-
-    private static void topUp(Inventory inventory, Item item, int minimum) {
-        int count = inventory.countItem(item);
-        if (count >= minimum) {
-            return;
-        }
-        int missing = minimum - count;
-        for (int slot = 9; slot < 36 && missing > 0; slot++) {
-            ItemStack stack = inventory.getItem(slot);
-            if (stack.isEmpty()) {
-                int amount = Math.min(64, missing);
-                inventory.setItem(slot, new ItemStack(item, amount));
-                missing -= amount;
-            } else if (stack.is(item) && stack.getCount() < 64) {
-                int amount = Math.min(64 - stack.getCount(), missing);
-                stack.grow(amount);
-                missing -= amount;
+        boolean changed = false;
+        for (KitItem kind : KitItem.values()) {
+            if (!kind.restocks()) {
+                continue;
             }
+            Item item = item(kind);
+            int missing = layout.count(kind) - inventory.countItem(item);
+            for (int slot = 0; slot < KitLayout.INVENTORY && missing > 0; slot++) {
+                KitLayout.Entry entry = layout.get(slot);
+                if (entry == null || entry.item() != kind) {
+                    continue;
+                }
+                ItemStack current = inventory.getItem(slot);
+                if (current.isEmpty()) {
+                    int amount = Math.min(entry.count(), missing);
+                    inventory.setItem(slot, new ItemStack(item, amount));
+                    missing -= amount;
+                    changed = true;
+                } else if (current.is(item) && current.getCount() < entry.count()) {
+                    int amount = Math.min(entry.count() - current.getCount(), missing);
+                    current.grow(amount);
+                    missing -= amount;
+                    changed = true;
+                }
+            }
+        }
+        if (changed) {
+            player.inventoryMenu.broadcastChanges();
         }
     }
 

@@ -45,10 +45,30 @@
   shown, hit → gone, hit → confirmed by the server, next crystal on the same block, FPS) under the
   crystal optimizer in charge, Marlow's and the other known ones included. It only observes and sends
   nothing. A **Normal**/**Dev** switch picks plain explanations or the full statistics.
-- **Crystal Practice** (experimental, behind a red warning): a local flat world, 200 layers of ground
-  up to an obsidian floor, with a netherite, diamond or iron kit (Mending, Unbreaking III and
-  Protection IV, Blast Protection IV on up to two pieces) and an optional bot with the same kit that
-  moves, places obsidian and crystals, breaks them, eats and re-equips totems.
+- **Crystal Practice** (experimental, behind a red warning): a local practice world with a bot, set
+  up in three tabs.
+  - **Gear**: netherite, diamond or iron armour (Mending, Unbreaking III and Protection IV, Blast
+    Protection IV on up to two pieces); a sword with Sharpness V and **Knockback I** or **II**; a
+    totem counter from 1 to 20 or a full inventory; and five kit presets, **CPvP standard**,
+    **MCTiers style**, **MCPVP style**, **PVPHQ style** and **Light**. None of those ladders publishes
+    its crystal kit item by item (MCTiers asks players to bring their own), so each preset follows
+    what the ladder does publish and says so.
+  - **Arrange inventory** opens the chosen kit in an inventory, like a server's kit editor: a kit
+    room to take stacks from, click or drag to move, right click to empty, **Save** and **Reset**.
+    The practice kit is handed out exactly as arranged, off hand included, and crystals, obsidian,
+    anchors and glowstone refill into the same slots.
+  - **Bot**: four difficulties, each adding techniques that cannot be switched off. The tab lists
+    them with how each one works: hit-crystal, respawn anchors, face-placing and pearling in on
+    Normal; the d-tap timed to the end of the player's damage immunity, the safe anchor behind
+    glowstone, top-blocking, hiding in holes, mending and pearling out on Hard; the butterfly, the
+    double anchor, the triple tap, chain pops, crits with W-tap and fall prediction on Extreme. The bot
+    carries the player's own kit, totems, apples and pearls included, and is held to human timing:
+    its fastest combo is obsidian, crystal and hit on three consecutive ticks.
+  - **World**: a flat of netherite blocks, where crystals only go on obsidian someone places; a hole
+    arena, an obsidian floor dotted with bedrock-bottomed holes and a few steps; or an almost flat
+    natural meadow with few trees and no caves, in one of eight biomes (plains, desert, taiga, snowy
+    plains, savanna, cherry grove, badlands and the End). Every death starts a new round on a rebuilt
+    arena.
 - **Herzium integration**: dimmed without [Herzium](https://modrinth.com/mod/herzium); with it, sets
   Herzium's hotbar order from here. There is no optimizer bridge: Herzium does not touch crystals.
 - Built for 1.21.11, 26.1, 26.1.1, 26.1.2, 26.2 and 26.3.

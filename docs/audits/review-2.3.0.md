@@ -285,3 +285,43 @@ into the light on the ground and into the neighbouring crystals' glow.
 Client Side Crystals moved from "visual only" to optimizer: it spawns a client-side stand-in the
 moment a crystal is placed, the same job as the ghost crystals, and the stand-in would be matched
 as the player's own placement.
+
+## Fourth follow-up: Crystal Practice rebuilt
+
+The practice world from PR #1 was extended into a full training mode: a bot that plays the
+community's documented techniques by difficulty, a kit the player arranges, and three grounds.
+
+**Research.** Techniques and their timings come from Simply Vanilla's PvP guide (hit-crystal,
+d-tap at seven hearts or less, butterfly, anchoring, top-blocking, pearl i-frames), GenesisEC's
+crystal page (Knockback I, not II, on the sword; Blast Protection on the leggings), DRAC0Q's
+technique document (two-tick obsidian crystal, three-tick anchor, damage immunity arithmetic) and
+Vitreall's technique list (safe anchor, double anchor, triple tap, chain pops). The ladders' kits are
+not published item by item: MCTiers' Vanilla kit card literally reads "Bring your own", PVPHQ
+splits Vanilla into HT and LT ladders, and MCPVP documents only its kit tiers. The presets say so.
+
+**Server authority.** Everything the bot does goes through Vanilla's server code: `EndCrystal`
+entities, `RespawnAnchorBlock.charge`, the anchor's own private `explode` (reached through an
+`@Invoker` whose descriptor is identical from 1.21.11 to 26.3), `hurtServer` for sword hits, and
+Vanilla's knockback formula written out, since 26.2 changed `LivingEntity.knockback`'s signature. A
+knockback applied after the world tick would be zeroed by the player's next ground movement packet
+before the entity tracker sent it, so the bot sends the motion packet itself, as `Player.attack`
+does, and clears the resend flag (`hurtMarked`, renamed `syncVelocity` in 26.3; a build transform
+handles it). The target's damage immunity is read through accessors (`invulnerableTime` became
+private in 26.3).
+
+**Human limits.** One action per tick at most; Extreme's fastest combo is obsidian, crystal and hit
+on consecutive ticks and an anchor placed, charged and set off in three, the fastest the community
+documents by hand. Lower difficulties react later (100–450 ms), step slower and sometimes pick the
+second-best spot. A telemetry run in the 26.2 dev client showed the Hard and Extreme bots performing
+the hit-crystal, a d-tap landing on the tick the player's immunity ended, the safe anchor with its
+glowstone and the double anchor.
+
+**Cost.** Spot evaluation ray-traces at most twelve crystal and six anchor candidates, with a cheap
+distance order first, and waits three ticks after finding nothing. The arena rebuild writes only
+blocks that changed, without neighbour updates: 3–5 ms per round on the flat, 11–15 ms on a natural
+meadow, 160–700 ms on a world's first load (chunk generation included).
+
+**Fair play.** Unchanged: the practice worlds are singleplayer saves, found by their folder name,
+and nothing runs on any other world or server. `PracticeKitTest` covers the presets, the totem
+selector, the stored kit format (including damaged files), the settings, the skills per difficulty
+and the terrain (bounds, determinism, holes never merging, no tree near the spawn).

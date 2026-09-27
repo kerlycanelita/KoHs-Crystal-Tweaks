@@ -14,7 +14,6 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.server.IntegratedServer;
-import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetActionBarTextPacket;
 import net.minecraft.server.MinecraftServer;
@@ -25,28 +24,30 @@ import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
 import net.minecraft.world.entity.decoration.Mannequin;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.GameType;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.gamerules.GameRules;
 import net.minecraft.world.level.storage.LevelResource;
+import net.minecraft.world.phys.Vec3;
 
 /**
- * Runs Crystal Practice inside the practice world's integrated server: the rules, the arena, the
+ * Runs Crystal Practice inside a practice world's integrated server: the rules, the arena, the
  * player's kit and the bot.
  *
- * <p>It binds only to a singleplayer server whose save folder is the practice world's, so no other
- * world, and never a multiplayer server, is ever touched. Everything here runs on the server thread
- * through Fabric's server events.</p>
+ * <p>It binds only to a singleplayer server whose save folder is one of the practice worlds', so no
+ * other world, and never a multiplayer server, is ever touched. Everything here runs on the server
+ * thread through Fabric's server events.</p>
+ *
+ * <p>Each death starts a new round: the arena is rebuilt, craters and all, and both sides come back
+ * with a full kit.</p>
  */
 public final class PracticeSession {
-    /** Save-folder name of the practice world, which is how the server recognises it. */
+    /** Save-folder name of the flat practice world; natural ones add their biome after an underscore. */
     public static final String LEVEL_ID = "crystal_tweaks_practice";
-    /** Layers of ground under the obsidian: bedrock, stone, dirt and the obsidian floor itself. */
+    /** Layers of ground under the floor, the floor included. */
     public static final int LAYERS = 200;
-    /** How far around the spawn the arena is swept clean on each visit. */
-    private static final int ARENA_RADIUS = 24;
     private static final int BOT_RESPAWN_TICKS = 60;
+    private static final int UPKEEP_TICKS = 100;
 
     private static boolean initialized;
     private static PracticeSession active;
@@ -56,18 +57,21 @@ public final class PracticeSession {
     private final MinecraftServer server;
     private final ServerLevel level;
     private final PracticeSettings settings;
-    private final int floorY;
+    private final KitLayout kit;
+    private final PracticeArena arena;
     private PracticeBot bot;
     private int botRespawn = -1;
     private int kills;
     private int deaths;
-    private int restockTimer;
+    private int upkeepTimer;
 
-    private PracticeSession(MinecraftServer server, PracticeSettings settings) {
+    private PracticeSession(MinecraftServer server, PracticeSettings settings, KitLayout kit) {
         this.server = server;
         this.level = server.overworld();
         this.settings = settings;
-        this.floorY = this.level.getMinY() + LAYERS - 1;
+        this.kit = kit;
+        int floor = this.level.getMinY() + LAYERS - 1;
+        this.arena = new PracticeArena(this.level, settings.worldType, settings.biome, floor, this.level.getSeed());
     }
 
     public static void initialize() {
@@ -76,8 +80,10 @@ public final class PracticeSession {
         }
         initialized = true;
         ServerLifecycleEvents.SERVER_STARTED.register(server -> {
-            if (isPracticeWorld(server)) {
-                active = new PracticeSession(server, CrystalVisualConfig.practice());
+            String folder = practiceFolder(server);
+            if (folder != null) {
+                PracticeSettings chosen = CrystalVisualConfig.practice();
+                active = new PracticeSession(server, groundOf(folder, chosen), CrystalVisualConfig.practiceKit(chosen.preset));
                 active.prepare();
                 running = true;
             }
@@ -116,21 +122,56 @@ public final class PracticeSession {
         });
     }
 
-    /** True while the practice world's integrated server is up. Any thread. */
+    /** True while a practice world's integrated server is up. Any thread. */
     public static boolean running() {
         return running;
     }
 
-    /** True for the integrated server of the practice world, and only for it. */
-    static boolean isPracticeWorld(MinecraftServer server) {
-        if (!(server instanceof IntegratedServer)) {
-            return false;
-        }
-        Path folder = server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize().getFileName();
-        return folder != null && folder.toString().equals(LEVEL_ID);
+    /** Save-folder name of the practice world for these settings. */
+    public static String levelId(PracticeSettings.WorldType type, PracticeSettings.Biome biome) {
+        return type == PracticeSettings.WorldType.NATURAL ? LEVEL_ID + "_" + biome.id : LEVEL_ID;
     }
 
-    /** Rules for fast, clean practice, and an arena swept of the last visit's leftovers. */
+    /**
+     * The folder name when this is the integrated server of a practice world, else {@code null}.
+     * Only folders this mod creates count: the flat one and one per natural biome.
+     */
+    static String practiceFolder(MinecraftServer server) {
+        if (!(server instanceof IntegratedServer)) {
+            return null;
+        }
+        Path folder = server.getWorldPath(LevelResource.ROOT).toAbsolutePath().normalize().getFileName();
+        if (folder == null) {
+            return null;
+        }
+        String name = folder.toString();
+        if (name.equals(LEVEL_ID)) {
+            return name;
+        }
+        for (PracticeSettings.Biome biome : PracticeSettings.Biome.values()) {
+            if (name.equals(LEVEL_ID + "_" + biome.id)) {
+                return name;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * The ground follows the world, not the settings: a natural world opened from the world list is
+     * always its own biome, and the flat one is the netherite flat or the hole arena.
+     */
+    private static PracticeSettings groundOf(String folder, PracticeSettings chosen) {
+        if (folder.equals(LEVEL_ID)) {
+            PracticeSettings.WorldType type = chosen.worldType == PracticeSettings.WorldType.NATURAL
+                    ? PracticeSettings.WorldType.FLAT
+                    : chosen.worldType;
+            return chosen.on(type, chosen.biome);
+        }
+        String suffix = folder.substring(LEVEL_ID.length() + 1);
+        return chosen.on(PracticeSettings.WorldType.NATURAL, PracticeSettings.Biome.parse(suffix));
+    }
+
+    /** Rules for fast, clean practice, and an arena rebuilt from scratch. */
     private void prepare() {
         GameRules rules = this.level.getGameRules();
         rules.set(GameRules.KEEP_INVENTORY, true, this.server);
@@ -144,58 +185,55 @@ public final class PracticeSession {
         rules.set(GameRules.SPAWN_WANDERING_TRADERS, false, this.server);
         rules.set(GameRules.SHOW_ADVANCEMENT_MESSAGES, false, this.server);
         rules.set(GameRules.RESPAWN_RADIUS, 0, this.server);
-        clearLeftovers();
-        resetArena();
+        // Blasts in the natural arena would otherwise leave dirt and sand all over the fight.
+        rules.set(GameRules.BLOCK_DROPS, false, this.server);
+        // Always noon, with time stopped: the best light to read crystals and anchors by. Through the
+        // command because 26.1 moved the day time into world clocks and took the setter away.
+        this.server.getCommands().performPrefixedCommand(this.server.createCommandSourceStack().withSuppressedOutput(),
+                "time set 6000");
+        newRound(true);
     }
 
-    private void clearLeftovers() {
+    /** Clears the last round's leftovers and rebuilds the ground. */
+    private void newRound(boolean removeBot) {
         List<Entity> leftovers = new ArrayList<>();
         for (Entity entity : this.level.getAllEntities()) {
             if (entity instanceof EndCrystal || entity instanceof ItemEntity || entity instanceof ExperienceOrb
-                    || (entity instanceof Mannequin && entity.removeTag(PracticeBot.TAG))) {
+                    || entity instanceof Projectile
+                    // removeTag says whether it had the tag, and the tag API itself was renamed in 26.1.
+                    || (removeBot && entity instanceof Mannequin && entity.removeTag(PracticeBot.TAG))) {
                 leftovers.add(entity);
             }
         }
         leftovers.forEach(Entity::discard);
-    }
-
-    /**
-     * Restores the obsidian floor and clears what was built on it last time, around the spawn.
-     * About seventeen thousand block reads, once per visit; only changed blocks are written.
-     */
-    private void resetArena() {
-        BlockState obsidian = Blocks.OBSIDIAN.defaultBlockState();
-        BlockState air = Blocks.AIR.defaultBlockState();
-        BlockPos.MutableBlockPos position = new BlockPos.MutableBlockPos();
-        for (int x = -ARENA_RADIUS; x <= ARENA_RADIUS; x++) {
-            for (int z = -ARENA_RADIUS; z <= ARENA_RADIUS; z++) {
-                position.set(x, this.floorY, z);
-                if (!this.level.getBlockState(position).is(Blocks.OBSIDIAN)) {
-                    this.level.setBlock(position, obsidian, 2);
-                }
-                for (int y = this.floorY + 1; y <= this.floorY + 6; y++) {
-                    position.set(x, y, z);
-                    if (!this.level.getBlockState(position).isAir()) {
-                        this.level.setBlock(position, air, 2);
-                    }
-                }
-            }
+        if (removeBot) {
+            this.bot = null;
+            this.botRespawn = -1;
         }
+        long started = System.nanoTime();
+        this.arena.rebuild();
+        CrystalTweaksClient.LOGGER.debug("Crystal Practice rebuilt its {} arena in {} ms", this.settings.worldType,
+                (System.nanoTime() - started) / 1_000_000L);
     }
 
     private void join(ServerPlayer player) {
         setUpPlayer(player);
         boolean spanish = CrystalUi.spanish();
+        String ground = this.settings.worldType == PracticeSettings.WorldType.NATURAL
+                ? this.settings.worldType.label(spanish) + " · " + this.settings.biome.label(spanish)
+                : this.settings.worldType.label(spanish);
         player.sendSystemMessage(Component.literal(spanish ? "Práctica de cristales" : "Crystal Practice")
                 .withStyle(ChatFormatting.LIGHT_PURPLE, ChatFormatting.BOLD)
-                .append(Component.literal(" · " + this.settings.describe(spanish)).withStyle(ChatFormatting.GRAY)));
+                .append(Component.literal(" · " + ground + " · " + this.settings.preset.label(spanish))
+                        .withStyle(ChatFormatting.GRAY)));
+        player.sendSystemMessage(Component.literal(this.settings.describe(spanish)).withStyle(ChatFormatting.GRAY));
         player.sendSystemMessage(Component.literal(this.settings.bot
                 ? (spanish
-                        ? "Bot " + this.settings.difficulty.label(true) + " con tu mismo equipo. Cristales y obsidiana se reponen solos."
-                        : this.settings.difficulty.label(false) + " bot with your same gear. Crystals and obsidian refill by themselves.")
+                        ? "Bot " + this.settings.difficulty.label(true) + " con tu mismo kit. Cristales, obsidiana, anclas y piedra luminosa se reponen solos; cada muerte empieza una ronda nueva."
+                        : this.settings.difficulty.label(false) + " bot with your same kit. Crystals, obsidian, anchors and glowstone refill by themselves; every death starts a new round.")
                 : (spanish
-                        ? "Sin bot: practica colocando y rompiendo. Cristales y obsidiana se reponen solos."
-                        : "No bot: practise placing and breaking. Crystals and obsidian refill by themselves."))
+                        ? "Sin bot: practica colocando y rompiendo. Lo que se gasta se repone solo."
+                        : "No bot: practise placing and breaking. What you use refills by itself."))
                 .withStyle(ChatFormatting.GRAY));
         if (this.settings.bot && this.bot == null) {
             spawnBot(player);
@@ -203,25 +241,44 @@ public final class PracticeSession {
     }
 
     private void respawn(ServerPlayer player) {
+        newRound(true);
         setUpPlayer(player);
+        if (this.settings.bot) {
+            spawnBot(player);
+        }
     }
 
     private void setUpPlayer(ServerPlayer player) {
-        player.teleportTo(this.level, 0.5D, this.floorY + 1.0D, 0.5D, Set.of(), 0.0F, 0.0F, true);
+        Vec3 spawn = this.arena.spawn();
+        player.teleportTo(this.level, spawn.x, spawn.y, spawn.z, Set.of(), 0.0F, 0.0F, true);
         player.setGameMode(GameType.SURVIVAL);
         player.removeAllEffects();
         player.setHealth(player.getMaxHealth());
         player.getFoodData().setFoodLevel(20);
-        PracticeKit.equipPlayer(player, this.settings);
+        PracticeKit.equipPlayer(player, this.settings, this.kit);
     }
 
+    /** Somewhere open about nine blocks from the player, on the arena's ground. */
     private void spawnBot(ServerPlayer near) {
-        double angle = this.level.getRandom().nextDouble() * Math.PI * 2.0D;
-        double x = near == null ? 0.5D : near.getX() + Math.cos(angle) * 9.0D;
-        double z = near == null ? 8.5D : near.getZ() + Math.sin(angle) * 9.0D;
-        x = Math.max(-ARENA_RADIUS + 2, Math.min(ARENA_RADIUS - 2, x));
-        z = Math.max(-ARENA_RADIUS + 2, Math.min(ARENA_RADIUS - 2, z));
-        this.bot = PracticeBot.spawn(this.level, this.settings, x, this.floorY + 1.0D, z, 0.0F);
+        double x = 0.5D;
+        double z = 8.5D;
+        for (int attempt = 0; attempt < 12; attempt++) {
+            double angle = this.level.getRandom().nextDouble() * Math.PI * 2.0D;
+            double candidateX = near == null ? 0.5D : near.getX() + Math.cos(angle) * 9.0D;
+            double candidateZ = near == null ? 8.5D : near.getZ() + Math.sin(angle) * 9.0D;
+            int blockX = (int) Math.floor(candidateX);
+            int blockZ = (int) Math.floor(candidateZ);
+            if (this.arena.standable(blockX, blockZ)) {
+                x = blockX + 0.5D;
+                z = blockZ + 0.5D;
+                break;
+            }
+        }
+        int blockX = (int) Math.floor(x);
+        int blockZ = (int) Math.floor(z);
+        double y = this.arena.groundY(blockX, blockZ) + 1.0D;
+        float yaw = near == null ? 0.0F : (float) Math.toDegrees(Math.atan2(near.getZ() - z, near.getX() - x)) - 90.0F;
+        this.bot = PracticeBot.spawn(this.level, this.settings, this.kit, x, y, z, yaw);
         if (this.bot == null) {
             CrystalTweaksClient.LOGGER.warn("Crystal Practice could not create its bot");
         }
@@ -262,11 +319,19 @@ public final class PracticeSession {
                 spawnBot(target);
             }
         }
-        if (++this.restockTimer >= 100) {
-            this.restockTimer = 0;
+        if (++this.upkeepTimer >= UPKEEP_TICKS) {
+            this.upkeepTimer = 0;
             if (target != null) {
-                PracticeKit.restock(target);
+                PracticeKit.restock(target, this.kit);
             }
+            // Dropped items would pile up over a long session: five seconds is enough to pick one up.
+            List<ItemEntity> old = new ArrayList<>();
+            for (Entity entity : this.level.getAllEntities()) {
+                if (entity instanceof ItemEntity item && item.getAge() > 100) {
+                    old.add(item);
+                }
+            }
+            old.forEach(Entity::discard);
         }
     }
 

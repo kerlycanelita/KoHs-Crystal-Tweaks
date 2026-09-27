@@ -12,9 +12,12 @@
     "CrystalAttackPacketMixin",
     "EndCrystalGlowMixin",
     "EndCrystalRendererMixin",
+    "EntityInvulnerabilityAccessor",
+    "LivingEntityCombatAccessor",
     "MannequinAccessor",
     "ModelMixin",
     "ModelPartMixin",
+    "RespawnAnchorInvoker",
     "SoundBufferLibraryMixin",
     "SoundManagerAccessor",
     "SoundManagerOverrideMixin"
