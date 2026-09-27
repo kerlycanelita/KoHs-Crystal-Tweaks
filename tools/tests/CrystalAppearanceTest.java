@@ -3,7 +3,9 @@ import com.zymekoh.crystaltweaks.client.CrystalFlashStyle;
 import com.zymekoh.crystaltweaks.client.CrystalScreenLayout;
 import com.zymekoh.crystaltweaks.client.CrystalGlowMath;
 import com.zymekoh.crystaltweaks.client.AfterglowTimeline;
+import com.zymekoh.crystaltweaks.client.benchmark.BenchmarkStats;
 import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
+import com.zymekoh.crystaltweaks.practice.PracticeSettings;
 import java.util.List;
 import java.util.UUID;
 
@@ -199,11 +201,15 @@ public final class CrystalAppearanceTest {
             check(CrystalFlashStyle.parse(style.storageKey(), null) == style, style + " survives a save and load");
             check(style.next().previous() == style && style.previous().next() == style, style + " cycles both ways");
             check(!style.label(true).isBlank() && !style.label(false).isBlank(), style + " has both labels");
-            check(style.scalable() == (style != CrystalFlashStyle.EXPLOSION), style + " scalability");
+            check(style.scalable() == (style != CrystalFlashStyle.EXPLOSION), style + " scalability (migration only)");
         }
         check(CrystalFlashStyle.parse("steve", null) == CrystalFlashStyle.MY_HEAD, "The retired Steve head maps to My head");
         check(CrystalFlashStyle.parse("no-such-style", CrystalFlashStyle.EXPLOSION) == CrystalFlashStyle.EXPLOSION,
                 "Unknown styles fall back");
+        glowAndFlash();
+        forceOff();
+        practice();
+        benchmarkStats();
         int layouts = 0;
         for (int width = 1; width <= 1920; width += 7) for (int height = 1; height <= 1080; height += 7) {
             var l = CrystalScreenLayout.fit(width, height);
@@ -219,6 +225,131 @@ public final class CrystalAppearanceTest {
             layouts++;
         }
         System.out.println("PASS: appearance, 0/100/300 gain, alpha/light bounds, fade lifecycle, optimizer isolation and " + layouts + " responsive layouts");
+    }
+
+    /** The glow switch, the flash's own settings and the migration of profiles saved before them. */
+    private static void glowAndFlash() {
+        CrystalAppearance fresh = new CrystalAppearance();
+        check(fresh.glowEnabled && fresh.glowActive(), "Glow ships switched on");
+        check(fresh.flashEnabled && fresh.flashActive(), "The flash ships switched on");
+        check(fresh.flashOpacityPercent == 50 && fresh.flashDurationMillis == 1200, "Flash defaults: 50% and 1.2 s");
+        check(Math.abs(CrystalGlowMath.flashGain(50) - 0.55F) < 0.001F,
+                "50% opacity draws exactly 2.3.0's default flash");
+        check(Math.abs(CrystalGlowMath.flashGain(100) - 3F) < 0.001F, "100% opacity is the old 300% power");
+        check(CrystalGlowMath.flashGain(0) == 0F, "0% opacity is no light");
+        float last = -1;
+        for (int opacity = 0; opacity <= 100; opacity++) {
+            float gain = CrystalGlowMath.flashGain(opacity);
+            check(gain > last || opacity == 0, "Flash gain rises with opacity");
+            last = gain;
+        }
+        check(CrystalGlowMath.opacityForPower(0.55F) == 50 && CrystalGlowMath.opacityForPower(3F) == 100,
+                "The inverse recovers the opacity for the shipped and the maximum power");
+        check(Math.abs(CrystalGlowMath.FLASH_BASE_RADIUS - CrystalGlowMath.radius(0.55F)) < 1.0E-6F,
+                "100% flash size is 2.3.0's default flash size");
+        CrystalAppearance off = new CrystalAppearance();
+        off.glowEnabled = false;
+        check(!off.glowActive() && off.flashActive(), "Switching the glow off leaves the flash alone");
+        off.glowEnabled = true;
+        off.flashEnabled = false;
+        check(off.glowActive() && !off.flashActive(), "Switching the flash off leaves the glow alone");
+        CrystalAppearance wild = new CrystalAppearance();
+        wild.flashOpacityPercent = 999;
+        wild.flashDurationMillis = -5;
+        wild.glowEnabled = false;
+        CrystalAppearance clamped = wild.copy();
+        check(clamped.flashOpacityPercent == 100 && clamped.flashDurationMillis == CrystalAppearance.MIN_FLASH_DURATION,
+                "Flash opacity and duration clamp");
+        check(!clamped.glowEnabled, "The glow switch survives a copy");
+        check(new CrystalAppearance().flashDurationNanos() == 1_200_000_000L, "Duration in nanoseconds");
+
+        // A 2.3.0 profile at the shipped settings migrates to the new defaults, unchanged on screen.
+        CrystalAppearance shipped = new CrystalAppearance();
+        shipped.migrateLegacyGlow(false, false, false);
+        check(shipped.glowEnabled && shipped.flashEnabled && shipped.flashOpacityPercent == 50
+                && shipped.flashScalePercent == 100, "Shipped 2.3.0 settings migrate to the new defaults");
+        // The owner's own settings: 300% power, skull at 20%.
+        CrystalAppearance loud = new CrystalAppearance();
+        loud.glowPowerPercent = 300;
+        loud.flashScalePercent = 20;
+        loud.migrateLegacyGlow(false, false, true);
+        float oldRadius = CrystalGlowMath.radius(3F) * 0.2F;
+        check(loud.flashOpacityPercent == 100, "300% power becomes the brightest flash");
+        check(Math.abs(loud.flashRadius() - oldRadius) < 0.02F, "The migrated flash keeps its old radius");
+        CrystalAppearance dark = new CrystalAppearance();
+        dark.glowPowerPercent = 0;
+        dark.migrateLegacyGlow(false, false, false);
+        check(!dark.glowEnabled && !dark.flashEnabled && dark.glowPowerPercent == 55,
+                "Power 0 meant both off; switching the glow back on shows the shipped power");
+        CrystalAppearance current = new CrystalAppearance();
+        current.glowEnabled = false;
+        current.flashOpacityPercent = 80;
+        current.migrateLegacyGlow(true, true, true);
+        check(!current.glowEnabled && current.flashOpacityPercent == 80, "A current profile is left as it is");
+
+        AfterglowTimeline<String> timeline = new AfterglowTimeline<>(4);
+        java.util.UUID id = java.util.UUID.randomUUID();
+        timeline.start(id, "long", 0L, 3_000_000_000L);
+        check(Math.abs(timeline.samples(1_500_000_000L).get(0).progress() - 0.5F) < 1.0E-6F,
+                "A light fades on its own duration");
+        check(timeline.samples(2_999_000_000L).size() == 1 && timeline.samples(3_000_000_000L).isEmpty(),
+                "A light expires at its own duration");
+    }
+
+    /** The player's own switch outranks the scan and names itself as the reason. */
+    private static void forceOff() {
+        CrystalOptimizerGuard.clearConflict();
+        CrystalOptimizerGuard.completeScan();
+        check(CrystalOptimizerGuard.pauseReason() == CrystalOptimizerGuard.PauseReason.NONE, "Nothing paused");
+        CrystalOptimizerGuard.setForcedOff(true);
+        check(!CrystalOptimizerGuard.optimizationsAllowed(), "Force off stops every helper");
+        check(CrystalOptimizerGuard.pauseReason() == CrystalOptimizerGuard.PauseReason.FORCED_OFF, "Force off is the reason");
+        CrystalOptimizerGuard.reportConflict("Marlow's Crystal Optimizer");
+        check(CrystalOptimizerGuard.pauseReason() == CrystalOptimizerGuard.PauseReason.FORCED_OFF,
+                "The player's own switch is named before a detected mod");
+        CrystalOptimizerGuard.setForcedOff(false);
+        check(CrystalOptimizerGuard.pauseReason() == CrystalOptimizerGuard.PauseReason.CONFLICT
+                && !CrystalOptimizerGuard.optimizationsAllowed(), "Without force off the conflict still holds");
+        CrystalOptimizerGuard.clearConflict();
+        check(CrystalOptimizerGuard.pauseReason() == CrystalOptimizerGuard.PauseReason.CHECKING, "A re-scan is the reason while it runs");
+        CrystalOptimizerGuard.completeScan();
+        check(CrystalOptimizerGuard.optimizationsAllowed(), "A clean scan without force off restores the helpers");
+    }
+
+    /** Blast Protection never ends up on more than two pieces, whatever the file says. */
+    private static void practice() {
+        for (int mask = 0; mask < 16; mask++) {
+            int clean = PracticeSettings.sanitize(mask);
+            check(Integer.bitCount(clean) <= 2 && (clean & ~mask) == 0, "Blast pieces " + mask + " sanitize to at most two of them");
+        }
+        PracticeSettings settings = PracticeSettings.from("diamond", 0b1111, true, "hard");
+        check(settings.armor == PracticeSettings.Armor.DIAMOND && settings.difficulty == PracticeSettings.Difficulty.HARD,
+                "Stored names parse case-insensitively");
+        check(Integer.bitCount(settings.blastPieces) == 2, "A tampered file cannot give four blast pieces");
+        PracticeSettings unknown = PracticeSettings.from("gold", 0, false, "impossible");
+        check(unknown.armor == PracticeSettings.Armor.NETHERITE && unknown.difficulty == PracticeSettings.Difficulty.NORMAL,
+                "Unknown values fall back to Netherite and Normal");
+        PracticeSettings.Difficulty level = PracticeSettings.Difficulty.EASY;
+        for (int step = 0; step < PracticeSettings.Difficulty.values().length; step++) {
+            check(level.reaction >= level.next().reaction || level.next() == PracticeSettings.Difficulty.EASY,
+                    "Each difficulty reacts at least as fast as the one before");
+            level = level.next();
+        }
+        check(level == PracticeSettings.Difficulty.EASY, "Difficulty cycles back to Easy");
+        check(!settings.describe(true).isBlank() && !settings.describe(false).isBlank(), "Settings describe themselves");
+    }
+
+    private static void benchmarkStats() {
+        BenchmarkStats stats = BenchmarkStats.of(new double[] {5, 1, 4, 2, 3}, 5);
+        check(stats.count() == 5 && stats.median() == 3 && stats.min() == 1 && stats.max() == 5, "Median and bounds");
+        check(Math.abs(stats.mean() - 3) < 1.0E-9, "Mean");
+        check(stats.p95() == 5 && stats.p99() == 5, "Nearest-rank percentiles");
+        check(Math.abs(stats.stdDev() - Math.sqrt(2)) < 1.0E-9, "Population standard deviation");
+        check(!BenchmarkStats.of(new double[0], 0).present(), "No samples is not a zero");
+        double[] hundred = new double[100];
+        for (int i = 0; i < 100; i++) hundred[i] = i + 1;
+        BenchmarkStats spread = BenchmarkStats.of(hundred, 100);
+        check(spread.p95() == 95 && spread.p99() == 99 && spread.median() == 50, "Percentiles of 1..100");
     }
 
     private static void check(boolean condition, String message) {

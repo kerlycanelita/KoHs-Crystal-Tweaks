@@ -29,6 +29,10 @@ public final class CrystalGlowRenderer {
     private static final float BEHIND_MODEL = 0.9F;
     /** Half the width of the square of blocks the spill is sampled from, around the crystal. */
     private static final float SPILL_REACH = 2.5F;
+    private static final int DISK_RINGS = 10;
+    private static final int DISK_SEGMENTS = 40;
+    private static final float[] DISK_COS = trigTable(false);
+    private static final float[] DISK_SIN = trigTable(true);
 
     public record Surface(float x0, float y, float z0, float x1, float z1) { }
     private record Cached(long at, Vec3 position, List<Surface> surfaces) { }
@@ -83,16 +87,26 @@ public final class CrystalGlowRenderer {
 
     /**
      * The halo of a crystal still in the world. It always wears the burst; only the death flash
-     * takes a shape.
+     * takes a shape. The glow switch turns it off, together with its reflections.
      */
     public static void submit(EndCrystalRenderState state, PoseStack poses,
             SubmitNodeCollector collector, CameraRenderState camera) {
-        submit(state, poses, collector, camera, 1F, 0F, CrystalFlashStyle.EXPLOSION, null, List.of(), true);
+        CrystalAppearance look = CrystalAppearanceAccess.of(state);
+        if (!look.glowActive() || state.distanceToCameraSq > 4096) return;
+        float power = CrystalGlowMath.power(look.glowPowerPercent);
+        draw(state, look, poses, collector, camera, CrystalFlashStyle.EXPLOSION, CrystalGlowMath.radius(power),
+                1F, power, 0F, null, List.of(), true);
+        submitReflections(state, look, poses, collector, look.haloColor(), power, centerHeight(state, look));
     }
 
     /**
      * The flash a destroyed crystal leaves behind, in the shape the player selected.
      *
+     * <p>It has its own switch, size, opacity and duration, so turning the glow off leaves it alone.
+     * Only its light on the ground belongs to the glow: that is the reflections setting, and it is
+     * drawn only while the glow is on.</p>
+     *
+     * @param opacity  how much of the flash is left, 1 at the explosion and 0 when it is gone
      * @param progress how far the flash has faded, 0 at the explosion and 1 when it is gone
      * @param origin   world position of the blast, or {@code null} in the settings preview
      * @param targets  visible players the lightning style may point at
@@ -100,22 +114,31 @@ public final class CrystalGlowRenderer {
     public static void submitFlash(EndCrystalRenderState state, PoseStack poses,
             SubmitNodeCollector collector, CameraRenderState camera, float opacity, float progress,
             Vec3 origin, List<Vec3> targets) {
-        submit(state, poses, collector, camera, opacity, progress, CrystalVisualConfig.flashStyle(),
-                origin, targets, false);
+        CrystalAppearance look = CrystalAppearanceAccess.of(state);
+        if (opacity <= 0 || !look.flashActive() || state.distanceToCameraSq > 4096) return;
+        float gain = look.flashGain() * opacity;
+        draw(state, look, poses, collector, camera, CrystalVisualConfig.flashStyle(), look.flashRadius(),
+                look.flashScale(), gain, progress, origin, targets, false);
+        if (look.glowActive()) {
+            submitReflections(state, look, poses, collector, look.haloColor(), gain, centerHeight(state, look));
+        }
+    }
+
+    private static float centerHeight(EndCrystalRenderState state, CrystalAppearance look) {
+        return 2F + EndCrystalRenderer.getY(state.ageInTicks * look.floatingSpeedPercent / 100F);
     }
 
     /**
+     * @param radius      outer radius of the light, in blocks
+     * @param detailScale scale of the burst's fixed inner discs and rays, 1 for the live halo
+     * @param gain        alpha gain, already multiplied by whatever fade applies
      * @param behindModel draw the light just behind the crystal's model rather than through its
      *                    centre; only for a live crystal, since a flash has no model left to hide it
      */
-    private static void submit(EndCrystalRenderState state, PoseStack poses,
-            SubmitNodeCollector collector, CameraRenderState camera, float opacity, float progress,
-            CrystalFlashStyle style, Vec3 origin, List<Vec3> targets, boolean behindModel) {
-        CrystalAppearance look = CrystalAppearanceAccess.of(state);
-        if (opacity <= 0) return;
-        if (look.glowPowerPercent <= 0 || state.distanceToCameraSq > 4096) return;
-        float power = CrystalGlowMath.power(look.glowPowerPercent);
-        float centerY = 2F + EndCrystalRenderer.getY(state.ageInTicks * look.floatingSpeedPercent / 100F);
+    private static void draw(EndCrystalRenderState state, CrystalAppearance look, PoseStack poses,
+            SubmitNodeCollector collector, CameraRenderState camera, CrystalFlashStyle style, float radius,
+            float detailScale, float gain, float progress, Vec3 origin, List<Vec3> targets, boolean behindModel) {
+        float centerY = centerHeight(state, look);
         int color = look.haloColor();
         // Additive, depth-tested, writing no depth: see CrystalGlowMaterial.
         poses.pushPose();
@@ -128,57 +151,48 @@ public final class CrystalGlowRenderer {
         // How high each billboard axis climbs, so every vertex can fade out before the ground.
         float upX = camera.orientation.transform(new Vector3f(1F, 0F, 0F)).y * sizeScale;
         float upY = camera.orientation.transform(new Vector3f(0F, 1F, 0F)).y * sizeScale;
-        // The size slider only moves the shaped styles; the burst keeps the proportions it had.
-        float shapeScale = style.scalable() ? look.flashScalePercent / 100F : 1F;
         if (style == CrystalFlashStyle.MY_HEAD) {
             // The head is a textured quad, so it needs its own material rather than the ray buffer.
             Identifier skin = CrystalFlashShapes.playerSkin();
             if (skin != null) {
-                float headRadius = CrystalGlowMath.radius(power) * shapeScale;
                 // Pale, not tinted: a washed-out colour on a see-through face, a white veil over it
                 // and a whiter halo behind, so the skin reads as a ghost of itself.
                 int pale = CrystalFlashShapes.paleTint(color);
                 collector.submitCustomGeometry(poses, RenderTypes.entityTranslucent(skin),
                         (pose, buffer) -> CrystalFlashShapes.submitPlayerHead(
-                                new CrystalGlowBuffer(buffer, centerY, upX, upY), pose.pose(), pale, headRadius,
-                                power * opacity));
+                                new CrystalGlowBuffer(buffer, centerY, upX, upY), pose.pose(), pale, radius, gain));
                 collector.submitCustomGeometry(poses, CrystalGlowMaterial.glow(), (pose, buffer) -> {
                     CrystalGlowBuffer glow = new CrystalGlowBuffer(buffer, centerY, upX, upY);
-                    disk(glow, pose.pose(), pale, headRadius * 1.4F, 0.4F * power * opacity);
-                    CrystalFlashShapes.submitHeadVeil(glow, pose.pose(), 0xFFFFFFFF, headRadius,
-                            power * opacity);
+                    disk(glow, pose.pose(), pale, radius * 1.4F, 0.4F * gain);
+                    CrystalFlashShapes.submitHeadVeil(glow, pose.pose(), 0xFFFFFFFF, radius, gain);
                 });
             }
             poses.popPose();
-            submitReflections(state, look, poses, collector, color, power, opacity, centerY);
             return;
         }
         collector.submitCustomGeometry(poses, CrystalGlowMaterial.glow(), (pose, buffer) -> {
             CrystalGlowBuffer glow = new CrystalGlowBuffer(buffer, centerY, upX, upY);
             Matrix4f matrix = pose.pose();
-            float radius = CrystalGlowMath.radius(power) * shapeScale;
             if (style != CrystalFlashStyle.EXPLOSION) {
                 CrystalFlashShapes.submit(style, glow, matrix, camera.orientation, color,
-                        CrystalGlowMath.hotColor(color), radius, power * opacity, origin, targets,
-                        progress);
+                        CrystalGlowMath.hotColor(color), radius, gain, origin, targets, progress);
                 return;
             }
             // Preserve the original halo's gain at 100%; extra passes avoid byte-alpha overflow.
-            disk(glow, matrix, color, radius, 0.42F * power * opacity);
-            disk(glow, matrix, color, 0.54F, 0.7F * power * opacity);
-            disk(glow, matrix, CrystalGlowMath.hotColor(color), 0.25F, 0.9F * power * opacity);
+            disk(glow, matrix, color, radius, 0.42F * gain);
+            disk(glow, matrix, color, 0.54F * detailScale, 0.7F * gain);
+            disk(glow, matrix, CrystalGlowMath.hotColor(color), 0.25F * detailScale, 0.9F * gain);
             // Stable facet rays, with bright narrow spines and a wider colored skirt.
             double turn = state.ageInTicks * look.rotationSpeedPercent / 100F * 0.002;
             for (int ray = 0; ray < 16; ray++) {
                 double angle = turn + ray * Math.PI * 2 / 16;
                 float length = radius * (0.64F + (ray * 7 % 5) * 0.09F);
-                streak(glow, matrix, color, angle, length, 0.12F, power * opacity * 0.22F);
+                streak(glow, matrix, color, angle, length, 0.12F * detailScale, gain * 0.22F);
                 streak(glow, matrix, CrystalGlowMath.hotColor(color), angle, length * 0.82F,
-                        0.026F, power * opacity * 0.32F);
+                        0.026F * detailScale, gain * 0.32F);
             }
         });
         poses.popPose();
-        submitReflections(state, look, poses, collector, color, power, opacity, centerY);
     }
 
     /**
@@ -224,14 +238,18 @@ public final class CrystalGlowRenderer {
                 && Math.abs(pose.m20()) < 1.0E-4F && Math.abs(pose.m21()) < 1.0E-4F;
     }
 
-    /** Coloured spill on the block tops under the crystal; shared by every flash style. */
+    /**
+     * Coloured spill on the block tops under the crystal, for the live glow and for the flash.
+     *
+     * @param power the light's strength: the glow power, or the flash's gain as it fades
+     */
     private static void submitReflections(EndCrystalRenderState state, CrystalAppearance look,
-            PoseStack poses, SubmitNodeCollector collector, int color, float power, float opacity,
-            float centerY) {
+            PoseStack poses, SubmitNodeCollector collector, int color, float power, float centerY) {
         if (look.glowReflectionsPercent <= 0 || !((Object) state instanceof CrystalGlowAccess access)) return;
         List<Surface> surfaces = access.crystalTweaks$surfaces();
         if (surfaces.isEmpty()) return;
-        float strength = power * CrystalGlowMath.power(look.glowReflectionsPercent) * 0.65F * opacity;
+        float strength = power * CrystalGlowMath.power(look.glowReflectionsPercent) * 0.65F;
+        if (strength <= 0F) return;
         int reflectionPasses = Math.max(1, (int) Math.ceil(strength));
         collector.submitCustomGeometry(poses, CrystalGlowMaterial.glow(), (pose, buffer) -> {
             for (int pass = 0; pass < reflectionPasses; pass++) for (Surface surface : surfaces) {
@@ -252,19 +270,32 @@ public final class CrystalGlowRenderer {
     }
 
     private static void disk(CrystalGlowBuffer buffer, Matrix4f matrix, int color, float radius, float gain) {
-        int rings = 10, segments = 40, passes = Math.max(1, (int) Math.ceil(gain));
-        for (int pass = 0; pass < passes; pass++) for (int ring = 0; ring < rings; ring++) {
-            float r0 = radius * ring / rings, r1 = radius * (ring + 1) / rings;
-            float a0 = gain / passes * falloff(ring / (float) rings);
-            float a1 = gain / passes * falloff((ring + 1F) / rings);
-            for (int segment = 0; segment < segments; segment++) {
-                double t0 = Math.PI * 2 * segment / segments, t1 = Math.PI * 2 * (segment + 1) / segments;
-                float x0 = (float) Math.cos(t0), y0 = (float) Math.sin(t0);
-                float x1 = (float) Math.cos(t1), y1 = (float) Math.sin(t1);
+        int passes = Math.max(1, (int) Math.ceil(gain));
+        for (int pass = 0; pass < passes; pass++) for (int ring = 0; ring < DISK_RINGS; ring++) {
+            float r0 = radius * ring / DISK_RINGS, r1 = radius * (ring + 1) / DISK_RINGS;
+            float a0 = gain / passes * falloff(ring / (float) DISK_RINGS);
+            float a1 = gain / passes * falloff((ring + 1F) / DISK_RINGS);
+            for (int segment = 0; segment < DISK_SEGMENTS; segment++) {
+                float x0 = DISK_COS[segment], y0 = DISK_SIN[segment];
+                float x1 = DISK_COS[segment + 1], y1 = DISK_SIN[segment + 1];
                 triangle(buffer,matrix,color,x0*r0,y0*r0,a0,x0*r1,y0*r1,a1,x1*r1,y1*r1,a1);
                 triangle(buffer,matrix,color,x0*r0,y0*r0,a0,x1*r1,y1*r1,a1,x1*r0,y1*r0,a0);
             }
         }
+    }
+
+    /**
+     * The disc's corners, computed once instead of twice per segment, ring and pass: about 1,600
+     * {@code cos}/{@code sin} calls per disc per frame. Each entry is the exact float the loop used
+     * to compute, so the image is unchanged.
+     */
+    private static float[] trigTable(boolean sine) {
+        float[] table = new float[DISK_SEGMENTS + 1];
+        for (int segment = 0; segment <= DISK_SEGMENTS; segment++) {
+            double angle = Math.PI * 2 * segment / DISK_SEGMENTS;
+            table[segment] = (float) (sine ? Math.sin(angle) : Math.cos(angle));
+        }
+        return table;
     }
 
     private static void streak(CrystalGlowBuffer b, Matrix4f m, int c, double angle,

@@ -23,6 +23,7 @@ public final class CrystalAfterglow {
     private static final Map<UUID, Seen> SEEN = new LinkedHashMap<>();
     private static final AfterglowTimeline<Light> FADING = new AfterglowTimeline<>(24);
     private static Object world;
+    private static long lastSweep;
 
     private CrystalAfterglow() { }
 
@@ -33,12 +34,19 @@ public final class CrystalAfterglow {
         UUID id = entity.getUUID();
         FADING.cancel(id); // A refused local prediction has returned: no overlapping death effect.
         CrystalAppearance appearance = CrystalAppearanceAccess.of(state);
-        if (appearance.glowPowerPercent <= 0 || state.distanceToCameraSq > 4096) {
+        // The flash has its own switch now: a crystal is remembered whenever its death would flash,
+        // whether or not it glows while alive.
+        if (!appearance.flashActive() || state.distanceToCameraSq > 4096) {
             SEEN.remove(id);
             return;
         }
         long now = System.nanoTime();
-        SEEN.entrySet().removeIf(entry -> now - entry.getValue().at > 2_000_000_000L);
+        // Expire once per frame rather than once per crystal per frame: with twenty crystals in view
+        // the old sweep walked the whole map twenty times a frame to find the same stale entries.
+        if (now - lastSweep > 16_000_000L) {
+            lastSweep = now;
+            SEEN.entrySet().removeIf(entry -> now - entry.getValue().at > 2_000_000_000L);
+        }
         if (!SEEN.containsKey(id) && SEEN.size() >= 128) SEEN.remove(SEEN.keySet().iterator().next());
         CrystalAfterglowState light = snapshot(state);
         SEEN.put(id, new Seen(new WeakReference<>(entity),
@@ -78,7 +86,8 @@ public final class CrystalAfterglow {
         // players visible right then; the other styles never look at anyone.
         List<Vec3> targets = CrystalVisualConfig.flashStyle() == CrystalFlashStyle.LIGHTNING
                 ? CrystalFlashShapes.visibleBoltTargets(seen.light.origin) : List.of();
-        FADING.start(entity.getUUID(), new Light(seen.light.origin, seen.light.state, targets), now);
+        FADING.start(entity.getUUID(), new Light(seen.light.origin, seen.light.state, targets), now,
+                CrystalAppearanceAccess.of(seen.light.state).flashDurationNanos());
     }
 
     public static void submit(PoseStack poses, SubmitNodeCollector collector, CameraRenderState camera) {
@@ -110,7 +119,7 @@ public final class CrystalAfterglow {
         }
     }
 
-    public static void reset() { SEEN.clear(); FADING.clear(); world = null; }
+    public static void reset() { SEEN.clear(); FADING.clear(); world = null; lastSweep = 0L; }
 
     private static boolean survivingSurface(Vec3 origin, CrystalGlowRenderer.Surface surface) {
         var level = Minecraft.getInstance().level;

@@ -125,12 +125,41 @@ public final class CrystalOptimizerGuard {
 
     private enum Status { CHECKING, READY, INCOMPLETE, CONFLICT }
 
+    /** Why the interaction helpers are not running, for the settings screen to say so. */
+    public enum PauseReason { NONE, CHECKING, CONFLICT, FORCED_OFF }
+
     // Interaction helpers stay off only while the answer is still unknown, which lasts as long as the
     // JAR scan and no longer.
     private static volatile Status status = Status.CHECKING;
     private static volatile String detectedName = "";
+    /** The player's own "Force off" switch, which outranks whatever the scan finds. */
+    private static volatile boolean forcedOff;
 
     private CrystalOptimizerGuard() {
+    }
+
+    /** Set from the configuration: every crystal optimization stays off while this is true. */
+    public static void setForcedOff(boolean off) {
+        forcedOff = off;
+    }
+
+    public static boolean forcedOff() {
+        return forcedOff;
+    }
+
+    /**
+     * The one reason the helpers are paused, if they are. The player's own switch comes first: it
+     * holds whatever the scan says, so naming a detected mod would point at the wrong cause.
+     */
+    public static PauseReason pauseReason() {
+        if (forcedOff) {
+            return PauseReason.FORCED_OFF;
+        }
+        return switch (status) {
+            case CONFLICT -> PauseReason.CONFLICT;
+            case CHECKING -> PauseReason.CHECKING;
+            default -> PauseReason.NONE;
+        };
     }
 
     /**
@@ -142,7 +171,7 @@ public final class CrystalOptimizerGuard {
      * cannot complete leaves the optimizations running and reports itself in the settings screen.</p>
      */
     public static boolean optimizationsAllowed() {
-        return status == Status.READY || status == Status.INCOMPLETE;
+        return !forcedOff && (status == Status.READY || status == Status.INCOMPLETE);
     }
 
     public static boolean conflictDetected() {

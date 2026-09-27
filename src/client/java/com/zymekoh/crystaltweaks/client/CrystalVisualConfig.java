@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.zymekoh.crystaltweaks.CrystalTweaksClient;
+import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.Reader;
@@ -27,6 +28,15 @@ public final class CrystalVisualConfig {
     private static volatile boolean ghostCrystals;
     private static volatile boolean safeCrystal = true;
     private static volatile boolean optimizerNoticeDismissed;
+    private static volatile boolean forceOffOptimizations;
+    private static volatile boolean obsidianDebounce;
+    private static volatile int obsidianDebounceMillis;
+    private static volatile boolean herziumIntegration = true;
+    private static volatile boolean benchmarkDevMode;
+    private static volatile String practiceArmor = "NETHERITE";
+    private static volatile int practiceBlastPieces = 0b0100;
+    private static volatile boolean practiceBot = true;
+    private static volatile String practiceBotDifficulty = "NORMAL";
     private static volatile CrystalFlashStyle flashStyle = CrystalFlashStyle.EXPLOSION;
     private static volatile boolean loaded;
     private static final CrystalAppearance playerVisuals = new CrystalAppearance();
@@ -79,47 +89,69 @@ public final class CrystalVisualConfig {
                     playerVisuals.rotationSpeedPercent = clamp(intValue(visuals, "rotationSpeedPercent", 100), 0, 300);
                     playerVisuals.floatingSpeedPercent = clamp(intValue(visuals, "floatingSpeedPercent", 100), 0, 300);
 
-                    JsonObject sounds = root.has("sounds") && root.get("sounds").isJsonObject()
-                            ? root.getAsJsonObject("sounds")
-                            : new JsonObject();
+                    JsonObject sounds = section(root, "sounds");
                     customSoundEnabled = booleanValue(sounds, "enabled", false);
                     customSoundFileName = stringValue(sounds, "file", "");
-                    soundVolume = clamp(floatValue(sounds, "volume", 1.0F), 0.0F, 2.0F);
+                    // Anything above 100% never played louder, Vanilla clamps the gain at one; it only
+                    // stretched how far away an explosion could be heard. See setSoundVolume.
+                    soundVolume = clamp(floatValue(sounds, "volume", 1.0F), 0.0F, 1.0F);
                     soundSpeed = clamp(floatValue(sounds, "speed", 1.0F), 0.5F, 2.0F);
 
-                    JsonObject gameplay = root.has("gameplay") && root.get("gameplay").isJsonObject()
-                            ? root.getAsJsonObject("gameplay")
-                            : new JsonObject();
+                    JsonObject gameplay = section(root, "gameplay");
                     ghostCrystals = booleanValue(gameplay, "ghostCrystals", false);
                     safeCrystal = booleanValue(gameplay, "safeCrystal", true);
+                    forceOffOptimizations = booleanValue(gameplay, "forceOffOptimizations", false);
+                    obsidianDebounce = booleanValue(gameplay, "obsidianDebounce", false);
+                    obsidianDebounceMillis = clamp(intValue(gameplay, "obsidianDebounceMillis", 0), 0,
+                            MAX_OBSIDIAN_DEBOUNCE_MILLIS);
 
-                    JsonObject notices = root.has("notices") && root.get("notices").isJsonObject()
-                            ? root.getAsJsonObject("notices")
-                            : new JsonObject();
+                    JsonObject notices = section(root, "notices");
                     optimizerNoticeDismissed = booleanValue(notices, "optimizerAdviceDismissed", false);
 
-                    JsonObject glow = root.has("glow") && root.get("glow").isJsonObject()
-                            ? root.getAsJsonObject("glow")
-                            : new JsonObject();
+                    JsonObject integrations = section(root, "integrations");
+                    herziumIntegration = booleanValue(integrations, "herzium", true);
+
+                    JsonObject benchmark = section(root, "benchmark");
+                    benchmarkDevMode = booleanValue(benchmark, "devMode", false);
+
+                    JsonObject practice = section(root, "practice");
+                    practiceArmor = stringValue(practice, "armor", "NETHERITE");
+                    practiceBlastPieces = intValue(practice, "blastPieces", 0b0100) & 0b1111;
+                    practiceBot = booleanValue(practice, "bot", true);
+                    practiceBotDifficulty = stringValue(practice, "botDifficulty", "NORMAL");
+
+                    JsonObject glow = section(root, "glow");
+                    // Read first: migrating a profile needs to know which style its flash size meant.
+                    flashStyle = CrystalFlashStyle.parse(
+                            stringValue(glow, "flashStyle", ""), CrystalFlashStyle.EXPLOSION);
                     playerVisuals.glowReflectionsPercent = clamp(intValue(glow, "reflectionsPercent", 55), 0, 300);
-                    JsonObject enemy = root.has("enemyVisuals") && root.get("enemyVisuals").isJsonObject()
-                            ? root.getAsJsonObject("enemyVisuals") : new JsonObject();
+                    playerVisuals.glowPowerPercent = clamp(intValue(glow, "powerPercent", 55), 0, 300);
+                    playerVisuals.customGlowColor = booleanValue(glow, "customColor", true);
+                    playerVisuals.glowColor = parseColor(glow, "color", 0xFFC880FF);
+                    playerVisuals.flashScalePercent = clamp(intValue(glow, "flashScalePercent", 100),
+                            CrystalAppearance.MIN_FLASH_SCALE, 300);
+                    playerVisuals.glowEnabled = booleanValue(glow, "enabled", true);
+                    playerVisuals.flashEnabled = booleanValue(glow, "flashEnabled", true);
+                    playerVisuals.flashOpacityPercent = clamp(intValue(glow, "flashOpacityPercent",
+                            CrystalAppearance.DEFAULT_FLASH_OPACITY), CrystalAppearance.MIN_FLASH_OPACITY, 100);
+                    playerVisuals.flashDurationMillis = clamp(intValue(glow, "flashDurationMillis",
+                            CrystalAppearance.DEFAULT_FLASH_DURATION), CrystalAppearance.MIN_FLASH_DURATION,
+                            CrystalAppearance.MAX_FLASH_DURATION);
+                    playerVisuals.migrateLegacyGlow(glow.has("enabled"), glow.has("flashOpacityPercent"),
+                            flashStyle.scalable());
+
+                    JsonObject enemy = section(root, "enemyVisuals");
                     enemyCustomEnabled = booleanValue(enemy, "enabled", true);
                     try {
                         CrystalAppearance stored = GSON.fromJson(enemy, CrystalAppearance.class);
                         if (stored.flashScalePercent <= 0) stored.flashScalePercent = 100;
+                        stored.migrateLegacyGlow(enemy.has("glowEnabled"), enemy.has("flashOpacityPercent"),
+                                flashStyle.scalable());
                         enemyVisuals = stored.copy();
                     } catch (RuntimeException invalidEnemySettings) {
                         enemyVisuals = defaultEnemyVisuals();
                         CrystalTweaksClient.LOGGER.warn("Invalid enemy visual settings; resetting only that profile");
                     }
-                    playerVisuals.glowPowerPercent = clamp(intValue(glow, "powerPercent", 55), 0, 300);
-                    playerVisuals.customGlowColor = booleanValue(glow, "customColor", true);
-                    playerVisuals.glowColor = parseColor(glow, "color", 0xFFC880FF);
-                    flashStyle = CrystalFlashStyle.parse(
-                            stringValue(glow, "flashStyle", ""), CrystalFlashStyle.EXPLOSION);
-                    playerVisuals.flashScalePercent = clamp(intValue(glow, "flashScalePercent", 100),
-                            CrystalAppearance.MIN_FLASH_SCALE, 300);
                 } catch (Exception exception) {
                     CrystalTweaksClient.LOGGER.warn(
                             "Could not read crystal visual settings from {}; using neutral colors",
@@ -128,7 +160,12 @@ public final class CrystalVisualConfig {
                 }
             }
             loaded = true;
+            CrystalOptimizerGuard.setForcedOff(forceOffOptimizations);
         }
+    }
+
+    private static JsonObject section(JsonObject root, String key) {
+        return root.has(key) && root.get(key).isJsonObject() ? root.getAsJsonObject(key) : new JsonObject();
     }
 
     public static void save() {
@@ -157,7 +194,25 @@ public final class CrystalVisualConfig {
                 gameplay.remove("predictCrystalBreak");
                 gameplay.addProperty("ghostCrystals", ghostCrystals);
                 gameplay.addProperty("safeCrystal", safeCrystal);
+                gameplay.addProperty("forceOffOptimizations", forceOffOptimizations);
+                gameplay.addProperty("obsidianDebounce", obsidianDebounce);
+                gameplay.addProperty("obsidianDebounceMillis", obsidianDebounceMillis);
                 root.add("gameplay", gameplay);
+
+                JsonObject integrations = section(root, "integrations");
+                integrations.addProperty("herzium", herziumIntegration);
+                root.add("integrations", integrations);
+
+                JsonObject benchmark = section(root, "benchmark");
+                benchmark.addProperty("devMode", benchmarkDevMode);
+                root.add("benchmark", benchmark);
+
+                JsonObject practice = section(root, "practice");
+                practice.addProperty("armor", practiceArmor);
+                practice.addProperty("blastPieces", practiceBlastPieces);
+                practice.addProperty("bot", practiceBot);
+                practice.addProperty("botDifficulty", practiceBotDifficulty);
+                root.add("practice", practice);
 
                 JsonObject notices = root.has("notices") && root.get("notices").isJsonObject()
                         ? root.getAsJsonObject("notices")
@@ -172,11 +227,15 @@ public final class CrystalVisualConfig {
                 JsonObject enemy = GSON.toJsonTree(enemyVisuals.copy()).getAsJsonObject();
                 enemy.addProperty("enabled", enemyCustomEnabled);
                 root.add("enemyVisuals", enemy);
+                glow.addProperty("enabled", playerVisuals.glowEnabled);
                 glow.addProperty("powerPercent", playerVisuals.glowPowerPercent);
                 glow.addProperty("customColor", playerVisuals.customGlowColor);
                 glow.addProperty("color", toHex(playerVisuals.glowColor));
+                glow.addProperty("flashEnabled", playerVisuals.flashEnabled);
                 glow.addProperty("flashStyle", flashStyle.storageKey());
                 glow.addProperty("flashScalePercent", playerVisuals.flashScalePercent);
+                glow.addProperty("flashOpacityPercent", playerVisuals.flashOpacityPercent);
+                glow.addProperty("flashDurationMillis", playerVisuals.flashDurationMillis);
                 root.add("glow", glow);
 
                 JsonObject sounds = root.has("sounds") && root.get("sounds").isJsonObject()
@@ -287,9 +346,14 @@ public final class CrystalVisualConfig {
         return soundVolume;
     }
 
+    /**
+     * Capped at 100%. Vanilla clamps a sound's gain at one, so a higher volume never played louder:
+     * it only multiplied the distance at which an explosion could still be heard, up to twice
+     * Vanilla's 64 blocks at the old 200% maximum.
+     */
     public static void setSoundVolume(float volume) {
         load();
-        soundVolume = clamp(volume, 0.0F, 2.0F);
+        soundVolume = clamp(volume, 0.0F, 1.0F);
     }
 
     public static float soundSpeed() {
@@ -343,6 +407,116 @@ public final class CrystalVisualConfig {
     public static void setOptimizerNoticeDismissed(boolean dismissed) {
         load();
         optimizerNoticeDismissed = dismissed;
+    }
+
+    /** Longest obsidian debounce the slider offers. */
+    public static final int MAX_OBSIDIAN_DEBOUNCE_MILLIS = 10_000;
+
+    /**
+     * Force off: every crystal optimization Crystal Tweaks provides stays off whatever the
+     * compatibility scan finds, as if another optimizer were installed. Visuals are untouched.
+     */
+    public static boolean forceOffOptimizations() {
+        load();
+        return forceOffOptimizations;
+    }
+
+    public static void setForceOffOptimizations(boolean enabled) {
+        load();
+        forceOffOptimizations = enabled;
+        CrystalOptimizerGuard.setForcedOff(enabled);
+    }
+
+    /** Obsidian debounce: refuses a second obsidian placement too soon after the last one. */
+    public static boolean obsidianDebounce() {
+        load();
+        return obsidianDebounce;
+    }
+
+    public static void setObsidianDebounce(boolean enabled) {
+        load();
+        obsidianDebounce = enabled;
+    }
+
+    /** The debounce window; 0 is Vanilla, which never refuses a placement. */
+    public static int obsidianDebounceMillis() {
+        load();
+        return obsidianDebounceMillis;
+    }
+
+    public static void setObsidianDebounceMillis(int millis) {
+        load();
+        obsidianDebounceMillis = clamp(millis, 0, MAX_OBSIDIAN_DEBOUNCE_MILLIS);
+    }
+
+    /** Whether Crystal Tweaks shows and changes Herzium's hotbar order when Herzium is installed. */
+    public static boolean herziumIntegration() {
+        load();
+        return herziumIntegration;
+    }
+
+    public static void setHerziumIntegration(boolean enabled) {
+        load();
+        herziumIntegration = enabled;
+    }
+
+    /** The benchmark explains itself for developers instead of for players. */
+    public static boolean benchmarkDevMode() {
+        load();
+        return benchmarkDevMode;
+    }
+
+    public static void setBenchmarkDevMode(boolean enabled) {
+        load();
+        benchmarkDevMode = enabled;
+    }
+
+    /** Everything Crystal Practice was set to, as one value. */
+    public static com.zymekoh.crystaltweaks.practice.PracticeSettings practice() {
+        load();
+        return com.zymekoh.crystaltweaks.practice.PracticeSettings.from(practiceArmor, practiceBlastPieces, practiceBot,
+                practiceBotDifficulty);
+    }
+
+    public static String practiceArmor() {
+        load();
+        return practiceArmor;
+    }
+
+    public static void setPracticeArmor(String armor) {
+        load();
+        practiceArmor = armor == null ? "NETHERITE" : armor;
+    }
+
+    /** Armour pieces that carry Blast Protection IV instead of Protection IV: head 1, chest 2, legs 4, feet 8. */
+    public static int practiceBlastPieces() {
+        load();
+        return practiceBlastPieces;
+    }
+
+    public static void setPracticeBlastPieces(int mask) {
+        load();
+        practiceBlastPieces = mask & 0b1111;
+    }
+
+    public static boolean practiceBot() {
+        load();
+        return practiceBot;
+    }
+
+    public static void setPracticeBot(boolean enabled) {
+        load();
+        practiceBot = enabled;
+    }
+
+    public static String practiceBotDifficulty() {
+        load();
+        return practiceBotDifficulty;
+    }
+
+    public static void setPracticeBotDifficulty(String difficulty) {
+        load();
+        practiceBotDifficulty = difficulty == null ? "NORMAL" : difficulty;
     }
 
     /** 100 retains the original glow scale; values up to 300 amplify additive light only. */

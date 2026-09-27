@@ -1,5 +1,6 @@
 package com.zymekoh.crystaltweaks.core;
 
+import com.zymekoh.crystaltweaks.client.benchmark.CrystalBenchmark;
 import com.zymekoh.crystaltweaks.mixin.client.ServerboundInteractPacketAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -35,18 +36,19 @@ public final class CrystalAttackOptimizer {
     }
 
     public static void handleOutgoingPacket(Packet<?> packet) {
-        // Checked before anything else, including the thread hop: while another optimizer is
-        // driving crystals this must not even queue a task on the client thread.
+        if (!(packet instanceof ServerboundInteractPacket interactPacket) || !isAttack(interactPacket)) {
+            return;
+        }
+        int entityId = ((ServerboundInteractPacketAccessor) interactPacket).crystalTweaks$getEntityId();
+        // Timed whoever handles the crystal: the benchmark measures other optimizers too.
+        CrystalBenchmark.onAttackSent(entityId);
+        // Checked before the thread hop: while another optimizer is driving crystals this must not
+        // even queue a task on the client thread.
         if (!CrystalOptimizerGuard.optimizationsAllowed()) {
             return;
         }
 
-        if (!(packet instanceof ServerboundInteractPacket interactPacket) || !isAttack(interactPacket)) {
-            return;
-        }
-
         Minecraft minecraft = Minecraft.getInstance();
-        int entityId = ((ServerboundInteractPacketAccessor) interactPacket).crystalTweaks$getEntityId();
         if (!minecraft.isSameThread()) {
             minecraft.execute(() -> predictCrystalBreak(entityId));
             return;

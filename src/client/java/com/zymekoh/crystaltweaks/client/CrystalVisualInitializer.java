@@ -1,11 +1,15 @@
 package com.zymekoh.crystaltweaks.client;
 
+import com.zymekoh.crystaltweaks.client.benchmark.BenchmarkHooks;
 import com.zymekoh.crystaltweaks.client.compat.OptimizerConflictDetector;
+import com.zymekoh.crystaltweaks.client.practice.PracticeWorld;
 import com.zymekoh.crystaltweaks.client.sound.CrystalSoundManager;
 import com.zymekoh.crystaltweaks.core.CrystalBreakPrediction;
 import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
 import com.zymekoh.crystaltweaks.core.GhostCrystalTracker;
+import com.zymekoh.crystaltweaks.core.ObsidianDebounce;
 import com.zymekoh.crystaltweaks.core.ObsidianPlacementGuard;
+import com.zymekoh.crystaltweaks.practice.PracticeSession;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
@@ -18,9 +22,13 @@ public final class CrystalVisualInitializer implements ClientModInitializer {
         CrystalVisualConfig.load();
         OptimizerConflictDetector.detectInBackground();
         ObsidianPlacementGuard.initialize();
+        ObsidianDebounce.initialize();
         CrystalPlacementFeedback.initialize();
         CrystalSoundManager.initialize();
         GhostCrystalRenderer.initialize();
+        BenchmarkHooks.initialize();
+        PracticeSession.initialize();
+        PracticeWorld.initialize();
 
         ClientEntityEvents.ENTITY_UNLOAD.register((entity, level) -> {
             CrystalAfterglow.onRemoved(entity);

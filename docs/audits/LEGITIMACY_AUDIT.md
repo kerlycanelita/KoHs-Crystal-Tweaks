@@ -92,9 +92,19 @@ included, and grew with the distance. That version was never published.
 ## Custom explosion sound — L0 cosmetic
 
 A local sound file replaces the explosion sound of crystals for this client only. It plays at
-`4 × volume`, as Vanilla's explosion does at `4`. Above 100% volume the sound carries further than
-Vanilla's: at the 200% maximum a crystal explosion the server already sent can be heard across 128
-blocks instead of 64.
+`4 × volume`, as Vanilla's explosion does at `4`. Volume stops at 100%, so it is never heard further
+away than Vanilla's.
+
+## Obsidian debounce — L2 input filter, off by default
+
+A second obsidian placement inside the chosen window returns `FAIL` from `UseBlockCallback`, so no
+use packet is sent. Like Safe Crystal it withholds an action and never adds, delays or repeats one.
+
+## Force off, benchmark and Crystal Practice — L0
+
+Force off only removes this mod's own helpers. The benchmark reads packets Vanilla already sends and
+receives, after the fact, and never creates or changes one. Crystal Practice runs only in its own
+singleplayer world; its bot and kit live on that integrated server and never on a multiplayer one.
 
 ## Conflict Monitor and optimizer detection — L0 local only
 
@@ -123,9 +133,11 @@ and sounds do not.
 | Attack cooldown, `rightClickDelay`, click rate | Never modified. |
 | Sequence numbers and acknowledgement | Vanilla's own prediction machinery, untouched. |
 | `START_DESTROY_BLOCK` on obsidian with a crystal held | Withheld while Safe Crystal is on. |
+| An obsidian placement inside the debounce window | Withheld while Obsidian debounce is on. |
 
-That last row is the only difference in the packet stream. No anticheat penalises a player for not
-mining a block, but a server that forbids input filters can ask players to switch Safe Crystal off.
+Those last two rows are the only differences in the packet stream. No anticheat penalises a player
+for not mining or placing a block, but a server that forbids input filters can ask players to switch
+Safe Crystal and Obsidian debounce off.
 
 ## Honest limits of this claim
 

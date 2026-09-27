@@ -18,8 +18,15 @@ import java.util.function.Consumer;
  * and layer pickers, and an on/off switch whose knob slides to the new state. Every animation is
  * timed in real time and drawn inside the widget's own bounds, so the hitbox is always what you see.
  */
-final class PurpleCloseButton extends AbstractButton {
-    enum Icon { NONE, CRYSTAL, GLOW, SOUND, GEAR, ARROW_LEFT, ARROW_RIGHT }
+public final class PurpleCloseButton extends AbstractButton {
+    public enum Icon { NONE, CRYSTAL, GLOW, SOUND, GEAR, ARROW_LEFT, ARROW_RIGHT, CHART, SWORDS, WAVE, CHECK, WARNING }
+
+    /**
+     * A look reserved for a few buttons. {@code EXPERIMENTAL} is red and restless, for a feature
+     * still being tested; {@code HERZIUM} carries a travelling wave, Herzium's own motif, and only
+     * while it is active, so the row visibly comes alive when Herzium is installed.
+     */
+    public enum Accent { NONE, EXPERIMENTAL, HERZIUM }
 
     private static final long PRESS_FLASH_NANOS = 260_000_000L;
 
@@ -33,28 +40,34 @@ final class PurpleCloseButton extends AbstractButton {
     private Icon icon = Icon.NONE;
     private BooleanSupplier switchState;
     private boolean selected;
+    private Accent accent = Accent.NONE;
 
-    PurpleCloseButton(int x, int y, int width, int height, Component message, Consumer<PurpleCloseButton> action) {
+    public PurpleCloseButton(int x, int y, int width, int height, Component message, Consumer<PurpleCloseButton> action) {
         super(x, y, width, height, message);
         this.action = action;
     }
 
-    PurpleCloseButton icon(Icon icon) {
+    public PurpleCloseButton icon(Icon icon) {
         this.icon = icon == null ? Icon.NONE : icon;
         return this;
     }
 
+    public PurpleCloseButton accent(Accent accent) {
+        this.accent = accent == null ? Accent.NONE : accent;
+        return this;
+    }
+
     /** Turns the button into a switch: the label on the left, the state as a sliding knob. */
-    PurpleCloseButton switchOf(BooleanSupplier state) {
+    public PurpleCloseButton switchOf(BooleanSupplier state) {
         this.switchState = state;
         return this;
     }
 
-    void setSelected(boolean selected) {
+    public void setSelected(boolean selected) {
         this.selected = selected;
     }
 
-    boolean isSelected() {
+    public boolean isSelected() {
         return this.selected;
     }
 
@@ -84,6 +97,11 @@ final class PurpleCloseButton extends AbstractButton {
         int red = lerp(66, 126, lift);
         int green = lerp(18, 40, lift);
         int blue = lerp(96, 176, lift);
+        if (this.accent == Accent.EXPERIMENTAL) {
+            red = lerp(104, 168, lift);
+            green = lerp(14, 34, lift);
+            blue = lerp(34, 62, lift);
+        }
         if (!this.active && !this.selected) {
             red = 48;
             green = 26;
@@ -99,7 +117,16 @@ final class PurpleCloseButton extends AbstractButton {
         int border = this.selected
                 ? CrystalTheme.fade(CrystalTheme.lerp(0xFFD9A2FF, 0xFFF6E2FF, 0.5F + 0.5F * (float) Math.sin(nowMillis / 260.0F)), fade)
                 : argb(Math.round((this.active ? 220 : 120) * fade), 210, 112, pulse);
+        if (this.accent == Accent.EXPERIMENTAL && this.active) {
+            float alarm = 0.5F + 0.5F * (float) Math.sin(nowMillis / 140.0F);
+            border = CrystalTheme.fade(CrystalTheme.lerp(0xFFFF3B4E, 0xFFFFC2C8, alarm), fade);
+        }
         CrystalUi.outline(graphics, x + 1, y + 1, width - 2, height - 2, border);
+        if (this.accent == Accent.HERZIUM && this.active) {
+            CrystalUi.herziumWave(graphics, x + 2, y + 1, width - 4, height - 2, now, fade);
+        } else if (this.accent == Accent.EXPERIMENTAL && this.active) {
+            CrystalUi.hazardEdge(graphics, x + 2, y + height - 3, width - 4, now, fade);
+        }
 
         // A short flash from the press, so a click is felt even when nothing else moves. Only after a
         // real press: a button that was never pressed has no press time to subtract, and a sentinel

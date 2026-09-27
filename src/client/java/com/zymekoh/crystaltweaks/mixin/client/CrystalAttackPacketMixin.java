@@ -1,6 +1,7 @@
 package com.zymekoh.crystaltweaks.mixin.client;
 
 import com.zymekoh.crystaltweaks.client.CrystalPlacementFeedback;
+import com.zymekoh.crystaltweaks.client.benchmark.BenchmarkHooks;
 import com.zymekoh.crystaltweaks.core.CrystalAttackOptimizer;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
@@ -13,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class CrystalAttackPacketMixin {
     @Inject(method = "send(Lnet/minecraft/network/protocol/Packet;)V", at = @At("HEAD"))
     private void crystalTweaks$processCrystalAttack(Packet<?> packet, CallbackInfo callback) {
+        BenchmarkHooks.sent(packet);
         CrystalAttackOptimizer.handleOutgoingPacket(packet);
     }
 

@@ -1,5 +1,6 @@
 package com.zymekoh.crystaltweaks.core;
 
+import com.zymekoh.crystaltweaks.client.benchmark.CrystalBenchmark;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.Packet;
@@ -32,13 +33,14 @@ public final class CrystalAttackOptimizer {
     }
 
     public static void handleOutgoingPacket(Packet<?> packet) {
-        // Checked before anything else, including the thread hop: while another optimizer is
-        // driving crystals this must not even queue a task on the client thread.
-        if (!CrystalOptimizerGuard.optimizationsAllowed()) {
+        if (!(packet instanceof ServerboundAttackPacket attackPacket)) {
             return;
         }
-
-        if (!(packet instanceof ServerboundAttackPacket attackPacket)) {
+        // Timed whoever handles the crystal: the benchmark measures other optimizers too.
+        CrystalBenchmark.onAttackSent(attackPacket.entityId());
+        // Checked before the thread hop: while another optimizer is driving crystals this must not
+        // even queue a task on the client thread.
+        if (!CrystalOptimizerGuard.optimizationsAllowed()) {
             return;
         }
 

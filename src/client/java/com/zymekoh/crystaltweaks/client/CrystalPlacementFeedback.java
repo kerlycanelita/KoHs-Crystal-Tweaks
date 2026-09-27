@@ -1,5 +1,6 @@
 package com.zymekoh.crystaltweaks.client;
 
+import com.zymekoh.crystaltweaks.client.benchmark.CrystalBenchmark;
 import com.zymekoh.crystaltweaks.core.CrystalBreakPrediction;
 import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
 import com.zymekoh.crystaltweaks.core.CrystalPlacementTracker;
@@ -91,6 +92,8 @@ public final class CrystalPlacementFeedback {
         CrystalOwnership.observeWorld(minecraft.level);
         if (usedStack.is(Items.END_CRYSTAL)) {
             CrystalOwnership.record(base, System.nanoTime());
+            // Timed whoever handles the crystal, like the ownership colours.
+            CrystalBenchmark.onPlacementSent(base, packet.getSequence());
         }
 
         // Everything below predicts. When another optimizer is present nothing of ours may run,
