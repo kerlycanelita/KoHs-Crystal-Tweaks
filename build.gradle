@@ -70,6 +70,7 @@ def legacyGuiTransform = { String line -> line
 		.replace('centeredText', 'drawCenteredString')
 		.replace('graphics.text(', 'graphics.drawString(')
 		.replace('graphics.entity(', 'graphics.submitEntityRenderState(')
+		.replace('player.sendSystemMessage(message);', 'player.displayClientMessage(message, false);')
 		.replace('this.minecraft.gui.extractDeferredSubtitles();', '') }
 
 // CameraRenderState moved into a `level` subpackage in 26.1; the 1.x targets still use the old one.
@@ -87,6 +88,10 @@ def sdlEraTransform = { String line -> line
 		.replace('packet.getHand()', 'packet.hand()')
 		.replace('packet.getHitResult()', 'packet.hitResult()')
 		.replace('packet.getSequence()', 'packet.sequence()')
+		.replace('packet.getEntityIds()', 'packet.entityIds()')
+		// 26.3 swings name the animation and whether the swinging player is told too.
+		.replace('this.body.swing(InteractionHand.MAIN_HAND);',
+				'this.body.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);')
 		.replace('poses.mulPose(camera.orientation)', 'poses.rotate(camera.orientation)') }
 
 def partialTickCullingTransform = { String line -> line
@@ -102,9 +107,13 @@ def modernRegistryTransform = { String line -> line
 				'import net.minecraft.world.entity.EntityType;',
 				'import net.minecraft.world.entity.EntityTypes;')
 		.replace('EntityType.END_CRYSTAL', 'EntityTypes.END_CRYSTAL')
+		.replace('EntityType.MANNEQUIN', 'EntityTypes.MANNEQUIN')
 		.replace('minecraft.screen != null', 'minecraft.gui.screen() != null')
+		.replace('minecraft.screen == null', 'minecraft.gui.screen() == null')
 		.replace('this.minecraft.gui.extractDeferredSubtitles();', '')
-		.replace('this.minecraft.setScreen(', 'this.minecraft.gui.setScreen(') }
+		.replace('this.minecraft.setScreen(', 'this.minecraft.gui.setScreen(')
+		.replace('minecraft.setScreen(', 'minecraft.gui.setScreen(')
+		.replace('minecraft.getToastManager()', 'minecraft.gui.toastManager()') }
 
 repositories {
 	maven {
@@ -163,6 +172,8 @@ if (usesRemapping || usesModernRegistrySplit) {
 			}
 			if (usesRemapping) {
 				exclude 'com/zymekoh/crystaltweaks/core/CrystalAttackOptimizer.java'
+				// LevelSettings took a difficulty record and lost its game rules in 26.1.
+				exclude 'com/zymekoh/crystaltweaks/client/practice/PracticeLevelSettings.java'
 				// The ghost crystal renderer needs the level render events added in 26.1. The 1.x
 				// targets drop it, and GhostCrystalSupport then reports it as unavailable so the
 				// configuration screen never offers a toggle that would do nothing.
@@ -183,7 +194,12 @@ if (usesRemapping || usesModernRegistrySplit) {
 					'**/CrystalNoticeScreen.java',
 					'**/CrystalUi.java',
 					'**/ConflictMonitorScreen.java',
-					'**/CrystalPlacementFeedback.java'
+					'**/CrystalPlacementFeedback.java',
+					// The benchmark and Crystal Practice draw their own screens and HUD and spawn
+					// their own entities, so every file there takes the same rewrites.
+					'**/client/benchmark/*.java',
+					'**/client/practice/*.java',
+					'**/practice/*.java'
 			]) {
 				filter { line ->
 					def transformed = usesRemapping ? legacyGuiTransform(line) : line

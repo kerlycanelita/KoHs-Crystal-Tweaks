@@ -91,6 +91,8 @@ enemy look on or off.
 The **Glow** tab owns everything the crystal's light does: power, reflections, the flash style and
 its size, and the glow colour.
 
+- **Glow** switches the halo, its reflections and the crystal's own light. Its options fold away
+  while it is off. It does not affect the flash, which has a switch of its own.
 - **Power** and **Reflections** range from `0%` to `300%`. Reflections are a coloured light drawn
   on the tops of nearby blocks; world lighting is not changed.
 - **Own colour** gives the glow and the flash a colour of their own. The crystal's layer colours are
@@ -98,7 +100,7 @@ its size, and the glow colour.
 
 **Flash style** is the shape a crystal leaves behind when it explodes. Use the arrows or click the
 name to change it; the preview explodes on its own to show the new shape. It takes the glow colour
-and material and needs power above `0%`:
+and material:
 
 | Style | Look |
 | --- | --- |
@@ -117,8 +119,8 @@ and material and needs power above `0%`:
 | Gem | A faceted diamond. |
 | Swords | Two swords crossed at the middle of their blades. |
 
-**Flash size** scales every shaped style from `10%` to `300%`; the Explosion burst sizes itself from
-the glow power.
+**Flash size** (`10%`-`300%`), **Opacity** (`10%`-`100%`) and **Duration** (`0.3 s`-`3 s`) apply to
+every style. **Flash on explosion** turns the flash off without touching the glow.
 
 Lightning only ever points at players you could see when the crystal exploded: not invisible, not
 spectating, in front of you and not behind a wall. Every bolt has the same length, so none of them
@@ -134,8 +136,7 @@ The **Sound** tab controls the local End Crystal explosion sound.
 
 - Supported formats: WAV, OGG, and MP3.
 - Maximum duration: five seconds.
-- Volume range: `0%` to `200%`. Above `100%` a distant explosion is also heard further away than
-  with Vanilla.
+- Volume range: `0%` to `100%`.
 - Playback-speed range: `0.5x` to `2.0x`.
 
 On Minecraft 26.3, which ships no native file dialog, drop the file into the mod's sounds folder and
@@ -158,6 +159,20 @@ The **Advanced** tab holds the crystal helpers and the compatibility tools.
   with Crystal Tweaks. It reads local files only. A clean result is not a guarantee: dynamic Mixin
   plugins and external bytecode agents are not visible to it.
 - **Re-check compatibility** runs the optimizer detection again without restarting the game.
+- **Force off optimizations** turns every crystal helper above off, whatever the detection says.
+  A paused helper names the reason on hover.
+- **Obsidian debounce** (off by default) refuses an obsidian placement that follows the previous one
+  within the chosen window, from Vanilla to `10 s`. It works on whatever Use is bound to, and
+  changing hotbar slot ends the window. A refused click sends nothing.
+- **Advanced optimizer benchmark** measures your own placements and breaks while you play and
+  compares runs, for example with and without Marlow's Crystal Optimizer. It only observes. The
+  **Normal**/**Dev** switch at the top picks plain explanations or the full statistics.
+- **Crystal Practice** (experimental) opens a local flat world with an obsidian arena, a kit of your
+  choice (Mending, Unbreaking III, Protection IV, Blast Protection IV on up to two pieces) and an
+  optional bot with the same kit. Singleplayer only.
+- **Herzium integration** is dimmed unless [Herzium](https://modrinth.com/mod/herzium) is installed;
+  then it sets Herzium's hotbar order. Herzium does not handle crystals, so the optimizer needs no
+  adapting.
 
 The detection stands the interaction helpers down only for a mod actually found to be optimizing
 crystals:

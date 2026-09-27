@@ -32,10 +32,14 @@ public final class ScreenLayoutTest {
                 String size = width + "x" + height;
                 checkFrame(layout, size);
                 for (Tab tab : Tab.values()) {
-                    for (int flags = 0; flags < 16; flags++) {
+                    for (int flags = 0; flags < 256; flags++) {
                         Content content = new Content((flags & 1) != 0, (flags & 2) != 0, (flags & 4) != 0,
-                                (flags & 8) != 0);
+                                (flags & 8) != 0, (flags & 16) != 0, (flags & 32) != 0, (flags & 64) != 0,
+                                (flags & 128) != 0);
                         if (content.enemy() && (tab == Tab.SOUNDS || tab == Tab.TWEAKS)) {
+                            continue;
+                        }
+                        if (!relevant(tab, flags)) {
                             continue;
                         }
                         Rows rows = layout.rows(tab, content);
@@ -51,7 +55,7 @@ public final class ScreenLayoutTest {
         // The sizes players actually use must never need to scroll the colour tab.
         for (int[] common : new int[][] {{480, 270}, {640, 360}, {854, 480}, {960, 540}, {1280, 720}, {1920, 1080}}) {
             CrystalScreenLayout layout = CrystalScreenLayout.fit(common[0], common[1]);
-            Rows colours = layout.rows(Tab.COLORS, new Content(false, true, true, true));
+            Rows colours = layout.rows(Tab.COLORS, Content.expanded(false));
             check(colours.bottom() <= layout.content.height(),
                     common[0] + "x" + common[1] + ": the colour tab must fit without scrolling");
         }
@@ -60,6 +64,20 @@ public final class ScreenLayoutTest {
         if (problems > 0) {
             System.exit(1);
         }
+    }
+
+    /**
+     * Only the flags a tab reads: the others cannot change its rows, so combining them would only
+     * repeat the same layout. Enemy, glow, flash and custom colour for Glow; ghost, debounce and the
+     * two Herzium flags for Advanced; enemy alone for Colors and Sound.
+     */
+    private static boolean relevant(Tab tab, int flags) {
+        int used = switch (tab) {
+            case COLORS, SOUNDS -> 1;
+            case GLOW -> 1 | 2 | 4 | 8;
+            case TWEAKS -> 16 | 32 | 64 | 128;
+        };
+        return (flags & ~used) == 0;
     }
 
     private static void checkFrame(CrystalScreenLayout layout, String tag) {
@@ -147,6 +165,25 @@ public final class ScreenLayoutTest {
             for (Slot slot : slots) {
                 if (slot.group() == i) {
                     check(slot.rect().inside(card), tag + ": " + slot.name() + " sticks out of its card");
+                }
+            }
+        }
+        // A switch's unfolded rows sit on its branch: never further left than the switch itself.
+        String[][] branches = {{"glow.toggle", "power", "reflections"},
+                {"flash.toggle", "flash.previous", "flash.size", "flash.opacity", "flash.duration"},
+                {"debounce.toggle", "debounce.time"}, {"herzium.toggle", "herzium.order", "herzium.optimizer"}};
+        for (String[] branch : branches) {
+            Slot parent = rows.slot(branch[0]);
+            for (int child = 1; child < branch.length; child++) {
+                Slot slot = rows.slot(branch[child]);
+                if (slot == null) {
+                    continue;
+                }
+                check(parent != null, tag + ": " + branch[child] + " shown without its switch");
+                if (parent != null) {
+                    check(slot.rect().x() >= parent.rect().x() && slot.rect().y() > parent.rect().y(),
+                            tag + ": " + branch[child] + " is not under " + branch[0]);
+                    check(slot.group() == parent.group(), tag + ": " + branch[child] + " left its switch's card");
                 }
             }
         }

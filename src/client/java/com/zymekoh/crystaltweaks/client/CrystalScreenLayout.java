@@ -50,8 +50,17 @@ public final class CrystalScreenLayout {
     /** A card drawn behind a group of rows. {@code key} names its title. */
     public record Group(String key, Rect rect, int firstRow) { }
 
-    /** What a tab shows right now, since some rows come and go with the settings. */
-    public record Content(boolean enemy, boolean flashScalable, boolean customGlow, boolean ghostAvailable) { }
+    /**
+     * What a tab shows right now, since some rows come and go with the settings: a switch that is
+     * off folds the rows that belong to it away, the way a tree folds a branch.
+     */
+    public record Content(boolean enemy, boolean glowOn, boolean flashOn, boolean customGlow,
+            boolean ghostAvailable, boolean debounceOn, boolean herziumInstalled, boolean herziumOn) {
+        /** Everything unfolded, for callers that only need the tab's full height. */
+        public static Content expanded(boolean enemy) {
+            return new Content(enemy, true, true, true, true, true, true, true);
+        }
+    }
 
     public record Rows(List<Slot> slots, List<Group> groups, int bottom, int textY) {
         public Slot slot(String name) {
@@ -189,16 +198,26 @@ public final class CrystalScreenLayout {
             }
             case GLOW -> {
                 rows.group("glow");
-                rows.row(this.controlHeight).add("power", this.optionsX, width);
-                rows.row(this.controlHeight).add("reflections", this.optionsX, width);
+                rows.row(this.controlHeight).add("glow.toggle", this.optionsX, width);
+                if (state.glowOn()) {
+                    int indent = branchIndent(width);
+                    rows.row(this.controlHeight).add("power", this.optionsX + indent, width - indent);
+                    rows.row(this.controlHeight).add("reflections", this.optionsX + indent, width - indent);
+                }
                 rows.group("flash");
-                int arrow = Math.max(1, Math.min(width / 5, this.controlHeight + 6));
-                rows.row(this.controlHeight)
-                        .add("flash.previous", this.optionsX, arrow)
-                        .add("flash.style", this.optionsX + arrow + 3, Math.max(1, width - (arrow + 3) * 2))
-                        .add("flash.next", this.optionsX + width - arrow, arrow);
-                if (state.flashScalable()) {
-                    rows.row(this.controlHeight).add("flash.size", this.optionsX, width);
+                rows.row(this.controlHeight).add("flash.toggle", this.optionsX, width);
+                if (state.flashOn()) {
+                    int indent = branchIndent(width);
+                    int branch = width - indent;
+                    int left = this.optionsX + indent;
+                    int arrow = Math.max(1, Math.min(branch / 5, this.controlHeight + 6));
+                    rows.row(this.controlHeight)
+                            .add("flash.previous", left, arrow)
+                            .add("flash.style", left + arrow + 3, Math.max(1, branch - (arrow + 3) * 2))
+                            .add("flash.next", left + branch - arrow, arrow);
+                    rows.row(this.controlHeight).add("flash.size", left, branch);
+                    rows.row(this.controlHeight).add("flash.opacity", left, branch);
+                    rows.row(this.controlHeight).add("flash.duration", left, branch);
                 }
                 rows.group("glow.color");
                 boolean hexBeside = state.customGlow() && width >= 200;
@@ -235,12 +254,37 @@ public final class CrystalScreenLayout {
                     rows.row(this.controlHeight).add("ghost", this.optionsX, width);
                 }
                 rows.row(this.controlHeight).add("safe", this.optionsX, width);
+                rows.row(this.controlHeight).add("debounce.toggle", this.optionsX, width);
+                if (state.debounceOn()) {
+                    int indent = branchIndent(width);
+                    rows.row(this.controlHeight).add("debounce.time", this.optionsX + indent, width - indent);
+                }
+                rows.group("optimization");
+                rows.row(this.controlHeight).add("forceoff", this.optionsX, width);
+                rows.row(this.controlHeight).add("benchmark", this.optionsX, width);
+                rows.group("practice");
+                rows.row(this.controlHeight).add("practice", this.optionsX, width);
+                rows.group("herzium");
+                rows.row(this.controlHeight).add("herzium.toggle", this.optionsX, width);
+                if (state.herziumInstalled() && state.herziumOn()) {
+                    int indent = branchIndent(width);
+                    rows.row(this.controlHeight).add("herzium.order", this.optionsX + indent, width - indent);
+                    rows.row(this.controlHeight).add("herzium.optimizer", this.optionsX + indent, width - indent);
+                }
                 rows.group("compatibility");
                 rows.row(this.controlHeight).add("monitor", this.optionsX, width);
                 rows.row(this.controlHeight).add("rescan", this.optionsX, width);
             }
         }
         return rows.build();
+    }
+
+    /**
+     * How far the rows a switch unfolds sit in from it, so they read as its branch. Nothing on a
+     * narrow column: every pixel there goes to the label.
+     */
+    public static int branchIndent(int width) {
+        return width >= 200 ? 10 : width >= 140 ? 6 : 0;
     }
 
     private static int clamp(int value, int low, int high) {

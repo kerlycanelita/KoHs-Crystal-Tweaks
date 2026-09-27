@@ -4,21 +4,32 @@ import com.zymekoh.crystaltweaks.client.CrystalScreenLayout.Group;
 import com.zymekoh.crystaltweaks.client.CrystalScreenLayout.Rect;
 import com.zymekoh.crystaltweaks.client.CrystalScreenLayout.Slot;
 import com.zymekoh.crystaltweaks.client.CrystalScreenLayout.Tab;
+import com.zymekoh.crystaltweaks.client.benchmark.CrystalBenchmarkScreen;
+import com.zymekoh.crystaltweaks.client.compat.HerziumBridge;
 import com.zymekoh.crystaltweaks.client.compat.OptimizerConflictDetector;
+import com.zymekoh.crystaltweaks.client.practice.PracticeWarningScreen;
 import com.zymekoh.crystaltweaks.client.sound.CrystalSoundManager;
+import com.zymekoh.crystaltweaks.core.CrystalBreakPrediction;
 import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
 import com.zymekoh.crystaltweaks.core.GhostCrystalSupport;
+import com.zymekoh.crystaltweaks.core.GhostCrystalTracker;
+import com.zymekoh.crystaltweaks.core.ObsidianDebounce;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.DoubleFunction;
+import java.util.function.DoubleUnaryOperator;
 import java.util.function.Function;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractSliderButton;
@@ -28,6 +39,7 @@ import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.renderer.entity.EndCrystalRenderer;
 import net.minecraft.client.renderer.entity.state.EndCrystalRenderState;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.FormattedCharSequence;
@@ -54,6 +66,11 @@ public final class CrystalTweaksScreen extends Screen {
     private static final long PREVIEW_APPEAR_NANOS = 460_000_000L;
     private static final long PREVIEW_EXPLOSION_NANOS = 280_000_000L;
     private static final long PREVIEW_RESPAWN_NANOS = 3_000_000_000L;
+    private static final long BRANCH_REVEAL_NANOS = 230_000_000L;
+    /** How far the preview crystal leans toward the viewer, in radians. */
+    private static final float PREVIEW_TILT = 0.18F;
+    /** How long after the last flash slider change the preview explodes to show it. */
+    private static final long FLASH_PREVIEW_DELAY_NANOS = 320_000_000L;
 
     private final Screen parent;
     private final boolean enemyEditor;
@@ -64,6 +81,9 @@ public final class CrystalTweaksScreen extends Screen {
     private final List<AbstractWidget> contentWidgets = new ArrayList<>();
     private final Map<AbstractWidget, Integer> contentBaseY = new IdentityHashMap<>();
     private final Map<AbstractWidget, Integer> contentRow = new IdentityHashMap<>();
+    private final Map<AbstractWidget, String> contentName = new IdentityHashMap<>();
+    /** When each row a switch just unfolded appeared, so it fades in as its branch opens. */
+    private final Map<String, Long> revealedAt = new HashMap<>();
     private final Map<Tab, Integer> scrollByTab = new EnumMap<>(Tab.class);
     private final List<PurpleCloseButton> tabButtons = new ArrayList<>();
 
@@ -81,6 +101,11 @@ public final class CrystalTweaksScreen extends Screen {
     private PurpleCloseButton ghostCrystalToggle;
     private PurpleCloseButton safeCrystalToggle;
     private PurpleCloseButton rescanButton;
+    private PurpleCloseButton debounceToggle;
+    private PurpleCloseButton forceOffToggle;
+    private PurpleCloseButton herziumOrderButton;
+    private long flashPreviewDueAt;
+    private CrystalOptimizerGuard.PauseReason shownPauseReason;
     private EditBox hexBox;
     private ColorPickerWidget colorPicker;
     private boolean updatingControls;
@@ -156,6 +181,8 @@ public final class CrystalTweaksScreen extends Screen {
         this.contentWidgets.clear();
         this.contentBaseY.clear();
         this.contentRow.clear();
+        this.contentName.clear();
+        this.revealedAt.clear();
         this.tabButtons.clear();
         addTabs();
         addFooter();
@@ -236,13 +263,21 @@ public final class CrystalTweaksScreen extends Screen {
         this.ghostCrystalToggle = null;
         this.safeCrystalToggle = null;
         this.rescanButton = null;
+        this.debounceToggle = null;
+        this.forceOffToggle = null;
+        this.herziumOrderButton = null;
         this.hexBox = null;
         this.colorPicker = null;
+        CrystalAppearance look = visuals();
         this.rows = this.layout.rows(this.activeTab, new CrystalScreenLayout.Content(
                 this.enemyEditor,
-                CrystalVisualConfig.flashStyle().scalable(),
-                visuals().customGlowColor,
-                GhostCrystalSupport.isAvailable()));
+                look.glowEnabled,
+                look.flashEnabled,
+                look.customGlowColor,
+                GhostCrystalSupport.isAvailable(),
+                CrystalVisualConfig.obsidianDebounce(),
+                HerziumBridge.installed(),
+                CrystalVisualConfig.herziumIntegration()));
         this.cardHover = new float[this.rows.groups().size()];
         switch (this.activeTab) {
             case COLORS -> addColorControls();
@@ -305,35 +340,71 @@ public final class CrystalTweaksScreen extends Screen {
     }
 
     private void addGlowControls() {
-        addContent("power", rect -> new CompactSlider(rect, 0, 300, visuals().glowPowerPercent,
-                value -> visuals().glowPowerPercent = (int) Math.round(value),
-                value -> (this.spanish ? "Potencia: " : "Power: ") + Math.round(value) + "%"));
-        CompactSlider reflections = addContent("reflections", rect -> new CompactSlider(rect, 0, 300,
-                visuals().glowReflectionsPercent,
-                value -> visuals().glowReflectionsPercent = (int) Math.round(value),
-                value -> (this.spanish ? "Reflejos: " : "Reflections: ") + Math.round(value) + "%"));
-        reflections.setTooltip(Tooltip.create(Component.literal(this.spanish
-                ? "Luz de color simulada en las caras superiores de bloques cercanos. Requiere potencia de brillo; no modifica la iluminación del mundo."
-                : "Simulated coloured light on nearby block tops. Requires glow power; does not change world lighting.")));
+        PurpleCloseButton glow = addContent("glow.toggle", rect -> new PurpleCloseButton(
+                rect.x(), rect.y(), rect.width(), rect.height(),
+                Component.literal(switchLabel(this.spanish ? "Brillo" : "Glow", visuals().glowEnabled)),
+                ignored -> toggleGlow()).switchOf(() -> visuals().glowEnabled).icon(PurpleCloseButton.Icon.GLOW));
+        glow.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "Enciende o apaga solo el brillo: el halo, sus reflejos en el suelo y la luz propia del cristal. El destello al explotar tiene su propio interruptor."
+                : "Turns only the glow on or off: the halo, its reflections on the ground and the crystal's own light. The flash on explosion has its own switch.")));
+        if (this.rows.slot("power") != null) {
+            addContent("power", rect -> new CompactSlider(rect, 0, 300, visuals().glowPowerPercent,
+                    value -> visuals().glowPowerPercent = (int) Math.round(value),
+                    value -> (this.spanish ? "Potencia: " : "Power: ") + Math.round(value) + "%"));
+            CompactSlider reflections = addContent("reflections", rect -> new CompactSlider(rect, 0, 300,
+                    visuals().glowReflectionsPercent,
+                    value -> visuals().glowReflectionsPercent = (int) Math.round(value),
+                    value -> (this.spanish ? "Reflejos: " : "Reflections: ") + Math.round(value) + "%"));
+            reflections.setTooltip(Tooltip.create(Component.literal(this.spanish
+                    ? "Luz de color simulada en las caras superiores de bloques cercanos, del cristal y de su destello. No modifica la iluminación del mundo."
+                    : "Simulated coloured light on nearby block tops, from the crystal and from its flash. Does not change world lighting.")));
+        }
 
-        // The flash is glow: same colour, same material, same power switch.
-        addContent("flash.previous", rect -> new PurpleCloseButton(rect.x(), rect.y(), rect.width(), rect.height(),
-                Component.empty(), ignored -> changeFlashStyle(CrystalVisualConfig.flashStyle().previous()))
-                .icon(PurpleCloseButton.Icon.ARROW_LEFT));
-        PurpleCloseButton style = addContent("flash.style", rect -> new PurpleCloseButton(
-                rect.x(), rect.y(), rect.width(), rect.height(), flashStyleMessage(),
-                ignored -> changeFlashStyle(CrystalVisualConfig.flashStyle().next())));
-        style.setTooltip(Tooltip.create(Component.literal(this.spanish
-                ? "Forma del destello que deja un cristal al explotar, en este mismo color. Requiere potencia de brillo. Es solo dibujo: no cambia la explosión, el daño ni ningún paquete. Pulsa el cristal de la vista previa para verlo."
-                : "Shape of the flash a crystal leaves when it explodes, in this same colour. Requires glow power. Drawing only: it changes no explosion, no damage and no packet. Click the preview crystal to see it.")));
-        addContent("flash.next", rect -> new PurpleCloseButton(rect.x(), rect.y(), rect.width(), rect.height(),
-                Component.empty(), ignored -> changeFlashStyle(CrystalVisualConfig.flashStyle().next()))
-                .icon(PurpleCloseButton.Icon.ARROW_RIGHT));
-        if (this.rows.slot("flash.size") != null) {
+        PurpleCloseButton flash = addContent("flash.toggle", rect -> new PurpleCloseButton(
+                rect.x(), rect.y(), rect.width(), rect.height(),
+                Component.literal(switchLabel(this.spanish ? "Destello al explotar" : "Flash on explosion", visuals().flashEnabled)),
+                ignored -> toggleFlash()).switchOf(() -> visuals().flashEnabled).icon(PurpleCloseButton.Icon.CRYSTAL));
+        flash.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "La luz que deja un cristal al explotar, independiente del brillo. Es solo dibujo: no cambia la explosión, el daño ni ningún paquete. Pulsa el cristal de la vista previa para verlo."
+                : "The light a crystal leaves when it explodes, independent of the glow. Drawing only: it changes no explosion, no damage and no packet. Click the preview crystal to see it.")));
+        if (this.rows.slot("flash.style") != null) {
+            addContent("flash.previous", rect -> new PurpleCloseButton(rect.x(), rect.y(), rect.width(), rect.height(),
+                    Component.empty(), ignored -> changeFlashStyle(CrystalVisualConfig.flashStyle().previous()))
+                    .icon(PurpleCloseButton.Icon.ARROW_LEFT));
+            PurpleCloseButton style = addContent("flash.style", rect -> new PurpleCloseButton(
+                    rect.x(), rect.y(), rect.width(), rect.height(), flashStyleMessage(),
+                    ignored -> changeFlashStyle(CrystalVisualConfig.flashStyle().next())));
+            style.setTooltip(Tooltip.create(Component.literal(this.spanish
+                    ? "Forma del destello, en el color del brillo."
+                    : "Shape of the flash, in the glow colour.")));
+            addContent("flash.next", rect -> new PurpleCloseButton(rect.x(), rect.y(), rect.width(), rect.height(),
+                    Component.empty(), ignored -> changeFlashStyle(CrystalVisualConfig.flashStyle().next()))
+                    .icon(PurpleCloseButton.Icon.ARROW_RIGHT));
             addContent("flash.size", rect -> new CompactSlider(rect, CrystalAppearance.MIN_FLASH_SCALE, 300,
                     visuals().flashScalePercent,
-                    value -> visuals().flashScalePercent = (int) Math.round(value),
-                    value -> (this.spanish ? "Tamaño del destello: " : "Flash size: ") + Math.round(value) + "%"));
+                    value -> {
+                        visuals().flashScalePercent = (int) Math.round(value);
+                        scheduleFlashPreview();
+                    },
+                    value -> (this.spanish ? "Tamaño: " : "Size: ") + Math.round(value) + "%"));
+            CompactSlider opacity = addContent("flash.opacity", rect -> new CompactSlider(rect,
+                    CrystalAppearance.MIN_FLASH_OPACITY, 100, visuals().flashOpacityPercent,
+                    value -> {
+                        visuals().flashOpacityPercent = (int) Math.round(value);
+                        scheduleFlashPreview();
+                    },
+                    value -> (this.spanish ? "Opacidad: " : "Opacity: ") + Math.round(value) + "%"));
+            opacity.setTooltip(Tooltip.create(Component.literal(this.spanish
+                    ? "Cuánto se ve el destello. 50% es el destello de siempre; 100% es el más intenso."
+                    : "How strongly the flash shows. 50% is the usual flash; 100% is the most intense.")));
+            addContent("flash.duration", rect -> new CompactSlider(rect,
+                    CrystalAppearance.MIN_FLASH_DURATION / 1000.0D, CrystalAppearance.MAX_FLASH_DURATION / 1000.0D,
+                    visuals().flashDurationMillis / 1000.0D,
+                    value -> {
+                        visuals().flashDurationMillis = (int) Math.round(value * 1000.0D);
+                        scheduleFlashPreview();
+                    },
+                    value -> String.format(Locale.ROOT, this.spanish ? "Duración: %.1f s" : "Duration: %.1f s", value)));
         }
 
         PurpleCloseButton colour = addContent("glow.color", rect -> new PurpleCloseButton(
@@ -372,7 +443,8 @@ public final class CrystalTweaksScreen extends Screen {
                 Component.literal(this.spanish ? "Seleccionar archivo…" : "Select file…"),
                 ignored -> openSoundPicker()));
         this.soundFileButton.active = CrystalVisualConfig.customSoundEnabled();
-        addContent("sound.volume", rect -> new CompactSlider(rect, 0.0D, 2.0D, CrystalVisualConfig.soundVolume(),
+        // Up to 100%: Vanilla clamps the gain there, so more only made explosions carry further.
+        addContent("sound.volume", rect -> new CompactSlider(rect, 0.0D, 1.0D, CrystalVisualConfig.soundVolume(),
                 value -> CrystalVisualConfig.setSoundVolume(value.floatValue()),
                 value -> (this.spanish ? "Volumen: " : "Volume: ") + Math.round(value * 100.0D) + "%"));
         addContent("sound.speed", rect -> new CompactSlider(rect, 0.5D, 2.0D, CrystalVisualConfig.soundSpeed(),
@@ -385,18 +457,53 @@ public final class CrystalTweaksScreen extends Screen {
             this.ghostCrystalToggle = addContent("ghost", rect -> new PurpleCloseButton(
                     rect.x(), rect.y(), rect.width(), rect.height(), ghostCrystalMessage(),
                     ignored -> toggleGhostCrystals()).switchOf(CrystalVisualConfig::ghostCrystals));
-            this.ghostCrystalToggle.setTooltip(Tooltip.create(Component.literal(this.spanish
-                    ? "Dibuja un cristal provisional mientras llega el del servidor, para que colocar no dependa de tu ping. Es solo visual: no es una entidad, no se puede golpear ni mirar, y no cambia ningún paquete."
-                    : "Draws a stand-in crystal while the server's real one is in flight, so placing does not depend on your ping. Purely visual: it is not an entity, cannot be hit or looked at, and changes no packet.")));
-            this.ghostCrystalToggle.active = CrystalOptimizerGuard.optimizationsAllowed();
         }
         this.safeCrystalToggle = addContent("safe", rect -> new PurpleCloseButton(
                 rect.x(), rect.y(), rect.width(), rect.height(), safeCrystalMessage(),
                 ignored -> toggleSafeCrystal()).switchOf(CrystalVisualConfig::safeCrystal));
-        this.safeCrystalToggle.setTooltip(Tooltip.create(Component.literal(this.spanish
-                ? "Evita minar la obsidiana sobre la que pones cristales mientras sostienes uno. Envía menos acciones que Vanilla; apágalo si tu servidor no permite filtros de entrada."
-                : "Keeps you from mining the obsidian under your crystals while you hold one. It sends fewer actions than Vanilla; turn it off if your server forbids input filters.")));
-        this.safeCrystalToggle.active = CrystalOptimizerGuard.optimizationsAllowed();
+        this.debounceToggle = addContent("debounce.toggle", rect -> new PurpleCloseButton(
+                rect.x(), rect.y(), rect.width(), rect.height(),
+                Component.literal(this.spanish ? "Antirrebote de obsidiana" : "Obsidian debounce"),
+                ignored -> toggleDebounce()).switchOf(CrystalVisualConfig::obsidianDebounce));
+        this.debounceToggle.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "Evita poner dos obsidianas sin querer: tras colocar una, rechaza otra durante el tiempo elegido. Vale para cualquier tecla o botón asignado a Usar. Cambiar de ranura lo reinicia, así obsidiana, cristal, obsidiana nunca se frena. Un clic rechazado no envía nada; apágalo si tu servidor no permite filtros de entrada."
+                : "Stops accidental double obsidian: after placing one, it refuses another for the chosen time. Works with any key or button bound to Use. Switching slots resets it, so obsidian, crystal, obsidian is never slowed. A refused click sends nothing; turn it off if your server forbids input filters.")));
+        if (this.rows.slot("debounce.time") != null) {
+            addContent("debounce.time", rect -> CompactSlider.curved(rect, 0, CrystalVisualConfig.MAX_OBSIDIAN_DEBOUNCE_MILLIS,
+                    CrystalVisualConfig.obsidianDebounceMillis(),
+                    value -> {
+                        CrystalVisualConfig.setObsidianDebounceMillis(debounceStep(value));
+                        ObsidianDebounce.settingsChanged();
+                    },
+                    value -> (this.spanish ? "Tiempo: " : "Window: ") + debounceLabel(debounceStep(value))));
+        }
+        applyPauseReason();
+
+        this.forceOffToggle = addContent("forceoff", rect -> new PurpleCloseButton(
+                rect.x(), rect.y(), rect.width(), rect.height(),
+                Component.literal(this.spanish ? "Forzar apagado de optimizaciones" : "Force off optimizations"),
+                ignored -> toggleForceOff()).switchOf(CrystalVisualConfig::forceOffOptimizations));
+        this.forceOffToggle.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "Apaga todas las optimizaciones de cristal de Crystal Tweaks: rotura instantánea en pantalla, cristales fantasma, Cristal seguro y el seguimiento de colocaciones. Todo queda como en Vanilla; colores, brillo, destellos y sonidos siguen igual."
+                : "Turns off every crystal optimization Crystal Tweaks provides: the instant break on screen, ghost crystals, Safe Crystal and placement tracking. Everything behaves like Vanilla; colours, glow, flashes and sounds stay as they are.")));
+        PurpleCloseButton benchmark = addContent("benchmark", rect -> new PurpleCloseButton(
+                rect.x(), rect.y(), rect.width(), rect.height(),
+                Component.literal(this.spanish ? "Benchmark de optimizadores…" : "Optimizer benchmark…"),
+                ignored -> this.minecraft.setScreen(new CrystalBenchmarkScreen(this))).icon(PurpleCloseButton.Icon.CHART));
+        benchmark.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "Mide lo que tardan tus cristales en aparecer y desaparecer, en tu pantalla y en el servidor, con el optimizador que tengas instalado. Solo observa lo que ya haces: no coloca ni golpea nada por ti."
+                : "Measures how long your crystals take to appear and disappear, on your screen and on the server, with whichever optimizer you have installed. It only watches what you already do: it never places or hits anything for you.")));
+
+        PurpleCloseButton practice = addContent("practice", rect -> new PurpleCloseButton(
+                rect.x(), rect.y(), rect.width(), rect.height(),
+                Component.literal(this.spanish ? "Práctica de cristales…" : "Crystal Practice…"),
+                ignored -> this.minecraft.setScreen(new PracticeWarningScreen(this)))
+                .icon(PurpleCloseButton.Icon.SWORDS).accent(PurpleCloseButton.Accent.EXPERIMENTAL));
+        practice.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "Experimental. Un mundo plano de obsidiana en un jugador para practicar, con tu equipo elegido y un bot que pelea como un jugador."
+                : "Experimental. A flat obsidian world in singleplayer to practise in, with the gear you choose and a bot that fights like a player.")));
+
+        addHerziumControls();
 
         PurpleCloseButton monitor = addContent("monitor", rect -> new PurpleCloseButton(
                 rect.x(), rect.y(), rect.width(), rect.height(),
@@ -415,12 +522,50 @@ public final class CrystalTweaksScreen extends Screen {
         this.rescanButton.active = !this.rescanReflectsPending;
     }
 
+    private void addHerziumControls() {
+        boolean installed = HerziumBridge.installed();
+        PurpleCloseButton herzium = addContent("herzium.toggle", rect -> new PurpleCloseButton(
+                rect.x(), rect.y(), rect.width(), rect.height(),
+                Component.literal(installed
+                        ? (this.spanish ? "Integrar con Herzium" : "Integrate with Herzium")
+                        : (this.spanish ? "Integrar con Herzium (no instalado)" : "Integrate with Herzium (not installed)")),
+                ignored -> toggleHerzium())
+                .switchOf(() -> installed && CrystalVisualConfig.herziumIntegration())
+                .icon(PurpleCloseButton.Icon.WAVE).accent(PurpleCloseButton.Accent.HERZIUM));
+        herzium.active = installed;
+        herzium.setTooltip(Tooltip.create(Component.literal(installed
+                ? (this.spanish
+                        ? "Herzium " + HerziumBridge.version() + " detectado. Muestra aquí su orden de hotbar para que lo ajustes sin salir de Crystal Tweaks."
+                        : "Herzium " + HerziumBridge.version() + " detected. Shows its hotbar order here so you can set it without leaving Crystal Tweaks.")
+                : (this.spanish
+                        ? "Herzium no está instalado. Descárgalo en modrinth.com/mod/herzium para activar esta integración."
+                        : "Herzium is not installed. Get it from modrinth.com/mod/herzium to enable this integration."))));
+        if (this.rows.slot("herzium.order") != null) {
+            this.herziumOrderButton = addContent("herzium.order", rect -> new PurpleCloseButton(
+                    rect.x(), rect.y(), rect.width(), rect.height(), herziumOrderMessage(),
+                    ignored -> cycleHerziumOrder()));
+            this.herziumOrderButton.active = HerziumBridge.orderAvailable();
+            this.herziumOrderButton.setTooltip(Tooltip.create(Component.literal(this.spanish
+                    ? "Qué ranura gana si pulsas dos teclas de hotbar a la vez, por ejemplo obsidiana y cristal. Herzium: la última que pulsaste. Vanilla: la más alta. Vanilla invertido: la más baja. Cambia la ranura real que sostienes, así que el servidor lo ve; revisa sus normas."
+                    : "Which slot wins when you press two hotbar keys at once, say obsidian and crystal. Herzium: the one you pressed last. Vanilla: the highest. Vanilla reversed: the lowest. It changes the slot you really hold, so the server sees it; check its rules.")));
+            PurpleCloseButton optimizer = addContent("herzium.optimizer", rect -> new PurpleCloseButton(
+                    rect.x(), rect.y(), rect.width(), rect.height(),
+                    Component.literal(this.spanish ? "Optimizador de cristales: ya compatible" : "Crystal optimizer: already compatible"),
+                    ignored -> { }).icon(PurpleCloseButton.Icon.CHECK));
+            optimizer.active = false;
+            optimizer.setTooltip(Tooltip.create(Component.literal(this.spanish
+                    ? "Revisado: no hay nada que adaptar, así que no es un interruptor. Herzium decide qué ranura queda seleccionada y dibuja el cambio un fotograma antes; Crystal Tweaks lee la ranura real justo cuando sale cada paquete, cuando Vanilla ya aplicó la elección de Herzium en ese mismo tick. Los dos ven siempre el mismo objeto en la mano. Un «adaptador» no cambiaría ningún resultado."
+                    : "Checked: there is nothing to adapt, so this is not a switch. Herzium decides which slot is selected and draws the switch a frame sooner; Crystal Tweaks reads the real slot as each packet leaves, after Vanilla has already applied Herzium's choice in that same tick. Both always see the same item in hand. An \"adapter\" would change no result.")));
+        }
+    }
+
     private <T extends AbstractWidget> T addContent(String name, Function<Rect, T> factory) {
         Slot slot = this.rows.slot(name);
         T widget = factory.apply(slot.rect());
         this.contentWidgets.add(widget);
         this.contentBaseY.put(widget, slot.rect().y());
         this.contentRow.put(widget, slot.row());
+        this.contentName.put(widget, name);
         return addRenderableWidget(widget);
     }
 
@@ -445,6 +590,8 @@ public final class CrystalTweaksScreen extends Screen {
             this.tabButtons.get(i).setSelected(this.tabs.get(i) == tab);
         }
         this.resetButton.active = tab != Tab.TWEAKS;
+        this.contentName.clear();
+        this.revealedAt.clear();
         rebuildActiveContent();
         long now = System.nanoTime();
         this.contentShownAt = now;
@@ -459,13 +606,24 @@ public final class CrystalTweaksScreen extends Screen {
     }
 
     private void rebuildActiveContent() {
+        Set<String> before = new HashSet<>(this.contentName.values());
         for (AbstractWidget widget : this.contentWidgets) {
             removeWidget(widget);
         }
         this.contentWidgets.clear();
         this.contentBaseY.clear();
         this.contentRow.clear();
+        this.contentName.clear();
         addActiveTabContent();
+        // Rows a switch has just unfolded fade in as their branch opens; the rest stay as they were.
+        long now = System.nanoTime();
+        if (!before.isEmpty()) {
+            for (String name : this.contentName.values()) {
+                if (!before.contains(name)) {
+                    this.revealedAt.put(name, now);
+                }
+            }
+        }
     }
 
     private int currentScroll() {
@@ -590,7 +748,7 @@ public final class CrystalTweaksScreen extends Screen {
         rebuildActiveContent();
         // Show the new shape at once instead of making the player go and blow up a crystal.
         long now = System.nanoTime();
-        if (this.layout.preview.width() > 0 && visuals().glowPowerPercent > 0) {
+        if (this.layout.preview.width() > 0 && visuals().flashActive()) {
             // Silent: browsing fourteen styles should not mean fourteen explosions in your ears.
             this.previewAfterglows.clear();
             startPreviewAppearance(now);
@@ -602,6 +760,116 @@ public final class CrystalTweaksScreen extends Screen {
         visuals().customGlowColor = !visuals().customGlowColor;
         CrystalVisualConfig.save();
         rebuildActiveContent();
+    }
+
+    /**
+     * A card's main switch: "Enabled" or "Disabled" under a card title that already names the
+     * feature, and the feature's own name on a small window, where the cards have no titles.
+     */
+    private String switchLabel(String feature, boolean on) {
+        if (!this.layout.legends) {
+            return feature;
+        }
+        return on ? (this.spanish ? "Activado" : "Enabled") : (this.spanish ? "Desactivado" : "Disabled");
+    }
+
+    private void toggleGlow() {
+        visuals().glowEnabled = !visuals().glowEnabled;
+        if (visuals().glowEnabled && visuals().glowPowerPercent <= 0) {
+            visuals().glowPowerPercent = CrystalVisualConfig.defaults(this.enemyEditor).glowPowerPercent;
+        }
+        CrystalVisualConfig.save();
+        rebuildActiveContent();
+    }
+
+    private void toggleFlash() {
+        visuals().flashEnabled = !visuals().flashEnabled;
+        CrystalVisualConfig.save();
+        rebuildActiveContent();
+        if (visuals().flashEnabled) {
+            scheduleFlashPreview();
+        }
+    }
+
+    /** Explodes the preview shortly after the flash settings stop changing, to show the result. */
+    private void scheduleFlashPreview() {
+        this.flashPreviewDueAt = System.nanoTime() + FLASH_PREVIEW_DELAY_NANOS;
+    }
+
+    private void runScheduledFlashPreview(long now) {
+        if (this.flashPreviewDueAt == 0L || now < this.flashPreviewDueAt) {
+            return;
+        }
+        this.flashPreviewDueAt = 0L;
+        if (this.layout.preview.width() > 0 && visuals().flashActive()) {
+            this.previewAfterglows.clear();
+            startPreviewAppearance(now);
+            explodePreview(now, false);
+        }
+    }
+
+    private void toggleDebounce() {
+        CrystalVisualConfig.setObsidianDebounce(!CrystalVisualConfig.obsidianDebounce());
+        ObsidianDebounce.settingsChanged();
+        CrystalVisualConfig.save();
+        rebuildActiveContent();
+    }
+
+    /**
+     * The debounce slider is curved so that the short windows, where the useful values are, get
+     * most of its travel; it snaps to 10 ms below one second and to 50 ms above it.
+     */
+    private static int debounceStep(double millis) {
+        int value = (int) Math.round(millis);
+        return value < 1000 ? Math.round(value / 10.0F) * 10 : Math.round(value / 50.0F) * 50;
+    }
+
+    private String debounceLabel(int millis) {
+        if (millis <= 0) {
+            return "Vanilla";
+        }
+        if (millis < 1000) {
+            return millis + " ms";
+        }
+        return String.format(Locale.ROOT, "%.2f s", millis / 1000.0D).replace(".00 s", " s");
+    }
+
+    private void toggleForceOff() {
+        boolean off = !CrystalVisualConfig.forceOffOptimizations();
+        CrystalVisualConfig.setForceOffOptimizations(off);
+        if (off) {
+            // The same clean slate a detected optimizer gets: nothing hidden or pending survives.
+            CrystalBreakPrediction.reset();
+            GhostCrystalTracker.reset();
+            CrystalPlacementFeedback.resetPredictionState();
+        }
+        CrystalVisualConfig.save();
+        applyPauseReason();
+    }
+
+    private void toggleHerzium() {
+        if (!HerziumBridge.installed()) {
+            return;
+        }
+        CrystalVisualConfig.setHerziumIntegration(!CrystalVisualConfig.herziumIntegration());
+        CrystalVisualConfig.save();
+        rebuildActiveContent();
+    }
+
+    private void cycleHerziumOrder() {
+        HerziumBridge.cycleHotbarOrder();
+        if (this.herziumOrderButton != null) {
+            this.herziumOrderButton.setMessage(herziumOrderMessage());
+            this.herziumOrderButton.active = HerziumBridge.orderAvailable();
+        }
+    }
+
+    private Component herziumOrderMessage() {
+        String current = HerziumBridge.hotbarOrder();
+        String order = current.isEmpty()
+                ? (this.spanish ? "no disponible" : "unavailable")
+                : HerziumBridge.orderLabel(current, this.spanish);
+        return Component.literal((this.spanish ? "Orden de hotbar: " : "Hotbar order: ") + order);
     }
 
     private void toggleSound() {
@@ -635,6 +903,55 @@ public final class CrystalTweaksScreen extends Screen {
                 ? label : label + (this.spanish ? " (en pausa)" : " (paused)"));
     }
 
+    /**
+     * Brings the helpers in line with the reason they are paused, if they are: dimmed and marked
+     * "paused", and the reason in their tooltip, so hovering a greyed switch says why it is grey.
+     */
+    private void applyPauseReason() {
+        this.shownPauseReason = CrystalOptimizerGuard.pauseReason();
+        boolean allowed = CrystalOptimizerGuard.optimizationsAllowed();
+        if (this.ghostCrystalToggle != null) {
+            this.ghostCrystalToggle.setMessage(ghostCrystalMessage());
+            this.ghostCrystalToggle.active = allowed;
+            this.ghostCrystalToggle.setTooltip(helperTooltip(this.spanish
+                    ? "Dibuja un cristal provisional mientras llega el del servidor, para que colocar no dependa de tu ping. Es solo visual: no es una entidad, no se puede golpear ni mirar, y no cambia ningún paquete."
+                    : "Draws a stand-in crystal while the server's real one is in flight, so placing does not depend on your ping. Purely visual: it is not an entity, cannot be hit or looked at, and changes no packet."));
+        }
+        if (this.safeCrystalToggle != null) {
+            this.safeCrystalToggle.setMessage(safeCrystalMessage());
+            this.safeCrystalToggle.active = allowed;
+            this.safeCrystalToggle.setTooltip(helperTooltip(this.spanish
+                    ? "Evita minar la obsidiana sobre la que pones cristales mientras sostienes uno. Envía menos acciones que Vanilla; apágalo si tu servidor no permite filtros de entrada."
+                    : "Keeps you from mining the obsidian under your crystals while you hold one. It sends fewer actions than Vanilla; turn it off if your server forbids input filters."));
+        }
+    }
+
+    /** A helper's description, followed by why it is paused whenever it is. */
+    private Tooltip helperTooltip(String description) {
+        String reason = pauseReasonText();
+        if (reason.isEmpty()) {
+            return Tooltip.create(Component.literal(description));
+        }
+        return Tooltip.create(Component.literal(description).append(Component.literal("\n\n")
+                .append(Component.literal((this.spanish ? "En pausa: " : "Paused: ") + reason)
+                        .withStyle(ChatFormatting.GOLD))));
+    }
+
+    private String pauseReasonText() {
+        return switch (CrystalOptimizerGuard.pauseReason()) {
+            case FORCED_OFF -> this.spanish
+                    ? "activaste «Forzar apagado de optimizaciones» más abajo en esta pestaña. Apágalo para reactivar las ayudas."
+                    : "you turned on \"Force off optimizations\" further down this tab. Turn it off to bring the helpers back.";
+            case CONFLICT -> this.spanish
+                    ? CrystalOptimizerGuard.conflictingModName() + " ya optimiza cristales, y dos optimizadores sobre el mismo clic se pelean entre sí. Quita ese mod y pulsa «Volver a comprobar compatibilidad» para reactivarlas."
+                    : CrystalOptimizerGuard.conflictingModName() + " already optimizes crystals, and two optimizers on the same click fight each other. Remove that mod and press \"Re-check compatibility\" to bring them back.";
+            case CHECKING -> this.spanish
+                    ? "se está comprobando la compatibilidad con tus otros mods. Tarda unos segundos tras iniciar el juego."
+                    : "compatibility with your other mods is being checked. It takes a few seconds after the game starts.";
+            case NONE -> "";
+        };
+    }
+
     private Component rescanButtonMessage() {
         if (CrystalOptimizerGuard.scanPending()) {
             return Component.literal(this.spanish ? "Comprobando…" : "Checking…");
@@ -653,20 +970,13 @@ public final class CrystalTweaksScreen extends Screen {
      */
     private void refreshOptimizerControls() {
         boolean pending = CrystalOptimizerGuard.scanPending();
-        if (this.rescanButton == null || pending == this.rescanReflectsPending) {
-            return;
+        if (this.rescanButton != null && pending != this.rescanReflectsPending) {
+            this.rescanReflectsPending = pending;
+            this.rescanButton.setMessage(rescanButtonMessage());
+            this.rescanButton.active = !pending;
         }
-        this.rescanReflectsPending = pending;
-        this.rescanButton.setMessage(rescanButtonMessage());
-        this.rescanButton.active = !pending;
-        boolean allowed = CrystalOptimizerGuard.optimizationsAllowed();
-        if (this.ghostCrystalToggle != null) {
-            this.ghostCrystalToggle.setMessage(ghostCrystalMessage());
-            this.ghostCrystalToggle.active = allowed;
-        }
-        if (this.safeCrystalToggle != null) {
-            this.safeCrystalToggle.setMessage(safeCrystalMessage());
-            this.safeCrystalToggle.active = allowed;
+        if (this.activeTab == Tab.TWEAKS && CrystalOptimizerGuard.pauseReason() != this.shownPauseReason) {
+            applyPauseReason();
         }
     }
 
@@ -710,11 +1020,15 @@ public final class CrystalTweaksScreen extends Screen {
             }
             case GLOW -> {
                 CrystalAppearance defaults = CrystalVisualConfig.defaults(this.enemyEditor);
+                visuals().glowEnabled = defaults.glowEnabled;
                 visuals().glowPowerPercent = defaults.glowPowerPercent;
                 visuals().glowReflectionsPercent = defaults.glowReflectionsPercent;
                 visuals().customGlowColor = defaults.customGlowColor;
                 visuals().glowColor = defaults.glowColor;
+                visuals().flashEnabled = defaults.flashEnabled;
                 visuals().flashScalePercent = defaults.flashScalePercent;
+                visuals().flashOpacityPercent = defaults.flashOpacityPercent;
+                visuals().flashDurationMillis = defaults.flashDurationMillis;
                 if (!this.enemyEditor) {
                     CrystalVisualConfig.setFlashStyle(CrystalFlashStyle.EXPLOSION);
                 }
@@ -757,6 +1071,7 @@ public final class CrystalTweaksScreen extends Screen {
         drawPanel(graphics, intro, seconds);
         drawHeader(graphics, seconds, intro);
         refreshOptimizerControls();
+        runScheduledFlashPreview(now);
         updateWidgetFades(now);
         drawCards(graphics, mouseX, mouseY, now, frameMillis);
         if (this.activeTab == Tab.COLORS) {
@@ -870,6 +1185,13 @@ public final class CrystalTweaksScreen extends Screen {
     }
 
     private Status currentStatus() {
+        if (CrystalOptimizerGuard.forcedOff()) {
+            return new Status(CrystalTheme.STATUS_FORCED_OFF,
+                    this.spanish ? "Apagado" : "Forced off",
+                    this.spanish
+                            ? "Optimizaciones apagadas por ti en Avanzado: todo se comporta como en Vanilla. Colores, brillo y sonidos siguen activos."
+                            : "Optimizations turned off by you in Advanced: everything behaves like Vanilla. Colours, glow and sounds keep working.");
+        }
         if (CrystalOptimizerGuard.conflictDetected()) {
             String other = CrystalOptimizerGuard.conflictingModName();
             return new Status(CrystalTheme.STATUS_PAUSED,
@@ -902,8 +1224,17 @@ public final class CrystalTweaksScreen extends Screen {
     private void updateWidgetFades(long now) {
         for (AbstractWidget widget : this.contentWidgets) {
             Integer row = this.contentRow.get(widget);
-            widget.setAlpha(rowFade(now, row == null ? 0 : row));
+            widget.setAlpha(Math.min(rowFade(now, row == null ? 0 : row), revealFade(now, this.contentName.get(widget))));
         }
+    }
+
+    /** A row a switch has just unfolded fades in from partly visible, never from invisible. */
+    private float revealFade(long now, String name) {
+        Long shown = name == null ? null : this.revealedAt.get(name);
+        if (shown == null) {
+            return 1.0F;
+        }
+        return 0.35F + 0.65F * CrystalTheme.easeOutCubic(progress(now - shown, BRANCH_REVEAL_NANOS));
     }
 
     /**
@@ -939,7 +1270,42 @@ public final class CrystalTweaksScreen extends Screen {
             CrystalUi.card(graphics, this.font, rect.x(), y, rect.width(), rect.height(), legend, hover,
                     rowFade(now, group.firstRow()));
         }
+        drawBranches(graphics, scroll, now);
         graphics.disableScissor();
+    }
+
+    /** The lines that tie each switch to the rows it unfolds. */
+    private void drawBranches(GuiGraphicsExtractor graphics, int scroll, long now) {
+        drawBranch(graphics, scroll, now, "glow.toggle", "power", "reflections");
+        drawBranch(graphics, scroll, now, "flash.toggle", "flash.previous", "flash.size", "flash.opacity", "flash.duration");
+        drawBranch(graphics, scroll, now, "debounce.toggle", "debounce.time");
+        drawBranch(graphics, scroll, now, "herzium.toggle", "herzium.order", "herzium.optimizer");
+    }
+
+    private void drawBranch(GuiGraphicsExtractor graphics, int scroll, long now, String parentName, String... childNames) {
+        Slot parent = this.rows.slot(parentName);
+        if (parent == null) {
+            return;
+        }
+        List<Integer> arms = new ArrayList<>();
+        int armRight = parent.rect().x();
+        float fade = 1.0F;
+        for (String childName : childNames) {
+            Slot child = this.rows.slot(childName);
+            if (child == null || child.rect().x() <= parent.rect().x()) {
+                continue;
+            }
+            arms.add(child.rect().y() + child.rect().height() / 2 - scroll);
+            armRight = child.rect().x() - 2;
+            fade = Math.min(fade, revealFade(now, childName));
+        }
+        if (arms.isEmpty()) {
+            return;
+        }
+        int trunkX = parent.rect().x() + Math.max(2, (armRight - parent.rect().x()) / 2 - 1);
+        int[] armYs = arms.stream().mapToInt(Integer::intValue).toArray();
+        int color = CrystalTheme.fade(CrystalTheme.BRANCH, fade);
+        CrystalUi.branch(graphics, trunkX, parent.rect().bottom() - scroll, armYs, armRight, color);
     }
 
     private String legend(String key) {
@@ -955,6 +1321,9 @@ public final class CrystalTweaksScreen extends Screen {
             case "sound.file" -> this.spanish ? "Explosión personalizada" : "Custom explosion";
             case "sound.playback" -> this.spanish ? "Reproducción" : "Playback";
             case "helpers" -> this.spanish ? "Ayudas de cristal" : "Crystal helpers";
+            case "optimization" -> this.spanish ? "Optimización" : "Optimization";
+            case "practice" -> this.spanish ? "Práctica · experimental" : "Practice · experimental";
+            case "herzium" -> "Herzium";
             case "compatibility" -> this.spanish ? "Compatibilidad" : "Compatibility";
             default -> "";
         };
@@ -1044,7 +1413,7 @@ public final class CrystalTweaksScreen extends Screen {
         float shine = 0.5F + 0.5F * (float) Math.sin(now / 1_000_000_000.0D * 3.0D);
         graphics.fill(x + 3, y, x + width - 3, y + 2, CrystalTheme.lerp(0xFFB064F0, CrystalTheme.END_CYAN, shine));
         graphics.fill(x + 1, y + 2, x + width - 1, y + 3, 0x55B064F0);
-        if (!this.enemyEditor && CrystalOptimizerGuard.conflictDetected()) {
+        if (!this.enemyEditor && (CrystalOptimizerGuard.conflictDetected() || CrystalOptimizerGuard.forcedOff())) {
             Rect tweaks = tabRect(Tab.TWEAKS);
             if (tweaks != null) {
                 graphics.fill(tweaks.right() - 6, tweaks.y() + 2, tweaks.right() - 3, tweaks.y() + 5,
@@ -1080,7 +1449,7 @@ public final class CrystalTweaksScreen extends Screen {
         if ((Object) this.previewState instanceof CrystalAppearanceAccess access) {
             CrystalAppearance shown = look.copy();
             if (this.previewPhase == PreviewPhase.EXPLODING || this.previewPhase == PreviewPhase.HIDDEN) {
-                shown.glowPowerPercent = 0; // The detached light fades at full size, not with the shrinking model.
+                shown.glowEnabled = false; // The detached light fades at full size, not with the shrinking model.
             }
             access.crystalTweaks$appearance(shown);
         }
@@ -1095,7 +1464,7 @@ public final class CrystalTweaksScreen extends Screen {
         int x = preview.x() + (preview.width() - renderSize) / 2;
         int y = renderTop + Math.max(0, (renderBottom - renderTop - renderSize) / 2);
         drawPedestal(graphics, now, x + renderSize / 2, y + Math.round(renderSize * 0.86F), renderSize, look);
-        Quaternionf rotation = new Quaternionf().rotateZ((float) Math.PI).rotateX(0.18F);
+        Quaternionf rotation = new Quaternionf().rotateZ((float) Math.PI).rotateX(PREVIEW_TILT);
         float previewScale = previewScale(now);
         drawPreviewAmbientParticles(graphics, now, x + renderSize / 2, y + renderSize / 2, renderSize);
         if (previewScale > 0.01F) {
@@ -1110,13 +1479,20 @@ public final class CrystalTweaksScreen extends Screen {
                     x + renderSize,
                     y + renderSize);
         }
+        float crystalScale = renderSize * glowPreviewScale(look);
         for (AfterglowTimeline.Sample<CrystalAfterglowState> tail : this.previewAfterglows.samples(now)) {
             CrystalAfterglowState light = tail.value();
             light.opacity = tail.opacity();
             light.progress = tail.progress();
-            graphics.entity(light,
-                    renderSize * glowPreviewScale(CrystalAppearanceAccess.of(light)),
-                    new Vector3f(0.0F, 1.0F, 0.0F), rotation, new Quaternionf(),
+            CrystalAppearance flash = CrystalAppearanceAccess.of(light);
+            // The flash gets a scale of its own so a large one fits the box, and a translation that
+            // keeps its centre exactly where the crystal's light was.
+            float flashScale = renderSize * flashPreviewScale(flash);
+            float centre = (2.0F + EndCrystalRenderer.getY(
+                    light.ageInTicks * flash.floatingSpeedPercent / 100.0F)) * (float) Math.cos(PREVIEW_TILT);
+            float lift = centre + crystalScale / flashScale * (1.0F - centre);
+            graphics.entity(light, flashScale,
+                    new Vector3f(0.0F, lift, 0.0F), rotation, new Quaternionf(),
                     x, y, x + renderSize, y + renderSize);
         }
         drawPreviewEffectParticles(graphics, now, x + renderSize / 2, y + renderSize / 2, renderSize);
@@ -1148,10 +1524,10 @@ public final class CrystalTweaksScreen extends Screen {
         CrystalUi.ellipse(graphics, centerX, centerY, radiusX, radiusY, 0xE0140A1E);
         CrystalUi.ellipse(graphics, centerX, centerY - 1, Math.max(1, radiusX - 2), Math.max(1, radiusY - 1), 0xE0231233);
         float pulse = 0.5F + 0.5F * (float) Math.sin(now / 1_000_000_000.0D * 2.2D);
-        int glowAlpha = look.glowPowerPercent > 0 ? Math.round(110 + 90 * pulse) : 60;
+        int glowAlpha = look.glowActive() ? Math.round(110 + 90 * pulse) : 60;
         CrystalUi.ellipseRim(graphics, centerX, centerY, radiusX, radiusY,
                 CrystalTheme.withAlpha(look.haloColor(), glowAlpha));
-        if (look.glowPowerPercent > 0) {
+        if (look.glowActive()) {
             CrystalUi.ellipse(graphics, centerX, centerY - 1, Math.round(radiusX * 0.55F), Math.max(1, radiusY / 2),
                     CrystalTheme.withAlpha(look.haloColor(), Math.round(40 + 40 * pulse)));
         }
@@ -1231,10 +1607,11 @@ public final class CrystalTweaksScreen extends Screen {
         if (withSound) {
             CrystalSoundManager.playPreviewExplosion();
         }
-        if (visuals().glowPowerPercent > 0) {
+        if (visuals().flashActive()) {
             CrystalAfterglowState light = CrystalAfterglow.snapshot(this.previewState);
-            ((CrystalAppearanceAccess) light).crystalTweaks$appearance(visuals().copy());
-            this.previewAfterglows.start(java.util.UUID.randomUUID(), light, now);
+            CrystalAppearance look = visuals().copy();
+            ((CrystalAppearanceAccess) light).crystalTweaks$appearance(look);
+            this.previewAfterglows.start(java.util.UUID.randomUUID(), light, now, look.flashDurationNanos());
         }
         this.previewPhase = PreviewPhase.EXPLODING;
         this.previewPhaseStartedAt = now;
@@ -1373,8 +1750,13 @@ public final class CrystalTweaksScreen extends Screen {
     }
 
     private static float glowPreviewScale(CrystalAppearance look) {
-        return look.glowPowerPercent <= 0 ? 0.43F
+        return !look.glowActive() ? 0.43F
                 : Math.min(0.30F, 0.47F / CrystalGlowMath.radius(CrystalGlowMath.power(look.glowPowerPercent)));
+    }
+
+    /** Small enough that the whole flash fits the preview, at any size up to 300%. */
+    private static float flashPreviewScale(CrystalAppearance look) {
+        return Math.min(0.30F, 0.47F / look.flashRadius());
     }
 
     private static boolean usesSpanish() {
@@ -1409,8 +1791,7 @@ public final class CrystalTweaksScreen extends Screen {
     }
 
     private static final class CompactSlider extends AbstractSliderButton {
-        private final double minimum;
-        private final double maximum;
+        private final DoubleUnaryOperator toValue;
         private final Consumer<Double> onChange;
         private final DoubleFunction<String> formatter;
 
@@ -1422,13 +1803,33 @@ public final class CrystalTweaksScreen extends Screen {
                 Consumer<Double> onChange,
                 DoubleFunction<String> formatter
         ) {
-            super(rect.x(), rect.y(), rect.width(), rect.height(), Component.empty(),
-                    Mth.clamp((current - minimum) / (maximum - minimum), 0.0D, 1.0D));
-            this.minimum = minimum;
-            this.maximum = maximum;
+            this(rect, Mth.clamp((current - minimum) / (maximum - minimum), 0.0D, 1.0D),
+                    position -> minimum + position * (maximum - minimum), onChange, formatter);
+        }
+
+        private CompactSlider(
+                Rect rect,
+                double position,
+                DoubleUnaryOperator toValue,
+                Consumer<Double> onChange,
+                DoubleFunction<String> formatter
+        ) {
+            super(rect.x(), rect.y(), rect.width(), rect.height(), Component.empty(), position);
+            this.toValue = toValue;
             this.onChange = onChange;
             this.formatter = formatter;
             updateMessage();
+        }
+
+        /**
+         * A slider whose travel is squared, so the low end, where the fine values live, gets most of
+         * it: on a 0-10 s range the first half of the track covers 0-2.5 s.
+         */
+        static CompactSlider curved(Rect rect, double minimum, double maximum, double current,
+                Consumer<Double> onChange, DoubleFunction<String> formatter) {
+            double span = maximum - minimum;
+            double position = Math.sqrt(Mth.clamp((current - minimum) / span, 0.0D, 1.0D));
+            return new CompactSlider(rect, position, t -> minimum + t * t * span, onChange, formatter);
         }
 
         @Override
@@ -1442,7 +1843,7 @@ public final class CrystalTweaksScreen extends Screen {
         }
 
         private double currentValue() {
-            return this.minimum + this.value * (this.maximum - this.minimum);
+            return this.toValue.applyAsDouble(this.value);
         }
 
         @Override

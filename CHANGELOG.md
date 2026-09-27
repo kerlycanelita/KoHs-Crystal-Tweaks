@@ -34,6 +34,23 @@
   EntityCulling, ModernFix, LazyDFU, DynamicFPS, MemoryLeakFix, Noxesium, ViaFabricPlus and
   ViaVersion sit on the same network and rendering paths this mod uses, and matching there says
   nothing about crystals.
+- **Glow** and **Flash on explosion** each have a switch, and their options fold away while it is
+  off. The glow switch only turns off the halo, its reflections and the crystal's own light; the
+  flash gets its own size, opacity (`10%`-`100%`) and duration. Saved profiles keep their look.
+- Paused crystal helpers in **Advanced** say on hover why they are paused.
+- **Obsidian debounce** (off by default): refuses an obsidian placement that follows the previous one
+  within the chosen window, Vanilla to `10 s`, whatever key Use is bound to. Changing slot ends it.
+- **Force off optimizations**: turns every crystal helper of this mod off. Visuals stay.
+- **Advanced optimizer benchmark**: measures real placements and breaks while you play (placed →
+  shown, hit → gone, hit → confirmed by the server, next crystal on the same block, FPS) under the
+  crystal optimizer in charge, Marlow's and the other known ones included. It only observes and sends
+  nothing. A **Normal**/**Dev** switch picks plain explanations or the full statistics.
+- **Crystal Practice** (experimental, behind a red warning): a local flat world, 200 layers of ground
+  up to an obsidian floor, with a netherite, diamond or iron kit (Mending, Unbreaking III and
+  Protection IV, Blast Protection IV on up to two pieces) and an optional bot with the same kit that
+  moves, places obsidian and crystals, breaks them, eats and re-equips totems.
+- **Herzium integration**: dimmed without [Herzium](https://modrinth.com/mod/herzium); with it, sets
+  Herzium's hotbar order from here. There is no optimizer bridge: Herzium does not touch crystals.
 - Built for 1.21.11, 26.1, 26.1.1, 26.1.2, 26.2 and 26.3.
 
 ### Changed
@@ -49,6 +66,10 @@
   at the explosion and every bolt has the same length, so no bolt points at or measures the distance
   to anyone who was not already on screen.
 - Turning on the glow's own colour no longer asks for confirmation; it only ever changed the light.
+- Sound volume stops at `100%`. Vanilla caps a sound's gain at one, so `200%` was never louder; it
+  only let a distant explosion be heard twice as far away.
+- Less work per frame with many crystals in view: the glow's discs reuse precomputed angles and the
+  flash tracker expires old entries once per frame instead of once per crystal.
 - **Reset** on the Glow tab restores the shipped glow instead of switching it off.
 - The optimizer detection knows the popular crystal optimizers by their own ids (Marlow's Crystal
   Optimizer, Client Side Crystals, Client-Sided Crystals, HCsCR, FastCrystal, No Crystal Break) and

@@ -27,10 +27,11 @@ public abstract class EndCrystalGlowMixin {
     private void crystalTweaks$extractAppearance(EndCrystal entity, EndCrystalRenderState state, float partialTick, CallbackInfo ci) {
         CrystalAppearance look = CrystalVisualConfig.visuals(CrystalOwnership.useOtherProfile(entity)).copy();
         ((CrystalAppearanceAccess) state).crystalTweaks$appearance(look);
-        int emissiveBlockLight = CrystalGlowMath.blockLight(look.glowPowerPercent);
+        // The crystal's own light belongs to the glow: with the glow switched off it is lit like Vanilla.
+        int emissiveBlockLight = CrystalGlowMath.blockLight(look.glowActive() ? look.glowPowerPercent : 0);
         state.lightCoords = (state.lightCoords & 0xFFFF0000)
                 | Math.max(state.lightCoords & 0xFFFF, emissiveBlockLight);
-        ((CrystalGlowAccess) state).crystalTweaks$surfaces(look.glowPowerPercent > 0
+        ((CrystalGlowAccess) state).crystalTweaks$surfaces(look.glowActive()
                 && look.glowReflectionsPercent > 0 && state.distanceToCameraSq < 1024
                 ? CrystalGlowRenderer.surfaces(entity) : List.of());
         CrystalAfterglow.observe(entity, state);
