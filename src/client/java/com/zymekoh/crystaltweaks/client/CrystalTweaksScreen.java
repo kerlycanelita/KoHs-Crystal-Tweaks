@@ -342,7 +342,7 @@ public final class CrystalTweaksScreen extends Screen {
     private void addGlowControls() {
         PurpleCloseButton glow = addContent("glow.toggle", rect -> new PurpleCloseButton(
                 rect.x(), rect.y(), rect.width(), rect.height(),
-                Component.literal(switchLabel(this.spanish ? "Brillo" : "Glow")),
+                Component.literal(switchLabel(this.spanish ? "Brillo" : "Glow", visuals().glowEnabled)),
                 ignored -> toggleGlow()).switchOf(() -> visuals().glowEnabled).icon(PurpleCloseButton.Icon.GLOW));
         glow.setTooltip(Tooltip.create(Component.literal(this.spanish
                 ? "Enciende o apaga solo el brillo: el halo, sus reflejos en el suelo y la luz propia del cristal. El destello al explotar tiene su propio interruptor."
@@ -362,7 +362,7 @@ public final class CrystalTweaksScreen extends Screen {
 
         PurpleCloseButton flash = addContent("flash.toggle", rect -> new PurpleCloseButton(
                 rect.x(), rect.y(), rect.width(), rect.height(),
-                Component.literal(switchLabel(this.spanish ? "Destello al explotar" : "Flash on explosion")),
+                Component.literal(switchLabel(this.spanish ? "Destello al explotar" : "Flash on explosion", visuals().flashEnabled)),
                 ignored -> toggleFlash()).switchOf(() -> visuals().flashEnabled).icon(PurpleCloseButton.Icon.CRYSTAL));
         flash.setTooltip(Tooltip.create(Component.literal(this.spanish
                 ? "La luz que deja un cristal al explotar, independiente del brillo. Es solo dibujo: no cambia la explosión, el daño ni ningún paquete. Pulsa el cristal de la vista previa para verlo."
@@ -763,11 +763,14 @@ public final class CrystalTweaksScreen extends Screen {
     }
 
     /**
-     * A card's main switch: "Enabled" under a card title that already names the feature, and the
-     * feature's own name on a small window, where the cards have no titles.
+     * A card's main switch: "Enabled" or "Disabled" under a card title that already names the
+     * feature, and the feature's own name on a small window, where the cards have no titles.
      */
-    private String switchLabel(String feature) {
-        return this.layout.legends ? (this.spanish ? "Activado" : "Enabled") : feature;
+    private String switchLabel(String feature, boolean on) {
+        if (!this.layout.legends) {
+            return feature;
+        }
+        return on ? (this.spanish ? "Activado" : "Enabled") : (this.spanish ? "Desactivado" : "Disabled");
     }
 
     private void toggleGlow() {
@@ -862,12 +865,10 @@ public final class CrystalTweaksScreen extends Screen {
     }
 
     private Component herziumOrderMessage() {
-        String order = switch (HerziumBridge.hotbarOrder()) {
-            case "HERZIUM" -> this.spanish ? "Herzium (última tecla)" : "Herzium (last input)";
-            case "VANILLA" -> "Vanilla";
-            case "VANILLA_REVERSED" -> this.spanish ? "Vanilla invertido" : "Vanilla reversed";
-            default -> this.spanish ? "no disponible" : "unavailable";
-        };
+        String current = HerziumBridge.hotbarOrder();
+        String order = current.isEmpty()
+                ? (this.spanish ? "no disponible" : "unavailable")
+                : HerziumBridge.orderLabel(current, this.spanish);
         return Component.literal((this.spanish ? "Orden de hotbar: " : "Hotbar order: ") + order);
     }
 

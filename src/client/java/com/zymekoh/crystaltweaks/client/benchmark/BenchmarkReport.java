@@ -82,7 +82,7 @@ final class BenchmarkReport {
         if (HerziumBridge.installed()) {
             String order = HerziumBridge.hotbarOrder();
             this.lines.add(Line.value("Herzium " + HerziumBridge.version(),
-                    order.isEmpty() ? t("instalado", "installed") : t("orden: ", "order: ") + order.toLowerCase(Locale.ROOT)));
+                    order.isEmpty() ? t("instalado", "installed") : t("orden: ", "order: ") + HerziumBridge.orderLabel(order, this.spanish)));
         }
         if (this.dev) {
             this.lines.add(Line.note(t("Se detecta por id conocido (Marlow's, HCsCR, Client Side Crystals…) o por un nombre que une \"crystal\" con optimizar o client-side. Los mods de rendimiento (Sodium, Lithium, Krypton…) nunca cuentan.",
@@ -222,7 +222,7 @@ final class BenchmarkReport {
         this.lines.add(Line.value(t("Golpes sin confirmar · colocaciones sin cristal · obsidiana frenada", "Unconfirmed hits · placements without a crystal · obsidian held back"),
                 run.unconfirmedAttacks() + " · " + run.unmatchedPlacements() + " · " + run.debounceRefusals()));
         if (!run.herziumOrder().isBlank()) {
-            this.lines.add(Line.value(t("Orden de Herzium", "Herzium order"), run.herziumOrder()));
+            this.lines.add(Line.value(t("Orden de Herzium", "Herzium order"), HerziumBridge.orderLabel(run.herziumOrder(), this.spanish)));
         }
         stat("place→spawn [net]", run.placeToSpawnNetwork());
         stat("place→spawn [shown]", run.placeToSpawnShown());

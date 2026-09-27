@@ -65,6 +65,16 @@ public final class HerziumBridge {
         }
     }
 
+    /** An order's name as a player reads it, from its enum name; empty stays empty. */
+    public static String orderLabel(String order, boolean spanish) {
+        return switch (order) {
+            case "HERZIUM" -> spanish ? "Herzium (última tecla)" : "Herzium (last input)";
+            case "VANILLA" -> "Vanilla";
+            case "VANILLA_REVERSED" -> spanish ? "Vanilla invertido" : "Vanilla reversed";
+            default -> order;
+        };
+    }
+
     /** Moves Herzium to its next order, through Herzium's own method so it saves and resets itself. */
     public static void cycleHotbarOrder() {
         if (!orderAvailable()) {
