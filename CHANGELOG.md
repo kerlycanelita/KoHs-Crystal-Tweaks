@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.3.1
+
+### Fixed
+
+- The crystal glow was sending far more geometry than it drew. A profile of a real fight on 26.2
+  put it at about a third of the render thread, almost all of it in writing vertices: every
+  triangle went out twice, once per winding, although the material culls back faces and the world
+  only ever shows the front one. In the world each triangle now goes out once, turned to face the
+  camera; the settings preview, drawn through a mirrored pose, keeps both. The image is unchanged.
+- A halo far away, or small on screen, uses a coarser disc: 8 rings by 32 corners from 16 blocks
+  and 6 by 24 from 32 blocks, measured at a 70 degree field of view so a zoom brings the full disc
+  back. Its outer corners carry almost no light, so the polygon never shows. The spill on the
+  ground is sampled every half block instead of every quarter at those distances.
+- Together, a live halo sends 52 % fewer vertices up close and 69-83 % fewer further away. With
+  30 crystals in view on a 26.2 test client, 98-106 FPS went to 256-279 FPS.
+
 ## 2.3.0
 
 ### Added

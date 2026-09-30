@@ -81,6 +81,8 @@ def cameraStateTransform = { String line -> line
 		.replace(
 				'Lnet/minecraft/client/renderer/state/level/CameraRenderState;',
 				'Lnet/minecraft/client/renderer/state/CameraRenderState;')
+		// 1.21.11's camera state has no projection: the glow's detail falls back to a 70 degree view.
+		.replace('Matrix4f projection = camera.projectionMatrix;', 'Matrix4f projection = null;')
 		.replace('net.minecraft.client.renderer.state.level.LevelRenderState', 'net.minecraft.client.renderer.state.LevelRenderState')
 		.replace('Lnet/minecraft/client/renderer/state/level/LevelRenderState;', 'Lnet/minecraft/client/renderer/state/LevelRenderState;') }
 

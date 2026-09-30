@@ -19,17 +19,43 @@ final class CrystalGlowBuffer {
     private final float centerHeight;
     private final float upX;
     private final float upY;
+    private final boolean doubleSided;
 
     /**
      * @param centerHeight height of the billboard's centre above the crystal's base, in blocks
      * @param upX          height gained per unit along the billboard's own x axis
      * @param upY          height gained per unit along the billboard's own y axis
+     * @param doubleSided  emit every triangle in both windings, for a pose that may be mirrored
      */
-    CrystalGlowBuffer(VertexConsumer buffer, float centerHeight, float upX, float upY) {
+    CrystalGlowBuffer(VertexConsumer buffer, float centerHeight, float upX, float upY, boolean doubleSided) {
         this.buffer = buffer;
         this.centerHeight = centerHeight;
         this.upX = upX;
         this.upY = upY;
+        this.doubleSided = doubleSided;
+    }
+
+    /**
+     * One triangle of the billboard, as a single face or as both.
+     *
+     * <p>The material culls back faces. In the world the billboard is turned to face the camera, so
+     * its front is the side wound counter-clockwise in billboard space, and that is the only one
+     * emitted: the other was culled on every frame and only cost vertices, half of all the glow
+     * sent. The settings preview draws through a mirrored pose, and there both windings go out.</p>
+     */
+    void triangle(Matrix4f matrix, int color, float ax, float ay, float aa, float bx, float by, float ba,
+            float cx, float cy, float ca) {
+        if (this.doubleSided) {
+            vertex(matrix, color, ax, ay, aa); vertex(matrix, color, bx, by, ba); vertex(matrix, color, cx, cy, ca);
+            vertex(matrix, color, cx, cy, ca); vertex(matrix, color, bx, by, ba); vertex(matrix, color, ax, ay, aa);
+            return;
+        }
+        vertex(matrix, color, ax, ay, aa);
+        if ((bx - ax) * (cy - ay) - (by - ay) * (cx - ax) >= 0F) {
+            vertex(matrix, color, bx, by, ba); vertex(matrix, color, cx, cy, ca);
+        } else {
+            vertex(matrix, color, cx, cy, ca); vertex(matrix, color, bx, by, ba);
+        }
     }
 
     /** How much light a vertex at billboard position (x, y) keeps, from 0 at the base to 1. */

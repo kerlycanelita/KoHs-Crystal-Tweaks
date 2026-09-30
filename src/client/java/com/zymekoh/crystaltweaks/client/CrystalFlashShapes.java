@@ -750,17 +750,7 @@ public final class CrystalFlashShapes {
             float bx, float by, float ba,
             float cx, float cy, float ca
     ) {
-        vertex(buffer, matrix, color, ax, ay, aa);
-        vertex(buffer, matrix, color, bx, by, ba);
-        vertex(buffer, matrix, color, cx, cy, ca);
-        // Opposite winding supports the settings screen's mirrored pose, as the burst already does.
-        vertex(buffer, matrix, color, cx, cy, ca);
-        vertex(buffer, matrix, color, bx, by, ba);
-        vertex(buffer, matrix, color, ax, ay, aa);
-    }
-
-    private static void vertex(
-            CrystalGlowBuffer buffer, Matrix4f matrix, int color, float x, float y, float alpha) {
-        buffer.vertex(matrix, color, x, y, alpha);
+        // One face in the world, both for the settings screen's mirrored pose: see CrystalGlowBuffer.
+        buffer.triangle(matrix, color, ax, ay, aa, bx, by, ba, cx, cy, ca);
     }
 }

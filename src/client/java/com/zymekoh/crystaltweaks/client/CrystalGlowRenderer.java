@@ -29,12 +29,24 @@ public final class CrystalGlowRenderer {
     private static final float BEHIND_MODEL = 0.9F;
     /** Half the width of the square of blocks the spill is sampled from, around the crystal. */
     private static final float SPILL_REACH = 2.5F;
-    private static final int DISK_RINGS = 10;
-    private static final int DISK_SEGMENTS = 40;
-    private static final float[] DISK_COS = trigTable(false);
-    private static final float[] DISK_SIN = trigTable(true);
+    /**
+     * The disc's tessellation by how large the light is on screen. The finest is the one every halo
+     * used to get; a halo far away covers a few dozen pixels, where fewer rings and corners draw the
+     * same soft falloff. Its outer corners carry almost no light, so the polygon never shows.
+     */
+    private static final DiskDetail[] DISK_DETAIL = {
+            new DiskDetail(10, 40), new DiskDetail(8, 32), new DiskDetail(6, 24)};
+    /** Apparent distances, in blocks at a 70 degree field of view, where the next coarser disc starts. */
+    private static final float[] DETAIL_DISTANCE = {16F, 32F};
+    /** 1 / tan(35 degrees): the projection's vertical scale at a 70 degree field of view. */
+    private static final float REFERENCE_SCALE = 1.4281480F;
 
     public record Surface(float x0, float y, float z0, float x1, float z1) { }
+    private record DiskDetail(int rings, int segments, float[] cos, float[] sin) {
+        DiskDetail(int rings, int segments) {
+            this(rings, segments, trigTable(segments, false), trigTable(segments, true));
+        }
+    }
     private record Cached(long at, Vec3 position, List<Surface> surfaces) { }
     // Weak keys compared by identity: Entity.hashCode() reads the entity id, which from 26.2 throws
     // for a crystal that was never added to a level, as client-side stand-ins are.
@@ -98,7 +110,7 @@ public final class CrystalGlowRenderer {
         float power = CrystalGlowMath.power(look.glowPowerPercent);
         draw(state, look, poses, collector, camera, CrystalFlashStyle.EXPLOSION, CrystalGlowMath.radius(power),
                 1F, power, 0F, null, List.of(), true);
-        submitReflections(state, look, poses, collector, look.haloColor(), power, centerHeight(state, look));
+        submitReflections(state, look, poses, collector, camera, look.haloColor(), power, centerHeight(state, look));
     }
 
     /**
@@ -122,7 +134,7 @@ public final class CrystalGlowRenderer {
         draw(state, look, poses, collector, camera, CrystalVisualConfig.flashStyle(), look.flashRadius(),
                 look.flashScale(), gain, progress, origin, targets, false);
         if (look.glowActive()) {
-            submitReflections(state, look, poses, collector, look.haloColor(), gain, centerHeight(state, look));
+            submitReflections(state, look, poses, collector, camera, look.haloColor(), gain, centerHeight(state, look));
         }
     }
 
@@ -142,6 +154,9 @@ public final class CrystalGlowRenderer {
             float detailScale, float gain, float progress, Vec3 origin, List<Vec3> targets, boolean behindModel) {
         float centerY = centerHeight(state, look);
         int color = look.haloColor();
+        // In the world the pose is a plain translation; anything else is the settings preview.
+        boolean world = translationOnly(poses.last().pose());
+        DiskDetail detail = world ? DISK_DETAIL[detailLevel(state.distanceToCameraSq, camera)] : DISK_DETAIL[0];
         // Additive, depth-tested, writing no depth: see CrystalGlowMaterial.
         poses.pushPose();
         poses.translate(0, centerY, 0);
@@ -162,10 +177,10 @@ public final class CrystalGlowRenderer {
                 int pale = CrystalFlashShapes.paleTint(color);
                 collector.submitCustomGeometry(poses, RenderTypes.entityTranslucent(skin),
                         (pose, buffer) -> CrystalFlashShapes.submitPlayerHead(
-                                new CrystalGlowBuffer(buffer, centerY, upX, upY), pose.pose(), pale, radius, gain));
+                                new CrystalGlowBuffer(buffer, centerY, upX, upY, !world), pose.pose(), pale, radius, gain));
                 collector.submitCustomGeometry(poses, CrystalGlowMaterial.glow(), (pose, buffer) -> {
-                    CrystalGlowBuffer glow = new CrystalGlowBuffer(buffer, centerY, upX, upY);
-                    disk(glow, pose.pose(), pale, radius * 1.4F, 0.4F * gain);
+                    CrystalGlowBuffer glow = new CrystalGlowBuffer(buffer, centerY, upX, upY, !world);
+                    disk(glow, pose.pose(), detail, pale, radius * 1.4F, 0.4F * gain);
                     CrystalFlashShapes.submitHeadVeil(glow, pose.pose(), 0xFFFFFFFF, radius, gain);
                 });
             }
@@ -173,7 +188,7 @@ public final class CrystalGlowRenderer {
             return;
         }
         collector.submitCustomGeometry(poses, CrystalGlowMaterial.glow(), (pose, buffer) -> {
-            CrystalGlowBuffer glow = new CrystalGlowBuffer(buffer, centerY, upX, upY);
+            CrystalGlowBuffer glow = new CrystalGlowBuffer(buffer, centerY, upX, upY, !world);
             Matrix4f matrix = pose.pose();
             if (style != CrystalFlashStyle.EXPLOSION) {
                 CrystalFlashShapes.submit(style, glow, matrix, camera.orientation, color,
@@ -181,9 +196,9 @@ public final class CrystalGlowRenderer {
                 return;
             }
             // Preserve the original halo's gain at 100%; extra passes avoid byte-alpha overflow.
-            disk(glow, matrix, color, radius, 0.42F * gain);
-            disk(glow, matrix, color, 0.54F * detailScale, 0.7F * gain);
-            disk(glow, matrix, CrystalGlowMath.hotColor(color), 0.25F * detailScale, 0.9F * gain);
+            disk(glow, matrix, detail, color, radius, 0.42F * gain);
+            disk(glow, matrix, detail, color, 0.54F * detailScale, 0.7F * gain);
+            disk(glow, matrix, detail, CrystalGlowMath.hotColor(color), 0.25F * detailScale, 0.9F * gain);
             // Stable facet rays, with bright narrow spines and a wider colored skirt.
             double turn = state.ageInTicks * look.rotationSpeedPercent / 100F * 0.002;
             for (int ray = 0; ray < 16; ray++) {
@@ -232,6 +247,21 @@ public final class CrystalGlowRenderer {
         return (nearest + x * forward.x + z * forward.z) / nearest;
     }
 
+    /**
+     * Which disc a halo gets: its distance, corrected for the field of view, so a zoom that makes a
+     * far crystal large on screen also gives it the fine disc back.
+     */
+    private static int detailLevel(double distanceSq, CameraRenderState camera) {
+        Matrix4f projection = camera.projectionMatrix;
+        float scale = projection == null || !(projection.m11() > 0F) ? REFERENCE_SCALE : projection.m11();
+        float apparent = (float) Math.sqrt(distanceSq) * REFERENCE_SCALE / scale;
+        int level = 0;
+        while (level < DETAIL_DISTANCE.length && apparent >= DETAIL_DISTANCE[level]) {
+            level++;
+        }
+        return level;
+    }
+
     private static boolean translationOnly(Matrix4f pose) {
         return Math.abs(pose.m00() - 1F) < 1.0E-4F && Math.abs(pose.m11() - 1F) < 1.0E-4F
                 && Math.abs(pose.m22() - 1F) < 1.0E-4F
@@ -246,20 +276,25 @@ public final class CrystalGlowRenderer {
      * @param power the light's strength: the glow power, or the flash's gain as it fades
      */
     private static void submitReflections(EndCrystalRenderState state, CrystalAppearance look,
-            PoseStack poses, SubmitNodeCollector collector, int color, float power, float centerY) {
+            PoseStack poses, SubmitNodeCollector collector, CameraRenderState camera, int color, float power,
+            float centerY) {
         if (look.glowReflectionsPercent <= 0 || !((Object) state instanceof CrystalGlowAccess access)) return;
         List<Surface> surfaces = access.crystalTweaks$surfaces();
         if (surfaces.isEmpty()) return;
         float strength = power * CrystalGlowMath.power(look.glowReflectionsPercent) * 0.65F;
         if (strength <= 0F) return;
         int reflectionPasses = Math.max(1, (int) Math.ceil(strength));
+        // Each block top is split so the falloff is sampled every quarter block; far away, where a
+        // block is a few pixels wide, every half block draws the same pool.
+        boolean far = translationOnly(poses.last().pose()) && detailLevel(state.distanceToCameraSq, camera) > 0;
+        int cells = far ? 2 : 4;
         collector.submitCustomGeometry(poses, CrystalGlowMaterial.glow(), (pose, buffer) -> {
             for (int pass = 0; pass < reflectionPasses; pass++) for (Surface surface : surfaces) {
-                for (int ix = 0; ix < 4; ix++) for (int iz = 0; iz < 4; iz++) {
-                    float x0 = surface.x0 + (surface.x1 - surface.x0) * ix / 4;
-                    float x1 = surface.x0 + (surface.x1 - surface.x0) * (ix + 1) / 4;
-                    float z0 = surface.z0 + (surface.z1 - surface.z0) * iz / 4;
-                    float z1 = surface.z0 + (surface.z1 - surface.z0) * (iz + 1) / 4;
+                for (int ix = 0; ix < cells; ix++) for (int iz = 0; iz < cells; iz++) {
+                    float x0 = surface.x0 + (surface.x1 - surface.x0) * ix / cells;
+                    float x1 = surface.x0 + (surface.x1 - surface.x0) * (ix + 1) / cells;
+                    float z0 = surface.z0 + (surface.z1 - surface.z0) * iz / cells;
+                    float z1 = surface.z0 + (surface.z1 - surface.z0) * (iz + 1) / cells;
                     surfaceVertex(buffer,pose.pose(),color,strength / reflectionPasses,x0,surface.y,z0,centerY);
                     surfaceVertex(buffer,pose.pose(),color,strength / reflectionPasses,x0,surface.y,z1,centerY);
                     surfaceVertex(buffer,pose.pose(),color,strength / reflectionPasses,x1,surface.y,z1,centerY);
@@ -271,17 +306,25 @@ public final class CrystalGlowRenderer {
         });
     }
 
-    private static void disk(CrystalGlowBuffer buffer, Matrix4f matrix, int color, float radius, float gain) {
+    private static void disk(CrystalGlowBuffer buffer, Matrix4f matrix, DiskDetail detail, int color, float radius,
+            float gain) {
         int passes = Math.max(1, (int) Math.ceil(gain));
-        for (int pass = 0; pass < passes; pass++) for (int ring = 0; ring < DISK_RINGS; ring++) {
-            float r0 = radius * ring / DISK_RINGS, r1 = radius * (ring + 1) / DISK_RINGS;
-            float a0 = gain / passes * falloff(ring / (float) DISK_RINGS);
-            float a1 = gain / passes * falloff((ring + 1F) / DISK_RINGS);
-            for (int segment = 0; segment < DISK_SEGMENTS; segment++) {
-                float x0 = DISK_COS[segment], y0 = DISK_SIN[segment];
-                float x1 = DISK_COS[segment + 1], y1 = DISK_SIN[segment + 1];
-                triangle(buffer,matrix,color,x0*r0,y0*r0,a0,x0*r1,y0*r1,a1,x1*r1,y1*r1,a1);
-                triangle(buffer,matrix,color,x0*r0,y0*r0,a0,x1*r1,y1*r1,a1,x1*r0,y1*r0,a0);
+        int rings = detail.rings(), segments = detail.segments();
+        float[] cos = detail.cos(), sin = detail.sin();
+        for (int pass = 0; pass < passes; pass++) for (int ring = 0; ring < rings; ring++) {
+            float r0 = radius * ring / rings, r1 = radius * (ring + 1) / rings;
+            float a0 = gain / passes * falloff(ring / (float) rings);
+            float a1 = gain / passes * falloff((ring + 1F) / rings);
+            for (int segment = 0; segment < segments; segment++) {
+                float x0 = cos[segment], y0 = sin[segment];
+                float x1 = cos[segment + 1], y1 = sin[segment + 1];
+                if (ring == 0) {
+                    // The innermost ring meets at the centre: its second triangle would have no area.
+                    buffer.triangle(matrix,color,0F,0F,a0,x0*r1,y0*r1,a1,x1*r1,y1*r1,a1);
+                    continue;
+                }
+                buffer.triangle(matrix,color,x0*r0,y0*r0,a0,x0*r1,y0*r1,a1,x1*r1,y1*r1,a1);
+                buffer.triangle(matrix,color,x0*r0,y0*r0,a0,x1*r1,y1*r1,a1,x1*r0,y1*r0,a0);
             }
         }
     }
@@ -291,10 +334,10 @@ public final class CrystalGlowRenderer {
      * {@code cos}/{@code sin} calls per disc per frame. Each entry is the exact float the loop used
      * to compute, so the image is unchanged.
      */
-    private static float[] trigTable(boolean sine) {
-        float[] table = new float[DISK_SEGMENTS + 1];
-        for (int segment = 0; segment <= DISK_SEGMENTS; segment++) {
-            double angle = Math.PI * 2 * segment / DISK_SEGMENTS;
+    private static float[] trigTable(int segments, boolean sine) {
+        float[] table = new float[segments + 1];
+        for (int segment = 0; segment <= segments; segment++) {
+            double angle = Math.PI * 2 * segment / segments;
             table[segment] = (float) (sine ? Math.sin(angle) : Math.cos(angle));
         }
         return table;
@@ -304,18 +347,11 @@ public final class CrystalGlowRenderer {
             float length, float width, float gain) {
         float dx = (float) Math.cos(angle), dy = (float) Math.sin(angle);
         float lx = -dy * width, ly = dx * width;
-        triangle(b,m,c, 0,0,gain, lx,ly,0, dx*length,dy*length,0);
-        triangle(b,m,c, 0,0,gain, dx*length,dy*length,0, -lx,-ly,0);
+        b.triangle(m,c, 0,0,gain, lx,ly,0, dx*length,dy*length,0);
+        b.triangle(m,c, 0,0,gain, dx*length,dy*length,0, -lx,-ly,0);
     }
 
     private static float falloff(float radius) { float f = 1 - radius * radius; return f*f*f; }
-
-    private static void triangle(CrystalGlowBuffer b, Matrix4f m, int c,
-            float ax,float ay,float aa, float bx,float by,float ba, float cx,float cy,float ca) {
-        b.vertex(m,c,ax,ay,aa); b.vertex(m,c,bx,by,ba); b.vertex(m,c,cx,cy,ca);
-        // Opposite winding supports the GUI's mirrored pose without disabling the depth test.
-        b.vertex(m,c,cx,cy,ca); b.vertex(m,c,bx,by,ba); b.vertex(m,c,ax,ay,aa);
-    }
 
     private static void surfaceVertex(VertexConsumer b, Matrix4f m, int c, float power,
             float x, float y, float z, float lightY) {
