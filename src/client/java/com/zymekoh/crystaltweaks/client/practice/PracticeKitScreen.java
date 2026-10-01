@@ -1,5 +1,6 @@
 package com.zymekoh.crystaltweaks.client.practice;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.zymekoh.crystaltweaks.client.CrystalTheme;
 import com.zymekoh.crystaltweaks.client.CrystalUi;
 import com.zymekoh.crystaltweaks.client.CrystalVisualConfig;
@@ -228,7 +229,7 @@ public final class PracticeKitScreen extends Screen {
         double mouseY = event.y();
         int slot = slotAt(mouseX, mouseY);
         int room = roomAt(mouseX, mouseY);
-        if (event.button() == 1) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_RIGHT) {
             if (slot >= 0 && this.cursor == null && this.layout.get(slot) != null) {
                 this.layout.set(slot, null);
                 touch();
@@ -241,7 +242,7 @@ public final class PracticeKitScreen extends Screen {
             }
             return false;
         }
-        if (event.button() != 0) {
+        if (event.button() != InputConstants.MOUSE_BUTTON_LEFT) {
             return false;
         }
         if (room >= 0) {
@@ -285,7 +286,7 @@ public final class PracticeKitScreen extends Screen {
     public boolean mouseReleased(MouseButtonEvent event) {
         int pressed = this.pressedSlot;
         this.pressedSlot = -1;
-        if (event.button() == 0 && this.cursor != null && pressed >= 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && this.cursor != null && pressed >= 0) {
             int slot = slotAt(event.x(), event.y());
             if (slot >= 0 && slot != pressed) {
                 // A drag from one slot to another.

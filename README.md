@@ -13,7 +13,7 @@
 
 ## About
 
-Crystal Tweaks brings End Crystal visual and sound controls into one animated configuration screen. Version 2.3.0 adds fourteen flash styles for a destroyed crystal, rebuilds the settings into four tabs of tidy cards around a live preview, adds Crystal Practice (a practice world against a bot that plays real crystal PvP techniques, with your own kit arranged in a kit editor), fixes your own crystals being drawn with the enemy profile while spamming, and supports Minecraft 1.21.11 through 26.3.
+Crystal Tweaks brings End Crystal visual and sound controls into one animated configuration screen. Version 2.4.0 rebuilds it around your crystal: colours on the left, glow on the right, tabs above for sound, the crystal helpers and KoHs, a red menu of its own for enemy crystals, and Crystal Practice (a practice world against a bot that plays real crystal PvP techniques) below. It supports Minecraft 1.21.11 through 26.3.
 
 ## Screenshots
 
@@ -25,9 +25,13 @@ Crystal Tweaks brings End Crystal visual and sound controls into one animated co
   <img src="docs/images/flash-styles.png" alt="Twelve of the fourteen flash styles a destroyed crystal can leave" width="880">
 </p>
 
-| Colors | Glow | Advanced |
+| Settings | Panels lit by the glow | Enemy crystals |
 | --- | --- | --- |
-| ![Colors tab](docs/images/settings-colors.png) | ![Glow tab with a heart flash in the preview](docs/images/settings-glow.png) | ![Advanced tab](docs/images/settings-advanced.png) |
+| ![Colours on the left, glow on the right and the crystal in the centre](docs/images/hub-main.png) | ![Side panels taking on a cyan glow](docs/images/hub-glow-lit.png) | ![The red enemy menu](docs/images/hub-enemy.png) |
+
+| Intro | Crystal Tweaks tab | KoHs |
+| --- | --- | --- |
+| ![Intro explaining the local optimization](docs/images/hub-intro.png) | ![Crystal helpers, optimization and compatibility](docs/images/hub-crystal-tweaks.png) | ![KoHs tab with Discord, website, Modrinth and Buy me a coffee](docs/images/hub-kohs.png) |
 
 | Crystal Practice | Kit editor | What the bot does |
 | --- | --- | --- |
@@ -46,7 +50,7 @@ Crystal Tweaks brings End Crystal visual and sound controls into one animated co
 - Separate colors, glow, and animation speeds for crystals that were not placed by you (with approximate identification).
 - Rotation and floating speed controls from `0%` to `300%`.
 - Custom local explosion sounds with volume and playback-speed controls.
-- A settings screen in four tabs (Colors, Glow, Sound, Advanced) with an optimizer status chip, animated tabs and cards, and an interactive preview that shows your flash when you click it.
+- A settings screen around a live crystal: colours on the left, glow on the right, scrolling tabs above (Sound, Crystal Tweaks, KoHs), a red menu of its own for enemy crystals, an optimizer status chip, and a preview that explodes with your flash and sound when you click it.
 - Automatic optimizer conflict handling: interaction helpers step aside while visuals, sounds, and the preview stay active.
 - Safe Crystal (switchable), optional ghost crystals (off by default), and a local Conflict Monitor.
 - Crystal Practice (experimental): a singleplayer world against a bot that plays real crystal PvP techniques by difficulty (hit-crystal, d-tap, safe and double anchors, butterfly and more, listed with how each works), your own kit arranged in a kit editor with presets modelled on MCTiers, MCPVP and PVPHQ, a Knockback I or II sword, your choice of totems, and a netherite flat, a hole arena or a natural meadow in eight biomes.

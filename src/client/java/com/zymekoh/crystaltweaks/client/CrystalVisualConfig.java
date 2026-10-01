@@ -30,6 +30,9 @@ public final class CrystalVisualConfig {
     private static volatile boolean ghostCrystals;
     private static volatile boolean safeCrystal = true;
     private static volatile boolean optimizerNoticeDismissed;
+    private static volatile boolean optimizerPopupDismissed;
+    private static volatile boolean scrollHintDone;
+    private static volatile boolean carouselHintDone;
     private static volatile boolean forceOffOptimizations;
     private static volatile boolean obsidianDebounce;
     private static volatile int obsidianDebounceMillis;
@@ -116,6 +119,9 @@ public final class CrystalVisualConfig {
 
                     JsonObject notices = section(root, "notices");
                     optimizerNoticeDismissed = booleanValue(notices, "optimizerAdviceDismissed", false);
+                    optimizerPopupDismissed = booleanValue(notices, "optimizerWindowDismissed", false);
+                    scrollHintDone = booleanValue(notices, "scrollHintDone", false);
+                    carouselHintDone = booleanValue(notices, "carouselHintDone", false);
 
                     JsonObject integrations = section(root, "integrations");
                     herziumIntegration = booleanValue(integrations, "herzium", true);
@@ -252,6 +258,9 @@ public final class CrystalVisualConfig {
                         ? root.getAsJsonObject("notices")
                         : new JsonObject();
                 notices.addProperty("optimizerAdviceDismissed", optimizerNoticeDismissed);
+                notices.addProperty("optimizerWindowDismissed", optimizerPopupDismissed);
+                notices.addProperty("scrollHintDone", scrollHintDone);
+                notices.addProperty("carouselHintDone", carouselHintDone);
                 root.add("notices", notices);
 
                 JsonObject glow = root.has("glow") && root.get("glow").isJsonObject()
@@ -441,6 +450,39 @@ public final class CrystalVisualConfig {
     public static void setOptimizerNoticeDismissed(boolean dismissed) {
         load();
         optimizerNoticeDismissed = dismissed;
+    }
+
+    /** True once the player asked never to see the "works with any optimizer" window again. */
+    public static boolean optimizerPopupDismissed() {
+        load();
+        return optimizerPopupDismissed;
+    }
+
+    public static void setOptimizerPopupDismissed(boolean dismissed) {
+        load();
+        optimizerPopupDismissed = dismissed;
+    }
+
+    /** True once the player has scrolled a side panel: the turning-wheel hint has done its job. */
+    public static boolean scrollHintDone() {
+        load();
+        return scrollHintDone;
+    }
+
+    public static void setScrollHintDone(boolean done) {
+        load();
+        scrollHintDone = done;
+    }
+
+    /** True once the player has turned the tab carousel themselves. */
+    public static boolean carouselHintDone() {
+        load();
+        return carouselHintDone;
+    }
+
+    public static void setCarouselHintDone(boolean done) {
+        load();
+        carouselHintDone = done;
     }
 
     /** Longest obsidian debounce the slider offers. */

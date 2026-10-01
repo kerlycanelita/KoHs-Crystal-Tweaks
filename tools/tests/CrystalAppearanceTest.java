@@ -1,6 +1,6 @@
 import com.zymekoh.crystaltweaks.client.CrystalAppearance;
 import com.zymekoh.crystaltweaks.client.CrystalFlashStyle;
-import com.zymekoh.crystaltweaks.client.CrystalScreenLayout;
+import com.zymekoh.crystaltweaks.client.hub.HubLayout;
 import com.zymekoh.crystaltweaks.client.CrystalGlowMath;
 import com.zymekoh.crystaltweaks.client.AfterglowTimeline;
 import com.zymekoh.crystaltweaks.client.benchmark.BenchmarkStats;
@@ -96,8 +96,14 @@ public final class CrystalAppearanceTest {
         check(CrystalOptimizerGuard.looksLikeOptimizer("hcscr", "HCsCR"), "HCsCR detected though its name says nothing");
         for (String name : new String[] {"Kind's Crystal Optimizer", "G1ax Crystal Optimizer",
                 "Shikaru's Crystal Optimizer", "Hazel Crystal Optimizer - HCO", "Psychodreams CrystalOptimizer",
-                "Rawnet's Crystal Optimizer", "Ryuu Crystal Optimizer", "Akinoko Crystal Optimizer"}) {
+                "Rawnet's Crystal Optimizer", "Ryuu Crystal Optimizer", "Akinoko Crystal Optimizer",
+                "Tenbees crystal optimizer", "Jays Crystal Optimizer", "Crystal Optimizer"}) {
             check(CrystalOptimizerGuard.looksLikeOptimizer("unknown_id", name), name + " detected by name");
+        }
+        // And by id alone, as Modrinth's project slugs spell them, for a mod whose name says less.
+        for (String slug : new String[] {"g1axcrystaloptimizer", "kinds-crystal-optimizer", "shikarus-crystal-optimizer",
+                "ryuu-crystal-optimizer", "rawnetcrystaloptimizer", "tenbeescrystaloptimizer", "fastcrystal"}) {
+            check(CrystalOptimizerGuard.looksLikeOptimizer(slug, ""), slug + " detected by id");
         }
         // Mods about End Crystals that optimize nothing must never stand the helpers down.
         for (String[] visual : new String[][] {{"fastcrystalspin", "FastCrystalSpin"},
@@ -212,16 +218,10 @@ public final class CrystalAppearanceTest {
         benchmarkStats();
         int layouts = 0;
         for (int width = 1; width <= 1920; width += 7) for (int height = 1; height <= 1080; height += 7) {
-            var l = CrystalScreenLayout.fit(width, height);
-            check(l.panel.x() >= 0 && l.panel.right() <= Math.max(1, width), "Panel X bounds");
-            check(l.panel.y() >= 0 && l.panel.bottom() <= Math.max(1, height), "Panel Y bounds");
-            check(l.optionsX >= l.content.x() && l.optionsX + l.optionsWidth <= l.content.right(), "Options bounds");
-            if (l.preview.width() > 0) {
-                check(l.preview.x() >= l.optionsX + l.optionsWidth, "No preview/control overlap");
-                check(l.preview.right() <= l.content.right(), "Preview bounds");
-            } else {
-                check(l.optionsWidth == l.content.width(), "Compact layout must reclaim preview space");
-            }
+            var l = HubLayout.fit(width, height);
+            check(l.body.x() >= 0 && l.body.right() <= Math.max(1, width), "Body X bounds");
+            check(l.header.y() >= 0, "Header Y bounds");
+            check(l.stage.width() > 0 && l.stage.height() > 0, "The crystal always has a stage");
             layouts++;
         }
         System.out.println("PASS: appearance, 0/100/300 gain, alpha/light bounds, fade lifecycle, optimizer isolation and " + layouts + " responsive layouts");

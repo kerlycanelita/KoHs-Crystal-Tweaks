@@ -195,10 +195,11 @@ if (usesRemapping || usesModernRegistrySplit) {
 					'**/ColorPickerWidget.java',
 					'**/PurpleCloseButton.java',
 					'**/CrystalTweaksScreen.java',
-					'**/CrystalNoticeScreen.java',
 					'**/CrystalUi.java',
 					'**/ConflictMonitorScreen.java',
 					'**/CrystalPlacementFeedback.java',
+					// The settings hub: its screen pieces, widgets and overlays.
+					'**/client/hub/*.java',
 					// The benchmark and Crystal Practice draw their own screens and HUD and spawn
 					// their own entities, so every file there takes the same rewrites.
 					'**/client/benchmark/*.java',

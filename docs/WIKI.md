@@ -12,7 +12,7 @@ Welcome to the Crystal Tweaks documentation. This guide covers installation, con
 - [Colors](#colors)
 - [Glow](#glow)
 - [Sound](#sound)
-- [Advanced](#advanced)
+- [Crystal Tweaks tab](#crystal-tweaks-tab)
 - [Crystal Practice](#crystal-practice)
 - [Interactive preview](#interactive-preview)
 - [Languages](#languages)
@@ -39,16 +39,20 @@ With Mod Menu installed:
 2. Select **Crystal Tweaks**.
 3. Press the configuration button.
 
-The first time you open it in a session, and only if no crystal optimizer is installed, an
-**Important notice** explains what Crystal Tweaks does and does not speed up (see
-[Client or server](#client-or-server)). **Got it** continues to the settings; **Don't show again**
-turns the notice off for good.
+The first time you open it in a session, and only if no other crystal optimizer is installed, an
+intro explains the local optimization (see [Client or server](#client-or-server)). **Continue**
+goes on to the settings; **Don't show again** turns the intro off for good.
 
-The screen has four tabs: **Colors**, **Glow**, **Sound** and **Advanced**. Related controls sit
-together on cards, and a live crystal preview stands on the right when the window is wide enough.
-The chip in the top-right corner shows the optimizer's state; hover it for the details. On a small
-window the cards lose their titles and the options scroll, so every control stays reachable at any
-GUI scale.
+Your crystal turns in the centre, with every setting on it. **Colours** is the panel on the left
+and **Glow** the panel on the right; while you change the glow, both panels take on its colour. The
+tabs above the crystal scroll sideways with the mouse wheel: **Sound**, **Crystal Tweaks** and
+**KoHs** (links to Discord, the website, Modrinth and Buy me a coffee). **Crystal Practice** is the
+button under the crystal, **Enemy crystals** the one in the top-left corner. The chip in the
+top-right corner shows the optimizer's state; hover it for the details.
+
+Each panel's **Reset** asks **Sure?** first; a second click within three seconds resets it. In a
+narrow window the side panels become drawers: open one from the handle at its edge, and fold it
+away with Escape or a click beside it.
 
 ## Client or server
 
@@ -62,7 +66,7 @@ its own optimizations off so the two never fight; colours, glow, flashes and sou
 
 ## Colors
 
-The **Colors** tab controls the appearance and movement of rendered End Crystals.
+The **Colours** panel, on the left, controls the appearance and movement of rendered End Crystals.
 
 ### Crystal colors
 
@@ -82,15 +86,16 @@ is the maximum. The preview crystal follows them.
 
 ### Enemy crystals
 
-**Enemy crystals…** opens the same Colors and Glow tabs for crystals you did not place. The server
-does not say who placed a crystal, so this is an approximation: a crystal that appears where you just
-placed one is yours, and every other crystal uses the enemy profile. **Use this profile** turns the
-enemy look on or off.
+**Enemy crystals**, in the top-left corner, turns the whole screen into the enemy profile's: the
+same panels in red, for crystals you did not place, with **Profile** and **Advanced** tabs
+(Advanced is still to come). **Your crystals** brings yours back. The server does not say who placed
+a crystal, so this is an approximation: a crystal that appears where you just placed one is yours,
+and every other crystal uses the enemy profile. **Use this profile** turns the enemy look on or off.
 
 ## Glow
 
-The **Glow** tab owns everything the crystal's light does: power, reflections, the flash style and
-its size, and the glow colour.
+The **Glow** panel, on the right, owns everything the crystal's light does: power, reflections, the
+flash style and its size, and the glow colour.
 
 - **Glow** switches the halo, its reflections and the crystal's own light. Its options fold away
   while it is off. It does not affect the flash, which has a switch of its own.
@@ -133,7 +138,7 @@ helpers paused.
 
 ## Sound
 
-The **Sound** tab controls the local End Crystal explosion sound.
+The **Sound** tab, above the crystal, controls the local End Crystal explosion sound.
 
 - Supported formats: WAV, OGG, and MP3.
 - Maximum duration: five seconds.
@@ -147,9 +152,11 @@ The selected sound and its volume and speed settings are also used by preview ex
 custom sound is active, the preview uses the Vanilla explosion sound. Sound replacement is local: it
 changes what you hear without changing the server's explosion.
 
-## Advanced
+## Crystal Tweaks tab
 
-The **Advanced** tab holds the crystal helpers and the compatibility tools.
+The **Crystal Tweaks** tab, above the crystal, holds the crystal helpers and the compatibility
+tools. The first time you open it, a window explains that any crystal optimizer can be used with
+Crystal Tweaks, which then turns its own optimization off.
 
 - **Ghost crystals** (26.1 and later, off by default) draws a stand-in crystal while the server's
   real one is in flight. It is only a drawing: it cannot be hit, looked at or collided with.
@@ -165,11 +172,9 @@ The **Advanced** tab holds the crystal helpers and the compatibility tools.
 - **Obsidian debounce** (off by default) refuses an obsidian placement that follows the previous one
   within the chosen window, from Vanilla to `10 s`. It works on whatever Use is bound to, and
   changing hotbar slot ends the window. A refused click sends nothing.
-- **Advanced optimizer benchmark** measures your own placements and breaks while you play and
+- **Optimizer benchmark** measures your own placements and breaks while you play and
   compares runs, for example with and without Marlow's Crystal Optimizer. It only observes. The
   **Normal**/**Dev** switch at the top picks plain explanations or the full statistics.
-- **Crystal Practice** (experimental) opens a local practice world with a bot, a kit you arrange
-  yourself and three kinds of ground. Singleplayer only; see [Crystal Practice](#crystal-practice).
 - **Herzium integration** is dimmed unless [Herzium](https://modrinth.com/mod/herzium) is installed;
   then it sets Herzium's hotbar order. Herzium does not handle crystals, so the optimizer needs no
   adapting.
@@ -210,7 +215,7 @@ stays in the world; it is only not drawn until the server confirms the break.
 
 ## Crystal Practice
 
-**Crystal Practice** is in **Advanced**, behind a red warning: it is experimental, so errors and
+**Crystal Practice** is the button under the crystal, behind a red warning: it is experimental, so errors and
 frame drops are possible. It opens a singleplayer world of its own and never touches your other
 worlds or any server. Its window has three tabs; what you choose is saved.
 
@@ -331,8 +336,8 @@ kits: MCTiers' Vanilla kit card ("Bring your own"), PVPHQ's Vanilla ladders and
 
 The preview uses your mapped controls rather than fixed mouse buttons:
 
-- Click the preview, or press the mapped **Attack** control, to explode the crystal.
-- Press the mapped **Use Item** control to place it again.
+- Click the crystal, or press the mapped **Attack** control, to explode it.
+- Right-click it, or press the mapped **Use Item** control, to place it again.
 - If it remains absent, it reappears automatically after about three seconds.
 
 The explosion shows your chosen flash style, size and colour. The preview is rendered only inside
@@ -383,14 +388,14 @@ Check that the file is WAV, OGG, or MP3, is no longer than five seconds, and rem
 
 ### Controls do not fit on the screen
 
-Scroll inside the active options panel. If necessary, temporarily reduce Minecraft's GUI scale and reopen the screen.
+Scroll inside the side panel; a panel that scrolls shows a wheel hint the first time. In a narrow window, open the panels from the handles at the edges. The screen reflows when you change the window size or the GUI scale, without losing what you had open.
 
 ### The optimizer does nothing
 
 Open the configuration screen and look at the chip in the top-right corner; hover it for details:
 
 - **Paused** — another mod is already optimizing crystals, and Crystal Tweaks has yielded the
-  interaction path to it on purpose. Remove it and press **Re-check compatibility** in Advanced, or
+  interaction path to it on purpose. Remove it and press **Re-check compatibility** in the Crystal Tweaks tab, or
   keep it and use its own optimizer.
 - **Checking…** — the compatibility scan is still running. It finishes in the first seconds after
   the client starts.

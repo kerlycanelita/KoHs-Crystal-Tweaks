@@ -1,5 +1,44 @@
 # Changelog
 
+## 2.4.0
+
+### Added
+
+- A new settings screen built around your crystal. It turns in the centre with every setting on it
+  (colours, glow, flash and sound): **Colours** opens on the left, **Glow** on the right, and both
+  side panels take on the glow colour, partly, while you change it. Click the crystal to explode
+  it and right-click to place it again.
+- An intro the first time you open it in a session, when no other crystal optimizer is installed:
+  an animated crystal explains the local optimization. It is client-side and legitimate: it only
+  changes what you see, adds or changes no packet, and the server still decides every hit and
+  placement. **Don't show again** or **Continue**, and the crystal flies to the centre.
+- Tabs above the crystal that scroll sideways with the mouse wheel, with a wheel hint the first
+  time: **Sound**, **Crystal Tweaks** (ghost crystals, Safe Crystal, obsidian debounce, force off,
+  the optimizer benchmark, the Conflict Monitor and Herzium) and **KoHs** (Discord, website,
+  Modrinth and Buy me a coffee). The first visit to Crystal Tweaks explains that any crystal
+  optimizer can be used with it, and that Crystal Tweaks then turns its own optimization off.
+- Tab icons from the game: a small spinning crystal that shifts colour, a glowing one, and a music
+  disc for Sound.
+- **Enemy crystals** in the top-left corner: your menu shatters and the red enemy menu drops in,
+  with **Profile** and **Advanced** tabs, its side panels lit by the enemy glow. Advanced is
+  "Coming soon", with a small mining game below it: a crystal with a pickaxe breaks obsidian, then
+  bedrock, every 4 to 8 seconds.
+- **Crystal Practice** has its own button under the crystal: obsidian pillars with your crystals,
+  the warning, and a charge, burst and rift on the way into its setup.
+
+### Changed
+
+- The enemy profile left the Glow tab for its own menu.
+- **Reset** on a side panel asks **Sure?** first.
+- In a narrow window the side panels become drawers opened from handles at the edges. Escape, or
+  a click beside an open one, folds it away.
+- The intro replaces the Important notice.
+
+### Fixed
+
+- Minecraft 26.3 renumbered mouse buttons and keys. Crystal Tweaks now reads them by the game's own
+  numbers; before, the Crystal Practice kit editor on 26.3 took a left click for a right click.
+
 ## 2.3.1
 
 ### Fixed
