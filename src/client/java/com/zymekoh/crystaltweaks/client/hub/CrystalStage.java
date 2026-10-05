@@ -10,6 +10,7 @@ import com.zymekoh.crystaltweaks.client.CrystalGlowMath;
 import com.zymekoh.crystaltweaks.client.CrystalGlowRenderer;
 import com.zymekoh.crystaltweaks.client.CrystalTheme;
 import com.zymekoh.crystaltweaks.client.CrystalUi;
+import com.zymekoh.crystaltweaks.client.CrystalVisualConfig;
 import com.zymekoh.crystaltweaks.client.hub.HubLayout.Rect;
 import com.zymekoh.crystaltweaks.client.sound.CrystalSoundManager;
 import java.util.List;
@@ -298,9 +299,12 @@ public final class CrystalStage {
         }
     }
 
-    /** Smaller when the glow is on, so the whole halo fits the box at any power. */
+    /** Smaller when the glow is on, so its aura, or the old halo at any power, fits the box. */
     static float glowScale(CrystalAppearance look) {
-        return !look.glowActive() ? 0.43F
+        if (!look.glowActive()) {
+            return 0.43F;
+        }
+        return !CrystalVisualConfig.oldGlow() ? 0.38F
                 : Math.min(0.30F, 0.47F / CrystalGlowMath.radius(CrystalGlowMath.power(look.glowPowerPercent)));
     }
 

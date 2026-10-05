@@ -5,6 +5,11 @@ public interface CrystalAppearanceAccess {
     CrystalAppearance crystalTweaks$appearance();
     void crystalTweaks$appearance(CrystalAppearance appearance);
 
+    /** On the crystal model: the glow pass it was last posed for, or {@code null} for its own drawing. */
+    default CrystalLayerGlowState crystalTweaks$glowPass() {
+        return null;
+    }
+
     static CrystalAppearance of(Object target) {
         if (target instanceof CrystalAppearanceAccess access && access.crystalTweaks$appearance() != null) {
             return access.crystalTweaks$appearance();

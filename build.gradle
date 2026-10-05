@@ -96,7 +96,9 @@ def sdlEraTransform = { String line -> line
 				'this.body.swing(InteractionHand.MAIN_HAND, net.minecraft.world.item.component.SwingAnimation.DEFAULT, false);')
 		.replace('poses.mulPose(camera.orientation)', 'poses.rotate(camera.orientation)')
 		// 26.3 renamed the flag that makes the entity tracker resend a knocked-back entity's motion.
-		.replace('target.hurtMarked = false;', 'target.syncVelocity = false;') }
+		.replace('target.hurtMarked = false;', 'target.syncVelocity = false;')
+		// 26.3's model submissions lost the crumbling overlay, their last argument.
+		.replace('glowTint, null, 0, null);', 'glowTint, null, 0);') }
 
 def partialTickCullingTransform = { String line -> line
 		.replace(
@@ -158,9 +160,10 @@ if (usesRemapping || usesModernRegistrySplit) {
 		inputs.property 'usesPartialTickCulling', usesPartialTickCulling
 
 		from('src/client/java') {
-			if (usesModernRegistrySplit) {
-				// 26.2 and 26.3 each bring their own glow material: vanilla's dragon rays, which the
-				// base copy uses, write depth on those targets.
+			if (usesModernRegistrySplit || usesRemapping) {
+				// 26.2 and 26.3 each bring their own glow materials: vanilla's dragon rays, which the
+				// base copy uses, write depth on those targets. 1.21.11 builds the layer material with
+				// its older pipeline API.
 				exclude 'com/zymekoh/crystaltweaks/client/CrystalGlowMaterial.java'
 			}
 			if (usesSdlWindowing) {

@@ -54,6 +54,8 @@ public final class CrystalVisualConfig {
     /** Kits the player rearranged and saved, by preset id, in {@link com.zymekoh.crystaltweaks.practice.KitLayout}'s text form. */
     private static final Map<String, String> practiceKits = new LinkedHashMap<>();
     private static volatile CrystalFlashStyle flashStyle = CrystalFlashStyle.EXPLOSION;
+    /** The glow as it was before it moved into the crystal's layers: a halo behind it. */
+    private static volatile boolean oldGlow;
     private static volatile boolean loaded;
     private static final CrystalAppearance playerVisuals = defaultPlayerVisuals();
     private static CrystalAppearance enemyVisuals = defaultEnemyVisuals();
@@ -178,6 +180,9 @@ public final class CrystalVisualConfig {
                     playerVisuals.flashDurationMillis = clamp(intValue(glow, "flashDurationMillis",
                             CrystalAppearance.DEFAULT_FLASH_DURATION), CrystalAppearance.MIN_FLASH_DURATION,
                             CrystalAppearance.MAX_FLASH_DURATION);
+                    playerVisuals.motionBlurPercent = clamp(intValue(glow, "motionBlurPercent",
+                            CrystalAppearance.DEFAULT_MOTION_BLUR), 0, 100);
+                    oldGlow = booleanValue(glow, "oldStyle", false);
                     playerVisuals.migrateLegacyGlow(glow.has("enabled"), glow.has("flashOpacityPercent"),
                             flashStyle.scalable());
 
@@ -292,6 +297,8 @@ public final class CrystalVisualConfig {
                 glow.addProperty("flashScalePercent", playerVisuals.flashScalePercent);
                 glow.addProperty("flashOpacityPercent", playerVisuals.flashOpacityPercent);
                 glow.addProperty("flashDurationMillis", playerVisuals.flashDurationMillis);
+                glow.addProperty("motionBlurPercent", playerVisuals.motionBlurPercent);
+                glow.addProperty("oldStyle", oldGlow);
                 root.add("glow", glow);
 
                 JsonObject sounds = root.has("sounds") && root.get("sounds").isJsonObject()
@@ -708,6 +715,17 @@ public final class CrystalVisualConfig {
     public static void setFlashStyle(CrystalFlashStyle style) {
         load();
         flashStyle = style == null ? CrystalFlashStyle.EXPLOSION : style;
+    }
+
+    /** Old KoHs Crystal Glow: the halo behind the crystal instead of light in its layers, for every profile. */
+    public static boolean oldGlow() {
+        load();
+        return oldGlow;
+    }
+
+    public static void setOldGlow(boolean enabled) {
+        load();
+        oldGlow = enabled;
     }
 
     public static int glowColor() {

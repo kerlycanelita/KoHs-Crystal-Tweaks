@@ -544,8 +544,8 @@ public final class CrystalTweaksScreen extends Screen {
             rebuildRight(true);
         }).switchOf(() -> visuals().glowEnabled).lit());
         glow.setTooltip(Tooltip.create(Component.literal(this.spanish
-                ? "El halo, sus reflejos en el suelo y la luz propia del cristal. El destello al explotar tiene su propio interruptor."
-                : "The halo, its reflections on the ground and the crystal's own light. The flash on explosion has its own switch.")));
+                ? "Las tres capas del cristal brillan, cada una en su color, dentro de un aura del color del brillo; más sus reflejos en el suelo y la luz propia del cristal. El destello al explotar tiene su propio interruptor."
+                : "The crystal's three layers shine, each in its own colour, inside an aura in the glow colour; plus its reflections on the ground and the crystal's own light. The flash on explosion has its own switch.")));
         if (look.glowEnabled) {
             list.row(slider, indent);
             list.full(HubSlider.linear(0, 0, 0, 0, 0, 300, look.glowPowerPercent, value -> {
@@ -560,6 +560,15 @@ public final class CrystalTweaksScreen extends Screen {
             reflections.setTooltip(Tooltip.create(Component.literal(this.spanish
                     ? "Luz de color simulada sobre los bloques cercanos, del cristal y de su destello. No cambia la iluminación del mundo."
                     : "Simulated coloured light on nearby block tops, from the crystal and its flash. Does not change world lighting.")));
+            list.row(slider, indent);
+            HubSlider blur = list.full(HubSlider.linear(0, 0, 0, 0, 0, 100, look.motionBlurPercent, value -> {
+                visuals().motionBlurPercent = (int) Math.round(value);
+                glowTouched();
+            }, value -> (this.spanish ? "Desenfoque de movimiento: " : "Motion blur: ")
+                    + (Math.round(value) == 0 ? (this.spanish ? "No" : "Off") : Math.round(value) + "%")).lit().onRelease(this::commit));
+            blur.setTooltip(Tooltip.create(Component.literal(this.spanish
+                    ? "Las capas brillantes dejan una estela al girar, como una foto en movimiento. Más alto, estela más larga. Solo dibujo, en tu pantalla."
+                    : "The glowing layers leave a trail as they turn, like a photo in motion. Higher, a longer trail. Drawing only, on your screen.")));
         }
         list.heading(this.spanish ? "Color del brillo" : "Glow colour");
         list.row(control);
@@ -825,6 +834,7 @@ public final class CrystalTweaksScreen extends Screen {
             visuals().flashScalePercent = defaults.flashScalePercent;
             visuals().flashOpacityPercent = defaults.flashOpacityPercent;
             visuals().flashDurationMillis = defaults.flashDurationMillis;
+            visuals().motionBlurPercent = defaults.motionBlurPercent;
             if (!this.enemy) {
                 CrystalVisualConfig.setFlashStyle(CrystalFlashStyle.EXPLOSION);
             }
@@ -1044,11 +1054,21 @@ public final class CrystalTweaksScreen extends Screen {
         return list;
     }
 
-    /** Optimization, compatibility and Herzium: the tools behind the helpers. */
+    /** The old glow, optimization, compatibility and Herzium: the tools behind the helpers. */
     private RowList buildAdvanced(int width) {
         int control = this.layout.controlHeight;
         int indent = width >= 150 ? 9 : 5;
         RowList list = new RowList(width, this.layout.rowGap);
+        list.heading(this.spanish ? "Brillo" : "Glow");
+        list.row(control);
+        HubButton oldGlow = list.full(new HubButton(0, 0, 0, 0, Component.literal("Old KoHs Crystal Glow"), ignored -> {
+            CrystalVisualConfig.setOldGlow(!CrystalVisualConfig.oldGlow());
+            glowTouched();
+            commit();
+        }).switchOf(CrystalVisualConfig::oldGlow));
+        oldGlow.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "El brillo de antes: un halo con rayos detrás del cristal en lugar de luz en sus tres capas. La potencia, los reflejos, el color y el desenfoque siguen igual. Para tus cristales y los ajenos."
+                : "The glow as it used to be: a halo with rays behind the crystal instead of light in its three layers. Power, reflections, colour and blur work the same. For your crystals and the enemy's.")));
         list.heading(this.spanish ? "Optimización" : "Optimization");
         list.row(control);
         HubButton forceOff = list.full(new HubButton(0, 0, 0, 0, Component.literal(this.spanish ? "Forzar apagado" : "Force off"), ignored -> {

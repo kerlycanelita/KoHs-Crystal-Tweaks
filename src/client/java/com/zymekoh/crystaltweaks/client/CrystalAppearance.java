@@ -11,13 +11,14 @@ public final class CrystalAppearance {
     public static final int MIN_FLASH_DURATION = 300;
     public static final int MAX_FLASH_DURATION = 3000;
     public static final int DEFAULT_FLASH_DURATION = 1200;
+    public static final int DEFAULT_MOTION_BLUR = 50;
 
     public int outerColor = -1;
     public int innerColor = -1;
     public int coreColor = -1;
     public int rotationSpeedPercent = 100;
     public int floatingSpeedPercent = 100;
-    /** The glow switch. Off hides the halo, the reflections and the crystal's own light, not the flash. */
+    /** The glow switch. Off hides the glow, its reflections and the crystal's own light, not the flash. */
     public boolean glowEnabled = true;
     /** Glow ships on: the mod's whole point is visible from the first launch, not after a hunt. */
     public int glowPowerPercent = 55;
@@ -33,6 +34,8 @@ public final class CrystalAppearance {
     public int flashOpacityPercent = DEFAULT_FLASH_OPACITY;
     /** How long the death flash takes to fade, in milliseconds. */
     public int flashDurationMillis = DEFAULT_FLASH_DURATION;
+    /** How far the glowing layers trail as they turn, 0-100; 0 is no blur. */
+    public int motionBlurPercent = DEFAULT_MOTION_BLUR;
 
     public CrystalAppearance copy() {
         CrystalAppearance copy = new CrystalAppearance();
@@ -50,10 +53,11 @@ public final class CrystalAppearance {
         copy.flashScalePercent = Math.max(MIN_FLASH_SCALE, Math.min(300, flashScalePercent));
         copy.flashOpacityPercent = Math.max(MIN_FLASH_OPACITY, Math.min(100, flashOpacityPercent));
         copy.flashDurationMillis = Math.max(MIN_FLASH_DURATION, Math.min(MAX_FLASH_DURATION, flashDurationMillis));
+        copy.motionBlurPercent = clamp(motionBlurPercent, 100);
         return copy;
     }
 
-    /** True when the halo, its reflections and the crystal's own light are drawn. */
+    /** True when the glow, its reflections and the crystal's own light are drawn. */
     public boolean glowActive() {
         return glowEnabled && glowPowerPercent > 0;
     }

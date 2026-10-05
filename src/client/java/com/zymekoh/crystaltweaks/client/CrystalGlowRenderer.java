@@ -100,16 +100,20 @@ public final class CrystalGlowRenderer {
     }
 
     /**
-     * The halo of a crystal still in the world. It always wears the burst; only the death flash
-     * takes a shape. The glow switch turns it off, together with its reflections.
+     * The light a crystal still in the world casts on the ground and, with Old KoHs Crystal Glow,
+     * the halo behind it that the glow used to be: it always wears the burst; only the death flash
+     * takes a shape. The glow itself, in the crystal's layers, is {@link CrystalLayerGlow}. The glow
+     * switch turns all of it off.
      */
     public static void submit(EndCrystalRenderState state, PoseStack poses,
             SubmitNodeCollector collector, CameraRenderState camera) {
         CrystalAppearance look = CrystalAppearanceAccess.of(state);
         if (!look.glowActive() || state.distanceToCameraSq > 4096) return;
         float power = CrystalGlowMath.power(look.glowPowerPercent);
-        draw(state, look, poses, collector, camera, CrystalFlashStyle.EXPLOSION, CrystalGlowMath.radius(power),
-                1F, power, 0F, null, List.of(), true);
+        if (CrystalVisualConfig.oldGlow()) {
+            draw(state, look, poses, collector, camera, CrystalFlashStyle.EXPLOSION, CrystalGlowMath.radius(power),
+                    1F, power, 0F, null, List.of(), true);
+        }
         submitReflections(state, look, poses, collector, camera, look.haloColor(), power, centerHeight(state, look));
     }
 

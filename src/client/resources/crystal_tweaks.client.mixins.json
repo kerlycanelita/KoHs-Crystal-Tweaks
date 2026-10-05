@@ -18,6 +18,7 @@
     "MannequinAccessor",
     "ModelMixin",
     "ModelPartMixin",
+    "RenderTypeInvoker",
     "RespawnAnchorInvoker",
     "SoundBufferLibraryMixin",
     "SoundManagerAccessor",

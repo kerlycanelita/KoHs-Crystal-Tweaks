@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.5.0
+
+### Changed
+
+- **The glow lives in the crystal now.** Its three layers shine, the frame, the inner frame and the
+  core, each in its own colour (an unpainted layer in the glow colour, the core a step towards
+  white), inside a soft aura in the glow colour. The light is the crystal's own model drawn again
+  as additive light, so it keeps the frames' pattern and turns and floats with them. Power,
+  reflections and the glow colour work as before.
+- **Motion blur**, in the Glow panel: the glowing layers trail behind them as they turn, from a
+  short smear to a long one. 50% out of the box; 0% turns it off.
+
+### Added
+
+- **Old KoHs Crystal Glow**, in the Advanced tab: the glow as it was, a halo with rays behind the
+  crystal, for your crystals and the enemy's.
+
 ## 2.4.1
 
 ### Added

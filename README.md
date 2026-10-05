@@ -13,12 +13,12 @@
 
 ## About
 
-Crystal Tweaks brings End Crystal visual and sound controls into one animated configuration screen. Version 2.4.1 rebuilds it around your crystal: colours on the left, glow on the right, tabs above for sound, the crystal helpers and KoHs, a red menu of its own for enemy crystals, and Crystal Practice (a practice world against a bot that plays real crystal PvP techniques) below. It supports Minecraft 1.21.11 through 26.3.
+Crystal Tweaks brings End Crystal visual and sound controls into one animated configuration screen. Version 2.5.0 moves the glow into the crystal: its three layers shine in their own colours inside an aura, with a motion blur as they turn. The screen is built around your crystal: colours on the left, glow on the right, tabs above for sound, the crystal helpers, the advanced tools and KoHs, a red menu of its own for enemy crystals, and Crystal Practice (a practice world against a bot that plays real crystal PvP techniques) below. It supports Minecraft 1.21.11 through 26.3.
 
 ## Screenshots
 
 <p align="center">
-  <img src="docs/images/glow.png" alt="Your crystals glowing purple and an enemy crystal glowing red at night" width="880">
+  <img src="docs/images/glow.png" alt="Your crystals shining purple in their layers and an enemy crystal shining red at night" width="880">
 </p>
 
 <p align="center">
@@ -29,9 +29,9 @@ Crystal Tweaks brings End Crystal visual and sound controls into one animated co
 | --- | --- | --- |
 | ![Colours on the left, glow on the right and the crystal in the centre](docs/images/hub-main.png) | ![Side panels taking on a cyan glow](docs/images/hub-glow-lit.png) | ![The red enemy menu](docs/images/hub-enemy.png) |
 
-| Intro | Crystal Tweaks tab | KoHs |
+| Motion blur | Advanced tab | KoHs |
 | --- | --- | --- |
-| ![Intro explaining the local optimization](docs/images/hub-intro.png) | ![Crystal helpers, optimization and compatibility](docs/images/hub-crystal-tweaks.png) | ![KoHs tab with Discord, website, Modrinth and Buy me a coffee](docs/images/hub-kohs.png) |
+| ![The glowing layers trailing as the crystals turn](docs/images/glow-blur.png) | ![Old KoHs Crystal Glow, optimization and compatibility](docs/images/hub-advanced.png) | ![KoHs tab with Discord, website, Modrinth and Buy me a coffee](docs/images/hub-kohs.png) |
 
 | Crystal Practice | Kit editor | What the bot does |
 | --- | --- | --- |
@@ -44,7 +44,7 @@ Crystal Tweaks brings End Crystal visual and sound controls into one animated co
 ## What it changes
 
 - Independent colors for the outer layer, inner layer, and crystal core.
-- Glow with `0%`-`300%` power, colored reflections, its own color, and a smooth afterglow trail.
+- Glow in the crystal's three layers, each shining in its own color inside an aura, with `0%`-`300%` power, colored reflections, its own color, a motion blur that trails the turning layers, and a smooth afterglow trail. The old halo stays available as Old KoHs Crystal Glow.
 - Fourteen flash styles for a destroyed crystal, in the glow color and sized from `10%` to `300%`: explosion, skull, your own head as a pale ghost, lightning toward the players you can see, heart, star, shockwave, vortex, crown, crescent, snowflake, flower, gem, and crossed swords.
 - Glow that respects walls instead of using an outline drawn through terrain.
 - Separate colors, glow, and animation speeds for crystals that were not placed by you (with approximate identification).

@@ -1,6 +1,5 @@
 package com.zymekoh.crystaltweaks.client;
 
-import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.zymekoh.crystaltweaks.CrystalTweaksClient;
 import com.zymekoh.crystaltweaks.mixin.client.RenderTypeInvoker;
@@ -12,12 +11,11 @@ import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.resources.Identifier;
 
 /**
- * The additive materials the glow is drawn with, for 26.1.x.
+ * The additive materials the glow is drawn with, for 1.21.11.
  *
- * <p>The halo, flashes and ground spill use vanilla's dragon-ray material as it stands: additive,
- * tested against depth and writing none, so any number of overlapping lights add up. 26.2 and 26.3
- * made the dragon rays write depth, and they get their own copy of this class that turns that off.
- * 1.21.11 builds pipelines with an older API and has its own copy too.</p>
+ * <p>The same materials as 26.1.x's copy of this class. 1.21.11 builds pipelines with blend
+ * functions and depth flags of their own rather than 26.1's colour-target and depth-stencil states,
+ * so the layer material is copied field by field here.</p>
  */
 final class CrystalGlowMaterial {
     private static RenderType layers;
@@ -29,12 +27,7 @@ final class CrystalGlowMaterial {
         return RenderTypes.dragonRays();
     }
 
-    /**
-     * What the crystal's own layers are drawn again with to shine: vanilla's energy swirl, the
-     * charged creeper's light, textured, additive and full bright, with only its depth writes turned
-     * off. Written depth would let the aura and the motion blur, drawn around the model, cut pieces
-     * out of each other and out of whatever is drawn behind them.
-     */
+    /** Vanilla's energy swirl without its depth writes; see 26.1.x's copy of this class. */
     static RenderType layers(Identifier texture) {
         if (layers == null) {
             layers = createLayers(texture);
@@ -45,17 +38,19 @@ final class CrystalGlowMaterial {
     private static RenderType createLayers(Identifier texture) {
         RenderPipeline source = RenderPipelines.ENERGY_SWIRL;
         try {
-            DepthStencilState depth = source.getDepthStencilState();
             RenderPipeline.Builder builder = RenderPipeline.builder()
                     .withLocation(Identifier.fromNamespaceAndPath(CrystalTweaksClient.MOD_ID, "pipeline/layer_glow"))
                     .withVertexShader(source.getVertexShader())
                     .withFragmentShader(source.getFragmentShader())
+                    .withDepthTestFunction(source.getDepthTestFunction())
                     .withPolygonMode(source.getPolygonMode())
                     .withCull(source.isCull())
-                    .withColorTargetState(source.getColorTargetState())
-                    .withDepthStencilState(new DepthStencilState(depth.depthTest(), false,
-                            depth.depthBiasScaleFactor(), depth.depthBiasConstant()))
+                    .withColorWrite(source.isWriteColor(), source.isWriteAlpha())
+                    .withDepthWrite(false)
+                    .withColorLogic(source.getColorLogic())
+                    .withDepthBias(source.getDepthBiasScaleFactor(), source.getDepthBiasConstant())
                     .withVertexFormat(source.getVertexFormat(), source.getVertexFormatMode());
+            source.getBlendFunction().ifPresentOrElse(builder::withBlend, builder::withoutBlend);
             copyDefines(builder, source.getShaderDefines());
             source.getSamplers().forEach(builder::withSampler);
             for (RenderPipeline.UniformDescription uniform : source.getUniforms()) {

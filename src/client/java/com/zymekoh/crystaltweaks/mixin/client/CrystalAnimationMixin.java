@@ -3,6 +3,7 @@ package com.zymekoh.crystaltweaks.mixin.client;
 import com.mojang.math.Axis;
 import com.zymekoh.crystaltweaks.client.CrystalAppearance;
 import com.zymekoh.crystaltweaks.client.CrystalAppearanceAccess;
+import com.zymekoh.crystaltweaks.client.CrystalLayerGlowState;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.object.crystal.EndCrystalModel;
 import net.minecraft.client.renderer.entity.EndCrystalRenderer;
@@ -21,6 +22,9 @@ public abstract class CrystalAnimationMixin implements CrystalAppearanceAccess {
 
     @Override public CrystalAppearance crystalTweaks$appearance() { return crystalTweaks$appearance; }
     @Override public void crystalTweaks$appearance(CrystalAppearance appearance) { crystalTweaks$appearance = appearance; }
+    @Unique private CrystalLayerGlowState crystalTweaks$glowPass;
+
+    @Override public CrystalLayerGlowState crystalTweaks$glowPass() { return crystalTweaks$glowPass; }
     @Unique
     private static final float CRYSTAL_TWEAKS_SINE_45 = (float) Math.sin(Math.PI / 4.0D);
 
@@ -42,6 +46,8 @@ public abstract class CrystalAnimationMixin implements CrystalAppearanceAccess {
             CallbackInfo callback
     ) {
         this.crystalTweaks$appearance = CrystalAppearanceAccess.of(state);
+        // Posed right before it is drawn, so this is the pass the next draw belongs to.
+        this.crystalTweaks$glowPass = state instanceof CrystalLayerGlowState glow ? glow : null;
         int rotationPercent = this.crystalTweaks$appearance.rotationSpeedPercent;
         int floatingPercent = this.crystalTweaks$appearance.floatingSpeedPercent;
         if (rotationPercent == 100 && floatingPercent == 100) {

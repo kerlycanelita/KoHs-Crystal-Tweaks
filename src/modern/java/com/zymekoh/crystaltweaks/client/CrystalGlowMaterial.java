@@ -4,43 +4,57 @@ import com.mojang.blaze3d.pipeline.BindGroupLayout;
 import com.mojang.blaze3d.pipeline.DepthStencilState;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.zymekoh.crystaltweaks.CrystalTweaksClient;
-import java.lang.reflect.Method;
+import com.zymekoh.crystaltweaks.mixin.client.RenderTypeInvoker;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.renderer.ShaderDefines;
 import net.minecraft.client.renderer.rendertype.RenderSetup;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.resources.Identifier;
 
 /**
- * The additive material every glow, flash and ground spill is drawn with, for 26.2.
+ * The additive materials the glow is drawn with, for 26.2.
  *
- * <p>Up to 26.1.x this was vanilla's dragon-ray material as it stood: additive, tested against
+ * <p>Up to 26.1.x the halo was vanilla's dragon-ray material as it stood: additive, tested against
  * depth and writing none. 26.2 gave the dragon rays the default depth state, which writes depth, so
  * each halo started hiding every light drawn after it: the spill on the ground behind a crystal and
  * the other crystals' glow showed through as dark discs, and overlapping halos cut into each other.
- * This is a copy of that pipeline, read from vanilla's own, with only the depth writes turned off.</p>
+ * Both materials here are copies of vanilla pipelines, read from vanilla's own, with only the depth
+ * writes turned off.</p>
  */
 final class CrystalGlowMaterial {
     private static RenderType glow;
+    private static RenderType layers;
 
     private CrystalGlowMaterial() {
     }
 
     static RenderType glow() {
         if (glow == null) {
-            glow = create();
+            glow = create(RenderPipelines.DRAGON_RAYS, "glow", null, RenderTypes::dragonRays);
         }
         return glow;
     }
 
-    private static RenderType create() {
-        RenderPipeline source = RenderPipelines.DRAGON_RAYS;
+    /** Vanilla's energy swirl without its depth writes; see 26.1.x's copy of this class. */
+    static RenderType layers(Identifier texture) {
+        if (layers == null) {
+            layers = create(RenderPipelines.ENERGY_SWIRL, "layer_glow", texture,
+                    () -> RenderTypes.energySwirl(texture, 0.0F, 0.0F));
+        }
+        return layers;
+    }
+
+    /**
+     * @param texture  the texture the copy samples, or {@code null} for an untextured one
+     * @param fallback vanilla's own material, used if the copy cannot be built
+     */
+    private static RenderType create(RenderPipeline source, String name, Identifier texture,
+            java.util.function.Supplier<RenderType> fallback) {
         try {
-            if (!source.getShaderDefines().isEmpty()) {
-                throw new IllegalStateException("the dragon-ray pipeline now carries shader defines");
-            }
+            DepthStencilState depth = source.getDepthStencilState();
             RenderPipeline.Builder builder = RenderPipeline.builder()
-                    .withLocation(Identifier.fromNamespaceAndPath(CrystalTweaksClient.MOD_ID, "pipeline/glow"))
+                    .withLocation(Identifier.fromNamespaceAndPath(CrystalTweaksClient.MOD_ID, "pipeline/" + name))
                     .withVertexShader(source.getVertexShader())
                     .withFragmentShader(source.getFragmentShader())
                     .withPolygonMode(source.getPolygonMode())
@@ -48,21 +62,35 @@ final class CrystalGlowMaterial {
                     .withColorTargetState(source.getColorTargetState())
                     .withVertexBinding(0, source.getVertexFormatBinding(0))
                     .withPrimitiveTopology(source.getPrimitiveTopology())
-                    .withDepthStencilState(new DepthStencilState(source.getDepthStencilState().depthTest(), false));
+                    .withDepthStencilState(new DepthStencilState(depth.depthTest(), false,
+                            depth.depthBiasScaleFactor(), depth.depthBiasConstant()));
+            copyDefines(builder, source.getShaderDefines());
             for (BindGroupLayout layout : source.getBindGroupLayouts()) {
                 builder.withBindGroupLayout(layout);
             }
-            RenderSetup setup = RenderSetup.builder(builder.build()).createRenderSetup();
-            // RenderType's factory is package-private; the class itself is the public currency every
-            // renderer passes around.
-            Method factory = RenderType.class.getDeclaredMethod("create", String.class, RenderSetup.class);
-            factory.setAccessible(true);
-            return (RenderType) factory.invoke(null, CrystalTweaksClient.MOD_ID + "_glow", setup);
-        } catch (ReflectiveOperationException | RuntimeException exception) {
+            RenderSetup.RenderSetupBuilder setup = RenderSetup.builder(builder.build());
+            if (texture != null) {
+                setup.withTexture("Sampler0", texture).useLightmap().useOverlay().sortOnUpload();
+            }
+            return RenderTypeInvoker.crystalTweaks$create(CrystalTweaksClient.MOD_ID + "_" + name,
+                    setup.createRenderSetup());
+        } catch (RuntimeException exception) {
             CrystalTweaksClient.LOGGER.warn(
-                    "Could not build the glow material; falling back to the dragon rays, which write depth here",
-                    exception);
-            return RenderTypes.dragonRays();
+                    "Could not build the {} material; falling back to vanilla's, which writes depth here",
+                    name, exception);
+            return fallback.get();
         }
+    }
+
+    /** The source's shader switches and values, the values read back the way they were written. */
+    private static void copyDefines(RenderPipeline.Builder builder, ShaderDefines defines) {
+        defines.flags().forEach(builder::withShaderDefine);
+        defines.values().forEach((define, value) -> {
+            try {
+                builder.withShaderDefine(define, Integer.parseInt(value));
+            } catch (NumberFormatException notInteger) {
+                builder.withShaderDefine(define, Float.parseFloat(value));
+            }
+        });
     }
 }

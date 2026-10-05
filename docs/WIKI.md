@@ -108,13 +108,18 @@ and every other crystal uses the enemy profile. **Use this profile** turns the e
 
 ## Glow
 
-The **Glow** panel, on the right, owns everything the crystal's light does: power, reflections, the
-flash style and its size, and the glow colour.
+The **Glow** panel, on the right, owns everything the crystal's light does: power, reflections,
+motion blur, the flash style and its size, and the glow colour.
 
-- **Glow** switches the halo, its reflections and the crystal's own light. Its options fold away
+- **Glow** switches the glow, its reflections and the crystal's own light. Its options fold away
   while it is off. It does not affect the flash, which has a switch of its own.
+- The glow is in the crystal: its three layers shine, each in its own colour (an unpainted layer in
+  the glow colour, the core a step towards white), inside a soft aura in the glow colour. It is the
+  crystal's own model drawn again as light, so it keeps the frames' pattern and turns with them.
 - **Power** and **Reflections** range from `0%` to `300%`. Reflections are a coloured light drawn
   on the tops of nearby blocks; world lighting is not changed.
+- **Motion blur** makes the glowing layers trail behind them as they turn: `0%` is none, `100%` a
+  trail 24 degrees long at Vanilla speed, longer as the crystal turns faster. It ships at `50%`.
 - **Own colour** gives the glow and the flash a colour of their own. The crystal's layer colours are
   never changed by it.
 
@@ -185,6 +190,9 @@ its own optimization off; it shows Crystal Tweaks and the detected optimizer by 
 
 The **Advanced** tab holds the tools behind the helpers.
 
+- **Old KoHs Crystal Glow** brings back the glow as it was before it moved into the crystal: a halo
+  with rays drawn behind it. Power, reflections, colour and motion blur keep working. It applies to
+  your crystals and the enemy's.
 - **Force off optimizations** turns every crystal optimization off, whatever the detection says.
   A paused helper names the reason on hover.
 - **Optimizer benchmark** measures your own placements and breaks while you play and

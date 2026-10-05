@@ -1,7 +1,7 @@
 # Client/Server Legitimacy Audit
 
-This audit covers Crystal Tweaks 2.4.1 for Minecraft 1.21.11 and 26.1 through 26.3. It separates
-local-only functionality from behavior a server can observe. 2.4.1 adds two core optimizations, the
+This audit covers Crystal Tweaks 2.5.0 for Minecraft 1.21.11 and 26.1 through 26.3. It separates
+local-only functionality from behavior a server can observe. 2.4.1 added two core optimizations, the
 instant explosion and the removal reader, both local; the lab evidence at the end checks the claim
 packet by packet on every supported version. The 2.2.7 edition described an older
 design that removed the attacked crystal from the level and refreshed the crosshair; that design is
@@ -91,12 +91,17 @@ player's profile; every other crystal uses the enemy profile. The server does no
 so this is an approximation built only from the player's own actions. It selects colours and nothing
 else.
 
-## Glow, reflections and afterglow — L0 cosmetic
+## Glow, motion blur, reflections and afterglow — L0 cosmetic
 
-The halo, the coloured spill on block tops and the flash a destroyed crystal leaves are drawn with
-Vanilla's additive dragon-ray material with the depth test on: nothing shows through walls. The glow
-raises the crystal's own block light so it reads in the dark, the way an emissive resource pack
-does. Terrain under a crystal is sampled only to place the spill, within a small budget per tick.
+The glow is the crystal's own model drawn again, around its own position, with Vanilla's additive
+energy-swirl material (the charged creeper's light) with its depth writes off and the depth test on:
+nothing shows through walls, and the crystal, its hitbox and its position are untouched. The aura
+is the same model slightly larger, and the motion blur the model at the angles it had a few ticks
+earlier; both only add light where the crystal already is. The old halo (Old KoHs Crystal Glow),
+the coloured spill on block tops and the flash a destroyed crystal leaves are drawn with Vanilla's
+additive dragon-ray material, also depth-tested. The glow raises the crystal's own block light so
+it reads in the dark, the way an emissive resource pack does. Terrain under a crystal is sampled
+only to place the spill, within a small budget per tick.
 
 ## Flash styles — L0 cosmetic, one with a visibility rule
 

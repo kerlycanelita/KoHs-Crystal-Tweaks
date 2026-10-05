@@ -3,7 +3,7 @@
 [![Report an issue](https://img.shields.io/badge/GitHub-Report%20an%20issue-D73A49?logo=github&logoColor=white)](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/issues/new)
 [![Wiki](https://img.shields.io/badge/Wiki-Guide-7B2CBF?logo=readthedocs&logoColor=white)](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/wiki)
 
-# Crystal Tweaks 2.4.1
+# Crystal Tweaks 2.5.0
 
 ## The settings
 
@@ -23,12 +23,16 @@ crystal, which wears everything you set, colours, glow, flash and sound.
 
 Open the **Glow** panel, on the right of the settings:
 
+- **The glow is in the crystal:** its three layers shine, each in its own colour, inside a soft aura in the glow colour, and the light turns and floats with them.
 - **Power:** from 0 to 300%. An extra glow layer keeps the effect visible in any lighting, not only at night.
+- **Motion blur:** the glowing layers trail behind them as they turn, from 0 to 100%.
 - **Reflections:** simulates colored light on the top faces of nearby blocks.
 - **Custom color:** uses the same color picker as the rest of the menu. It colors the light only; the crystal's own layer colors stay as you set them.
 - **Flash on explosion:** the light a destroyed crystal leaves behind fades smoothly, in one of fourteen styles, sized from 10% to 300%.
 
-The glow respects walls and does not use Vanilla's outline that shows through terrain.
+The glow respects walls and does not use Vanilla's outline that shows through terrain. Prefer the halo it used to be? **Old KoHs Crystal Glow**, in the Advanced tab, brings it back.
+
+![Motion blur](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/glow-blur.png)
 
 ![Flash styles](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/flash-styles.png)
 

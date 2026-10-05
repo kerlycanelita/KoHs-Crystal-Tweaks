@@ -8,21 +8,27 @@ import com.zymekoh.crystaltweaks.client.CrystalGlowMath;
 import com.zymekoh.crystaltweaks.client.CrystalAppearanceAccess;
 import com.zymekoh.crystaltweaks.client.CrystalGlowAccess;
 import com.zymekoh.crystaltweaks.client.CrystalGlowRenderer;
+import com.zymekoh.crystaltweaks.client.CrystalLayerGlow;
 import com.zymekoh.crystaltweaks.client.CrystalOwnership;
 import com.zymekoh.crystaltweaks.client.CrystalVisualConfig;
 import java.util.List;
+import net.minecraft.client.model.object.crystal.EndCrystalModel;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EndCrystalRenderer;
 import net.minecraft.client.renderer.entity.state.EndCrystalRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(EndCrystalRenderer.class)
 public abstract class EndCrystalGlowMixin {
+    @Shadow @Final private EndCrystalModel model;
+
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/boss/enderdragon/EndCrystal;Lnet/minecraft/client/renderer/entity/state/EndCrystalRenderState;F)V", at = @At("TAIL"))
     private void crystalTweaks$extractAppearance(EndCrystal entity, EndCrystalRenderState state, float partialTick, CallbackInfo ci) {
         CrystalAppearance look = CrystalVisualConfig.visuals(CrystalOwnership.useOtherProfile(entity)).copy();
@@ -43,5 +49,6 @@ public abstract class EndCrystalGlowMixin {
         // The synthetic GUI afterglow is handled by EndCrystalRendererMixin without drawing a model.
         if (state instanceof CrystalAfterglowState) return;
         CrystalGlowRenderer.submit(state, poses, collector, camera);
+        CrystalLayerGlow.submit(this.model, state, poses, collector);
     }
 }
