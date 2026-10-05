@@ -1,7 +1,7 @@
 # Client/Server Legitimacy Audit
 
-This audit covers Crystal Tweaks 2.4.0 for Minecraft 1.21.11 and 26.1 through 26.3. It separates
-local-only functionality from behavior a server can observe. 2.4.0 adds two core optimizations, the
+This audit covers Crystal Tweaks 2.4.1 for Minecraft 1.21.11 and 26.1 through 26.3. It separates
+local-only functionality from behavior a server can observe. 2.4.1 adds two core optimizations, the
 instant explosion and the removal reader, both local; the lab evidence at the end checks the claim
 packet by packet on every supported version. The 2.2.7 edition described an older
 design that removed the attacked crystal from the level and refreshed the crosshair; that design is
@@ -185,7 +185,7 @@ Server rules differ and this project cannot guarantee acceptance by every server
 Review the rules of every multiplayer server and obtain staff approval when required. Where a server
 forbids client-side prediction of any kind, turn Ghost crystals off and do not use this mod there.
 
-## Lab evidence (2.4.0)
+## Lab evidence (2.4.1)
 
 Crystal Lab (in the private KoHs-Debug-Tools repository) runs the Crystal Tweaks development client
 against a local Fabric server with Grim Anticheat 2.3.74 on the client's protocol, with Ravenclaw's

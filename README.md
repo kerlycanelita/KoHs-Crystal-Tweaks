@@ -13,7 +13,7 @@
 
 ## About
 
-Crystal Tweaks brings End Crystal visual and sound controls into one animated configuration screen. Version 2.4.0 rebuilds it around your crystal: colours on the left, glow on the right, tabs above for sound, the crystal helpers and KoHs, a red menu of its own for enemy crystals, and Crystal Practice (a practice world against a bot that plays real crystal PvP techniques) below. It supports Minecraft 1.21.11 through 26.3.
+Crystal Tweaks brings End Crystal visual and sound controls into one animated configuration screen. Version 2.4.1 rebuilds it around your crystal: colours on the left, glow on the right, tabs above for sound, the crystal helpers and KoHs, a red menu of its own for enemy crystals, and Crystal Practice (a practice world against a bot that plays real crystal PvP techniques) below. It supports Minecraft 1.21.11 through 26.3.
 
 ## Screenshots
 
