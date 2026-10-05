@@ -133,8 +133,32 @@ public final class CrystalAppearanceTest {
         check(CrystalOptimizerGuard.overlapOptimizesCrystals(
                         "unnamed",
                         "Unnamed",
+                        List.of("com.example.mixin.EndCrystalPredictionMixin")),
+                "A crystal-predicting Mixin gives away a mod whose name does not");
+        check(!CrystalOptimizerGuard.overlapOptimizesCrystals(
+                        "unnamed",
+                        "Unnamed",
                         List.of("com.example.mixin.EndCrystalAttackMixin")),
-                "A crystal Mixin gives away a mod whose name does not");
+                "Attacking a crystal is not optimizing it");
+        // Mods that do things with crystals, whatever their Mixins are called, never pause anything.
+        for (String[] doer : new String[][] {{"safecrystal", "Safe Crystal"}, {"safe_crystals", "Safe Crystals"},
+                {"crystalcustom", "Crystal Custom"}, {"custom-crystals", "Custom Crystals"},
+                {"crystalglow", "Crystal Glow"}, {"crystal_glow_plus", "Crystal Glow+"},
+                {"end_crystal_skins", "End Crystal Skins"}, {"crystal-counter", "Crystal Counter"}}) {
+            check(CrystalOptimizerGuard.doesThingsWithCrystals(doer[0], doer[1]), doer[1] + " does things with crystals");
+            check(!CrystalOptimizerGuard.looksLikeOptimizer(doer[0], doer[1]), doer[1] + " is not an optimizer by name");
+            check(!CrystalOptimizerGuard.overlapOptimizesCrystals(doer[0], doer[1], List.of(
+                            "com.example.mixin.CrystalBreakMixin", "com.example.mixin.SafeCrystalPredictMixin",
+                            "com.example.mixin.CrystalPlaceAttackMixin", "com.example.mixin.CrystalOptimizeMixin")),
+                    doer[1] + " is not an optimizer by its Mixins");
+        }
+        check(CrystalOptimizerGuard.looksLikeOptimizer("mmcf", "Make My Crystals Faster"),
+                "Make My Crystals Faster hides attacked crystals, so it is an optimizer");
+        check(CrystalOptimizerGuard.looksLikeOptimizer("zerodelaycrystals", "Zero Delay Crystals"), "Zero Delay Crystals by name");
+        check(CrystalOptimizerGuard.looksLikeOptimizer("crystals_optimized", "Crystals Optimized"), "Crystals Optimized by name");
+        check(!CrystalOptimizerGuard.looksLikeOptimizer("crystal_speed", "Crystal Speed"), "A faster spin is still not an optimizer");
+        check(!CrystalOptimizerGuard.doesThingsWithCrystals("marlowcrystal", "Marlow's Crystal Optimizer"),
+                "Marlow's optimizer is not a cosmetic crystal mod");
         check(!CrystalOptimizerGuard.overlapOptimizesCrystals("crystalskins", "Crystal Skins", List.of()),
                 "An overlap away from the interaction path is not a conflict, whatever the mod is called");
         check(!CrystalOptimizerGuard.overlapOptimizesCrystals("crystal_anchor_counter", "Crystal Anchor Counter",

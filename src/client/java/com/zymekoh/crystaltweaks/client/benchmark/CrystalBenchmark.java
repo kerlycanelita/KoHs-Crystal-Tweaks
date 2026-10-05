@@ -67,6 +67,13 @@ public final class CrystalBenchmark {
     private static final Samples PLACE_TO_SPAWN_NETWORK = new Samples(SAMPLE_CAP);
     private static final Samples PLACE_TO_SPAWN_SHOWN = new Samples(SAMPLE_CAP);
     private static final Samples ATTACK_TO_EXPLOSION = new Samples(SAMPLE_CAP);
+    private static final Samples ATTACK_TO_EXPLOSION_HEARD = new Samples(SAMPLE_CAP);
+    /**
+     * Every attack of the last two seconds, finished or not: the server removes a crystal before it
+     * sends the explosion, so the explosion is matched here rather than against the open attacks.
+     */
+    private static final java.util.ArrayDeque<double[]> RECENT_ATTACKS = new java.util.ArrayDeque<>();
+    private static final long RECENT_ATTACK_NANOS = 2_000_000_000L;
     private static final Samples ATTACK_TO_REMOVAL_NETWORK = new Samples(SAMPLE_CAP);
     private static final Samples ATTACK_TO_REMOVAL_SHOWN = new Samples(SAMPLE_CAP);
     private static final Samples ATTACK_TO_GONE = new Samples(SAMPLE_CAP);
@@ -207,6 +214,11 @@ public final class CrystalBenchmark {
             }
             attacks++;
             ATTACKS.put(entityId, new Attack(crystal.position(), sentAt));
+            // x, y, z, sent at, heard (0 or 1)
+            RECENT_ATTACKS.addLast(new double[] {crystal.getX(), crystal.getY(), crystal.getZ(), sentAt, 0.0D});
+            while (RECENT_ATTACKS.size() > 64) {
+                RECENT_ATTACKS.pollFirst();
+            }
             LAST_ATTACK_AT_BASE.put(base, sentAt);
             // A placement sent before this hit reached the server while the crystal being hit still
             // stood on that block, so it was refused. Left queued, it would claim the next crystal's
@@ -324,6 +336,32 @@ public final class CrystalBenchmark {
                 if (attack.explosionAt < 0L && attack.position.distanceToSqr(center) < 0.0625D) {
                     attack.explosionAt = now;
                     ATTACK_TO_EXPLOSION.add(now - attack.sentAt);
+                    return;
+                }
+            }
+        }
+    }
+
+    /**
+     * The explosion's sound and burst just played on this client, at (x, y, z): at the hit when
+     * Crystal Tweaks predicted it, or when the server's explosion was handled otherwise. Game thread.
+     */
+    public static void onExplosionHeard(double x, double y, double z) {
+        if (!recording) {
+            return;
+        }
+        long now = System.nanoTime();
+        synchronized (LOCK) {
+            while (!RECENT_ATTACKS.isEmpty() && now - (long) RECENT_ATTACKS.peekFirst()[3] > RECENT_ATTACK_NANOS) {
+                RECENT_ATTACKS.pollFirst();
+            }
+            for (double[] attack : RECENT_ATTACKS) {
+                double dx = attack[0] - x;
+                double dy = attack[1] - y;
+                double dz = attack[2] - z;
+                if (attack[4] == 0.0D && dx * dx + dy * dy + dz * dz < 0.0625D) {
+                    attack[4] = 1.0D;
+                    ATTACK_TO_EXPLOSION_HEARD.add(now - (long) attack[3]);
                     return;
                 }
             }
@@ -531,7 +569,8 @@ public final class CrystalBenchmark {
                 SWAP_TO_PLACE.stats(),
                 frames,
                 averageFps,
-                onePercentLow);
+                onePercentLow,
+                ATTACK_TO_EXPLOSION_HEARD.stats());
     }
 
     /** Who was handling crystals during the run, in words a player recognizes. */
@@ -594,6 +633,8 @@ public final class CrystalBenchmark {
         PLACE_TO_SPAWN_NETWORK.clear();
         PLACE_TO_SPAWN_SHOWN.clear();
         ATTACK_TO_EXPLOSION.clear();
+        ATTACK_TO_EXPLOSION_HEARD.clear();
+        RECENT_ATTACKS.clear();
         ATTACK_TO_REMOVAL_NETWORK.clear();
         ATTACK_TO_REMOVAL_SHOWN.clear();
         ATTACK_TO_GONE.clear();
@@ -630,6 +671,7 @@ public final class CrystalBenchmark {
         private long hiddenAt = -1L;
         private long localRemovalAt = -1L;
         private long explosionAt = -1L;
+        private long heardAt = -1L;
         private long removalNetworkAt = -1L;
         private long removalShownAt = -1L;
 

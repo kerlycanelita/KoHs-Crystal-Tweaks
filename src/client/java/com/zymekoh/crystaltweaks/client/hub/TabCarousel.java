@@ -14,9 +14,16 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
  * tab folds its drawer away again so the crystal gets the whole stage.
  *
  * <p>Few players guess that a row of tabs scrolls sideways, so until they have turned it once a
- * small mouse with a rolling wheel sits under it, saying so.</p>
+ * small mouse with a rolling wheel sits under it, saying so. Tabs near the ends fade out before
+ * they reach the edge, so no tab or icon is ever seen cut in half; and the open tab carries a small
+ * End Crystal that hops now and then, the sign that clicking it again gives the crystal back its
+ * place in the middle.</p>
  */
 public final class TabCarousel {
+    private static final net.minecraft.resources.Identifier END_CRYSTAL = HubDraw.vanilla("textures/item/end_crystal.png");
+    /** How far in from either end a tab is fully drawn; nearer the edge it fades away. */
+    private static final float EDGE_FADE = 20.0F;
+
     /** One tab: an id for the screen, its label and its animated icon. */
     public record Item(String id, String label, HubButton.Icon icon) {
     }
@@ -70,12 +77,50 @@ public final class TabCarousel {
         this.turnedByPlayer = true;
     }
 
+    /** An unselected tab: its icon alone, in a small pill. */
+    private int compactWidth() {
+        return iconSize() + 12;
+    }
+
+    private int iconSize() {
+        return Math.max(6, Math.min(this.rect.height() - 6, 11));
+    }
+
+    /** The selected tab: icon, name and, while open, the fold sign. */
+    private int fullWidth(Font font, int index) {
+        int extra = index == this.selected && this.open ? 12 : 0;
+        return iconSize() + 4 + font.width(this.items.get(index).label()) + 18 + extra;
+    }
+
+    /** From the middle of the selected tab to the middle of its neighbour. */
     private int spacing(Font font) {
         int widest = 0;
-        for (Item item : this.items) {
-            widest = Math.max(widest, font.width(item.label()));
+        for (int index = 0; index < this.items.size(); index++) {
+            widest = Math.max(widest, fullWidth(font, index));
         }
-        return Math.min(this.rect.width() / 2, widest + 34);
+        return Math.min(this.rect.width() / 2, widest / 2 + 5 + compactWidth() / 2);
+    }
+
+    /** Where a tab sits, {@code distance} tabs from the selected one: a wide step, then narrow ones. */
+    private float offset(float distance, int spacing) {
+        float steps = Math.abs(distance);
+        float near = Math.min(1.0F, steps) * spacing;
+        float far = Math.max(0.0F, steps - 1.0F) * (compactWidth() + 5);
+        return Math.signum(distance) * (near + far);
+    }
+
+    /** The name of an unselected tab under the pointer, for its tooltip; {@code null} elsewhere. */
+    public String hoveredLabel(Font font, double mouseX, double mouseY) {
+        if (!this.rect.contains(mouseX, mouseY)) {
+            return null;
+        }
+        int spacing = spacing(font);
+        for (int index = 0; index < this.items.size(); index++) {
+            if (index != this.selected && itemBox(font, index, spacing).contains(mouseX, mouseY)) {
+                return this.items.get(index).label();
+            }
+        }
+        return null;
     }
 
     /** One step of the wheel: the next tab or the previous one, opening its drawer. */
@@ -103,7 +148,9 @@ public final class TabCarousel {
         int spacing = spacing(font);
         for (int index = 0; index < this.items.size(); index++) {
             Rect box = itemBox(font, index, spacing);
-            if (box.contains(mouseX, mouseY)) {
+            // A tab faded out at the edge is not there to be clicked.
+            float inside = Math.min(box.x() - this.rect.x(), this.rect.right() - box.right());
+            if (box.contains(mouseX, mouseY) && (inside + 4.0F) / EDGE_FADE > 0.3F) {
                 if (index == this.selected) {
                     this.open = !this.open;
                 } else {
@@ -126,13 +173,21 @@ public final class TabCarousel {
         return null;
     }
 
+    /** The open tab, as drawn: where its fold sign and its tooltip go. Empty while folded. */
+    public Rect openTabBox(Font font) {
+        if (!this.open || this.rect.isEmpty()) {
+            return Rect.EMPTY;
+        }
+        return itemBox(font, this.selected, spacing(font));
+    }
+
     private Rect itemBox(Font font, int index, int spacing) {
-        Item item = this.items.get(index);
-        float distance = Math.abs(index - this.position);
-        float scale = 1.0F - 0.16F * Math.min(1.0F, distance);
-        int width = Math.round((font.width(item.label()) + 26) * scale);
-        int height = Math.round((this.rect.height() - 2) * (1.0F - 0.12F * Math.min(1.0F, distance)));
-        int centerX = Math.round(this.rect.centerX() + (index - this.position) * spacing);
+        float distance = index - this.position;
+        float near = 1.0F - Math.min(1.0F, Math.abs(distance));
+        // Full width at the middle, the icon's pill one step away and beyond.
+        int width = Math.round(compactWidth() + (fullWidth(font, index) - compactWidth()) * near);
+        int height = Math.round((this.rect.height() - 2) * (0.88F + 0.12F * near));
+        int centerX = Math.round(this.rect.centerX() + offset(distance, spacing));
         return new Rect(centerX - width / 2, this.rect.centerY() - height / 2, width, height);
     }
 
@@ -156,29 +211,48 @@ public final class TabCarousel {
         graphics.enableScissor(this.rect.x(), this.rect.y() - 2, this.rect.right(), this.rect.bottom() + 2);
         for (int index = 0; index < this.items.size(); index++) {
             Rect box = itemBox(font, index, spacing);
-            if (box.right() < this.rect.x() || box.x() > this.rect.right()) {
+            // Fully drawn well inside the rail, gone before it would touch an edge.
+            float inside = Math.min(box.x() - this.rect.x(), this.rect.right() - box.right());
+            float edge = HubMotion.smoothstep(0.0F, 1.0F, HubMotion.clamp01((inside + 4.0F) / EDGE_FADE));
+            if (edge <= 0.02F) {
                 continue;
             }
             Item item = this.items.get(index);
             float distance = Math.min(1.0F, Math.abs(index - this.position));
             boolean hovered = box.contains(mouseX, mouseY) && this.rect.contains(mouseX, mouseY);
             this.hover[index] = HubMotion.damp(this.hover[index], hovered ? 1.0F : 0.0F, frameMillis, 55.0F);
-            float itemAlpha = alpha * (1.0F - 0.5F * distance) * (0.85F + 0.15F * this.hover[index]);
+            float itemAlpha = alpha * edge * (1.0F - 0.5F * distance) * (0.85F + 0.15F * this.hover[index]);
             boolean current = index == this.selected;
             int top = current ? CrystalTheme.lerp(skin.controlHover, skin.accent, 0.18F) : skin.controlFill;
             HubDraw.glass(graphics, box.x(), box.y(), box.width(), box.height(), top, HubSkin.darken(top, 0.55F),
                     current ? CrystalTheme.lerp(skin.accent, skin.accentBright, HubMotion.breathe(now / 1e9D, 1.8D) * 0.5F)
                             : CrystalTheme.lerp(skin.borderSoft | 0xFF000000, skin.accent, this.hover[index]),
                     itemAlpha);
-            int iconSize = Math.min(box.height() - 4, 11);
+            int iconSize = Math.min(box.height() - 4, iconSize());
             int labelWidth = font.width(item.label());
-            int groupWidth = iconSize + 4 + labelWidth;
+            boolean folds = current && this.open;
+            // The name shows on the tab at the middle only; the others are their icons.
+            float named = HubMotion.clamp01(1.0F - Math.abs(index - this.position) * 1.6F);
+            boolean labelled = named > 0.05F && box.width() >= iconSize + 4 + labelWidth + 10;
+            int groupWidth = labelled ? iconSize + 4 + labelWidth + (folds ? 12 : 0) : iconSize;
             int x = box.centerX() - groupWidth / 2;
             int textColor = CrystalTheme.fade(current ? skin.title : skin.muted, itemAlpha);
             if (item.icon() != null) {
-                item.icon().draw(graphics, x, box.centerY() - iconSize / 2, iconSize, textColor);
+                item.icon().draw(graphics, x, box.centerY() - iconSize / 2, iconSize,
+                        CrystalTheme.fade(current ? 0xFFFFFFFF : CrystalTheme.lerp(0xFFB8A8C8, 0xFFFFFFFF, this.hover[index]), itemAlpha));
             }
-            CrystalUi.label(graphics, font, item.label(), x + iconSize + 4, box.centerY() - 4, textColor);
+            if (labelled) {
+                CrystalUi.label(graphics, font, item.label(), x + iconSize + 4, box.centerY() - 4, CrystalTheme.fade(textColor, named));
+            }
+            if (folds && labelled) {
+                // A crystal that hops up every couple of seconds: click the tab, the crystal goes back up.
+                double seconds = now / 1_000_000_000.0D;
+                float hop = (float) Math.max(0.0D, Math.sin(seconds * 3.2D)) * (seconds % 2.4D < 1.0D ? 1.6F : 0.0F);
+                int signSize = Math.max(6, iconSize - 2);
+                int signX = x + iconSize + 4 + labelWidth + 4;
+                HubDraw.icon(graphics, END_CRYSTAL, signX + signSize / 2.0F, box.centerY() - hop, signSize, 0.0F,
+                        CrystalTheme.fade(CrystalTheme.lerp(0xC0FFFFFF, 0xFFFFFFFF, this.hover[index]), itemAlpha));
+            }
             if (current) {
                 // Open or folded, said by a small mark under the tab.
                 int markY = box.bottom() - 2;

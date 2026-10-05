@@ -171,6 +171,26 @@ public final class HubDraw {
     }
 
     /** A 16x16 item or block texture, centred and turned. */
+    /**
+     * A part of a texture, {@code regionWidth} by {@code regionHeight} pixels from (u, v), drawn
+     * {@code width} by {@code height} around a centre and turned by {@code angle}: a piece of a block.
+     */
+    public static void piece(GuiGraphicsExtractor graphics, Identifier texture, int u, int v, int regionWidth, int regionHeight,
+            int textureWidth, int textureHeight, float centerX, float centerY, float width, float height, float angle, int color) {
+        if (((color >>> 24) & 255) < 4 || width <= 0.0F || height <= 0.0F) {
+            return;
+        }
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(centerX, centerY);
+        if (angle != 0.0F) {
+            graphics.pose().rotate(angle);
+        }
+        graphics.pose().scale(width / regionWidth, height / regionHeight);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, texture, -regionWidth / 2, -regionHeight / 2, u, v,
+                regionWidth, regionHeight, textureWidth, textureHeight, color);
+        graphics.pose().popMatrix();
+    }
+
     public static void icon(GuiGraphicsExtractor graphics, Identifier texture, float centerX, float centerY, float size,
             float angle, int color) {
         texture(graphics, texture, 16, 16, centerX, centerY, size, size, angle, color);

@@ -13,6 +13,7 @@ Welcome to the Crystal Tweaks documentation. This guide covers installation, con
 - [Glow](#glow)
 - [Sound](#sound)
 - [Crystal Tweaks tab](#crystal-tweaks-tab)
+- [Advanced tab](#advanced-tab)
 - [Crystal Practice](#crystal-practice)
 - [Interactive preview](#interactive-preview)
 - [Languages](#languages)
@@ -39,16 +40,28 @@ With Mod Menu installed:
 2. Select **Crystal Tweaks**.
 3. Press the configuration button.
 
-The first time you open it in a session, and only if no other crystal optimizer is installed, an
-intro explains the local optimization (see [Client or server](#client-or-server)). **Continue**
-goes on to the settings; **Don't show again** turns the intro off for good.
+It opens on a gate: your crystal alone in the middle of a wall of stone that its glow lights, and
+**Click the crystal to enter** under it. The click (or Enter, or Space) blows it up: the stone
+turns to obsidian and crying obsidian, the blocks crack and burst, and their pieces rain off to
+both sides while the menu comes up.
+
+The first time you open it in a session, and only if no other crystal optimizer is installed, the
+gate is preceded by the local optimization explained beside the crystal, on the same lit stone (see
+[Client or server](#client-or-server)). **Continue** sends the crystal to the gate; **Don't show
+again** does the same and turns the explanation off for good.
 
 Your crystal turns in the centre, with every setting on it. **Colours** is the panel on the left
 and **Glow** the panel on the right; while you change the glow, both panels take on its colour. The
-tabs above the crystal scroll sideways with the mouse wheel: **Sound**, **Crystal Tweaks** and
-**KoHs** (links to Discord, the website, Modrinth and Buy me a coffee). **Crystal Practice** is the
-button under the crystal, **Enemy crystals** the one in the top-left corner. The chip in the
-top-right corner shows the optimizer's state; hover it for the details.
+tabs above the crystal scroll sideways with the mouse wheel: **Sound**, **Crystal Tweaks**,
+**Advanced** and **KoHs** (links to Discord, the website, Modrinth and Buy me a coffee). The open
+tab shows its name; the others show their icons, the game's own items, and their names on hover. A
+small End Crystal hops on the open tab: click it again and the drawer folds, giving the crystal the
+middle back. **Crystal Practice** is the button under the crystal, **Enemy crystals** the one in the
+top-left corner. The chip in the top-right corner shows the optimizer's state; hover it for the
+details.
+
+Rows scroll smoothly and fade in and out at the edges of their panel; a row half out of view is
+drawn half and only its visible part takes clicks.
 
 Each panel's **Reset** asks **Sure?** first; a second click within three seconds resets it. In a
 narrow window the side panels become drawers: open one from the handle at its edge, and fold it
@@ -57,8 +70,9 @@ away with Escape or a click beside it.
 ## Client or server
 
 Crystal Tweaks optimizes the client only. A crystal you break disappears on your screen straight
-away, but what reaches the server is exactly what Vanilla would send, so your next crystal is not
-placed any sooner.
+away and its explosion, sound and burst, plays at the hit instead of a round trip later; a crystal
+the server removes, anyone's, stops being drawn the moment the removal arrives. What reaches the
+server is exactly what Vanilla would send, so your next crystal is not placed any sooner.
 
 If you want the improvement to reach the server too, Marlow's Crystal Optimizer is recommended.
 Check your server's rules first. When it is installed, Crystal Tweaks detects it and turns all of
@@ -154,53 +168,60 @@ changes what you hear without changing the server's explosion.
 
 ## Crystal Tweaks tab
 
-The **Crystal Tweaks** tab, above the crystal, holds the crystal helpers and the compatibility
-tools. The first time you open it, a window explains that any crystal optimizer can be used with
-Crystal Tweaks, which then turns its own optimization off.
+The **Crystal Tweaks** tab, above the crystal, holds the crystal helpers. The first time you open
+it, a window explains that any crystal optimizer can be used with Crystal Tweaks, which then turns
+its own optimization off; it shows Crystal Tweaks and the detected optimizer by their own icons.
 
 - **Ghost crystals** (26.1 and later, off by default) draws a stand-in crystal while the server's
   real one is in flight. It is only a drawing: it cannot be hit, looked at or collided with.
-- **Safe Crystal** (on by default) keeps you from mining the obsidian under your crystals while you
-  hold one. It sends fewer actions than Vanilla, so switch it off if your server forbids input
-  filters.
+- **Don't break obsidian** (on by default; until 2.3.1 "Safe Crystal") keeps you from mining the
+  obsidian under your crystals while you hold one. It sends fewer actions than Vanilla, so switch it
+  off if your server forbids input filters.
+- **Obsidian debounce** (off by default) refuses an obsidian placement that follows the previous one
+  within the chosen window, from Vanilla to `10 s`. It works on whatever Use is bound to, and
+  changing hotbar slot ends the window. A refused click sends nothing.
+
+## Advanced tab
+
+The **Advanced** tab holds the tools behind the helpers.
+
+- **Force off optimizations** turns every crystal optimization off, whatever the detection says.
+  A paused helper names the reason on hover.
+- **Optimizer benchmark** measures your own placements and breaks while you play and
+  compares runs, for example with and without Marlow's Crystal Optimizer. It only observes. The
+  **Normal**/**Dev** switch at the top picks plain explanations or the full statistics.
 - **Conflict Monitor** scans installed mods locally and lists exact Mixin class-and-method overlaps
   with Crystal Tweaks. It reads local files only. A clean result is not a guarantee: dynamic Mixin
   plugins and external bytecode agents are not visible to it.
 - **Re-check compatibility** runs the optimizer detection again without restarting the game.
-- **Force off optimizations** turns every crystal helper above off, whatever the detection says.
-  A paused helper names the reason on hover.
-- **Obsidian debounce** (off by default) refuses an obsidian placement that follows the previous one
-  within the chosen window, from Vanilla to `10 s`. It works on whatever Use is bound to, and
-  changing hotbar slot ends the window. A refused click sends nothing.
-- **Optimizer benchmark** measures your own placements and breaks while you play and
-  compares runs, for example with and without Marlow's Crystal Optimizer. It only observes. The
-  **Normal**/**Dev** switch at the top picks plain explanations or the full statistics.
 - **Herzium integration** is dimmed unless [Herzium](https://modrinth.com/mod/herzium) is installed;
   then it sets Herzium's hotbar order. Herzium does not handle crystals, so the optimizer needs no
   adapting.
 
-The detection stands the interaction helpers down only for a mod actually found to be optimizing
-crystals:
+The detection stands the optimizations down only for a mod that really optimizes crystals:
 
 - a known one: Marlow's Crystal Optimizer, Client Side Crystals, Client-Sided Crystals, HCsCR,
-  FastCrystal and No Crystal Break;
+  FastCrystal, No Crystal Break, Make My Crystals Faster and Zero Delay Crystals;
 - one whose id or name pairs "crystal" with optimizing or client-side handling, which covers the
   many "... Crystal Optimizer" mods;
-- one whose Mixin lands on the same send path or crystal renderer *and* is named for acting on
-  crystals (attacking, breaking, placing, predicting).
+- one whose Mixin lands on the same send path or crystal renderer *and* is named for optimizing,
+  predicting or handling crystals client-side.
 
-Saying "crystal" is not enough. End Crystal skins, spin and size tweaks, crystals-per-second
-counters, Safe Crystals and PvP clients such as ClickCrystals never stand the helpers down, and a
-scan that cannot read every mod says so instead of disabling anything.
+Doing something with crystals is not optimizing them. Safe Crystal style protections, crystal glows,
+skins, textures, colours, spins, sizes, sounds, particles and counters never stand anything down,
+whatever their Mixins are called, and neither do PvP clients such as ClickCrystals. Checked against
+the 173 crystal mods on Modrinth: the 18 optimizers among them are found and nothing else is. A scan
+that cannot read every mod says so instead of disabling anything.
 
 Client Side Crystals counts as an optimizer: it draws a stand-in crystal the moment you place one,
 as the ghost crystals do, and its stand-in would be matched as your placement, leaving your real
 crystal to read as someone else's.
 
-**What a detected optimizer turns off.** Every interaction helper, with no exception: break
-prediction, ghost crystals, placement tracking and Safe Crystal. Safe Crystal matters most here: it
-decides what the obsidian click does, and the other optimizer wants that same click; with both
-deciding, the usual result is obsidian you cannot break at all. Every visual feature keeps working.
+**What a detected optimizer turns off.** Every optimization and interaction helper, with no
+exception: break prediction, instant explosion, removal reader, ghost crystals, placement tracking
+and Don't break obsidian. Don't break obsidian matters most here: it decides what the obsidian click
+does, and the other optimizer wants that same click; with both deciding, the usual result is
+obsidian you cannot break at all. Every visual feature keeps working.
 
 **What never turns anything off.** Performance mods. Krypton, Lithium, Sodium, C2ME, ImmediatelyFast,
 ScalableLux, FerriteCore, MoreCulling, EntityCulling, ModernFix, LazyDFU, DynamicFPS, MemoryLeakFix,
@@ -208,10 +229,19 @@ Noxesium, ViaFabricPlus, ViaVersion, PacketFixer, BadOptimizations, VMP, Nvidium
 GPU Booster, Ixeris and Particle Core are named in the detector so that no Mixin overlap can be read
 as a rival crystal optimizer.
 
-Instant crystal break is part of the mod's core and has no setting. It only hides a crystal you hit
-when the server is expected to accept the hit: the crystal must be inside your interaction range,
-not already removed, and you must be alive, not spectating, and able to deal damage. The crystal
-stays in the world; it is only not drawn until the server confirms the break.
+Three optimizations are the mod's core and have no setting:
+
+- **Instant break** only hides a crystal you hit when the server is expected to accept the hit: the
+  crystal must be inside your interaction range, not already removed, and you must be alive, not
+  spectating, and able to deal damage. The crystal stays in the world; it is only not drawn until
+  the server confirms the break, so your crosshair, your next click and every packet stay Vanilla's.
+- **Instant explosion** plays that crystal's explosion, the game's own sound (or your custom one)
+  and burst, at the hit. When the server's explosion for it arrives, its sound and burst are skipped
+  so nothing plays twice; its knockback and block debris still come from the server.
+- **Removal reader** reads the server's entity removals on the network thread, as they arrive: a
+  crystal the server removed, anyone's, stops being drawn at once instead of on a later frame.
+
+All three change what is drawn and heard on your screen only. None adds, changes or delays a packet.
 
 ## Crystal Practice
 
@@ -395,7 +425,7 @@ Scroll inside the side panel; a panel that scrolls shows a wheel hint the first 
 Open the configuration screen and look at the chip in the top-right corner; hover it for details:
 
 - **Paused** — another mod is already optimizing crystals, and Crystal Tweaks has yielded the
-  interaction path to it on purpose. Remove it and press **Re-check compatibility** in the Crystal Tweaks tab, or
+  interaction path to it on purpose. Remove it and press **Re-check compatibility** in the Advanced tab, or
   keep it and use its own optimizer.
 - **Checking…** — the compatibility scan is still running. It finishes in the first seconds after
   the client starts.

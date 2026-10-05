@@ -52,13 +52,13 @@ final class IntroOverlay {
     private String[] paragraphs() {
         if (this.spanish) {
             return new String[] {
-                    "Crystal Tweaks optimiza lo que ves. El cristal que golpeas desaparece de tu pantalla al instante y, con los cristales fantasma activados, el que colocas aparece mientras la copia del servidor sigue en camino.",
-                    "Es solo del cliente y legítima: solo cambia lo que se dibuja. No añade, cambia ni retrasa ningún paquete, el servidor sigue decidiendo cada golpe y cada colocación, y nadie más ve nada distinto.",
+                    "Crystal Tweaks optimiza lo que ves y oyes. El cristal que golpeas desaparece y explota, con su sonido, en el momento del golpe; el que el servidor quita deja de dibujarse en cuanto llega su aviso; y, con los cristales fantasma activados, el que colocas aparece mientras la copia del servidor sigue en camino.",
+                    "Es solo del cliente y legítima: solo cambia lo que se dibuja y se oye. No añade, cambia ni retrasa ningún paquete, el servidor sigue decidiendo cada golpe y cada colocación, y nadie más ve nada distinto.",
                     "No hace que nada llegue antes al servidor. Si instalas un optimizador de cristales como el de Marlow, Crystal Tweaks apaga su propia optimización solo, para que nunca se peleen."};
         }
         return new String[] {
-                "Crystal Tweaks optimizes what you see. A crystal you hit disappears from your screen the moment you hit it and, with Ghost crystals on, one you place appears while the server's copy is still on its way.",
-                "It is client-side and legitimate: it only changes what is drawn. No packet is added, changed or delayed, the server still decides every hit and placement, and nobody else sees anything different.",
+                "Crystal Tweaks optimizes what you see and hear. A crystal you hit disappears and explodes, sound and all, the moment you hit it; one the server removes stops being drawn as soon as its word arrives; and, with Ghost crystals on, one you place appears while the server's copy is still on its way.",
+                "It is client-side and legitimate: it only changes what is drawn and heard. No packet is added, changed or delayed, the server still decides every hit and placement, and nobody else sees anything different.",
                 "It does not make anything reach the server sooner. With a crystal optimizer such as Marlow's installed, Crystal Tweaks turns its own optimization off by itself, so the two never fight."};
     }
 

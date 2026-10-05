@@ -1,7 +1,9 @@
 # Client/Server Legitimacy Audit
 
-This audit covers Crystal Tweaks 2.3.0 for Minecraft 1.21.11 and 26.1 through 26.3. It separates
-local-only functionality from behavior a server can observe. The 2.2.7 edition described an older
+This audit covers Crystal Tweaks 2.4.0 for Minecraft 1.21.11 and 26.1 through 26.3. It separates
+local-only functionality from behavior a server can observe. 2.4.0 adds two core optimizations, the
+instant explosion and the removal reader, both local; the lab evidence at the end checks the claim
+packet by packet on every supported version. The 2.2.7 edition described an older
 design that removed the attacked crystal from the level and refreshed the crosshair; that design is
 gone, and so is the packet change it caused.
 
@@ -35,6 +37,28 @@ one, up to one second. A hit qualifies only when:
 - the player is alive and not spectating;
 - the player's attack damage is above zero.
 
+## Instant explosion — L1 local prediction
+
+When the break prediction above hides a crystal, `InstantExplosion` plays that crystal's explosion
+on this client at once: the game's own explosion sound (or the player's custom sound) and burst, at
+the crystal, with the volume and pitch spread `ClientPacketListener.handleExplosion` uses. When the
+server's explosion packet arrives for the same spot within the prediction window, a Mixin on
+`handleExplosion` skips only that packet's sound and burst, so nothing plays twice. The packet's
+knockback, its block debris and everything else it carries are handled as Vanilla handles them.
+
+It is gated exactly like the break: no prediction, no early explosion. A hit the server refuses
+leaves a sound and a burst that were not real; the crystal then reappears. Nothing is sent, changed
+or delayed.
+
+## Removal reader — L0 local reading
+
+`ClientPacketListener.handleRemoveEntities` runs twice in Vanilla: first on the network thread,
+which only reschedules it, then on the client thread. On the first pass the removal reader marks the
+crystals in the packet, from a set of crystal ids the client thread keeps, as not to be drawn. The
+entity is still removed by the client thread as Vanilla removes it; the reader only stops drawing a
+crystal the server already removed a frame earlier. It reads a packet the client already received
+and sends nothing.
+
 ## Ghost crystals — L1 visual prediction, off by default
 
 On 26.1 and later, a player can opt in to a stand-in crystal drawn over a placement until the
@@ -49,15 +73,16 @@ Vanilla send path. It records a bounded local history used for latency measureme
 the player's own crystals from others'. It never creates, sends, cancels, retries, duplicates or
 mutates a packet.
 
-## Safe Crystal — L2 input filter, switchable
+## Don't break obsidian — L2 input filter, switchable
 
-While an End Crystal is held, a left click on obsidian returns `FAIL` from Fabric's
-`AttackBlockCallback`, so Vanilla never starts the block break and no `START_DESTROY_BLOCK` is
-sent. This withholds an action rather than adding one, and it cannot break a block the player could
-not otherwise break. The first click still swings, as Vanilla does when an attack starts nothing.
+Called Safe Crystal until 2.3.1. While an End Crystal is held, a left click on obsidian returns
+`FAIL` from Fabric's `AttackBlockCallback`, so Vanilla never starts the block break and no
+`START_DESTROY_BLOCK` is sent. This withholds an action rather than adding one, and it cannot break
+a block the player could not otherwise break. The first click still swings, as Vanilla does when an
+attack starts nothing.
 
-It is on by default and can be switched off in **Advanced**. It also stands down whenever another
-crystal optimizer is detected.
+It is on by default and can be switched off in the **Crystal Tweaks** tab. It also stands down
+whenever another crystal optimizer is detected.
 
 ## Crystal ownership colours — L0 local heuristic
 
@@ -98,7 +123,8 @@ away than Vanilla's.
 ## Obsidian debounce — L2 input filter, off by default
 
 A second obsidian placement inside the chosen window returns `FAIL` from `UseBlockCallback`, so no
-use packet is sent. Like Safe Crystal it withholds an action and never adds, delays or repeats one.
+use packet is sent. Like Don't break obsidian it withholds an action and never adds, delays or
+repeats one.
 
 ## Force off, benchmark and Crystal Practice — L0
 
@@ -110,8 +136,10 @@ singleplayer world; its bot and kit live on that integrated server and never on 
 
 The monitor and the detector read installed Fabric metadata, Mixin configuration JSON and class
 annotations from the local filesystem. They send nothing, advertise nothing and never modify another
-mod. When another crystal optimizer is found, every interaction helper above stands down; visuals
-and sounds do not.
+mod. When another crystal optimizer is found, every optimization and interaction helper above stands
+down; visuals and sounds do not. Only real optimizers count: mods that do things with crystals
+(protections, glows, skins, spins, sizes, sounds, counters) never do, whatever their Mixins are
+called.
 
 ## What this mod does not do
 
@@ -132,12 +160,14 @@ and sounds do not.
 | Reach | Never extended. |
 | Attack cooldown, `rightClickDelay`, click rate | Never modified. |
 | Sequence numbers and acknowledgement | Vanilla's own prediction machinery, untouched. |
-| `START_DESTROY_BLOCK` on obsidian with a crystal held | Withheld while Safe Crystal is on. |
+| Explosion sound and burst | Local only. Played at the hit; the server's copy of them is skipped, its knockback is not. |
+| Entity removals | Read earlier on the network thread; nothing is sent. |
+| `START_DESTROY_BLOCK` on obsidian with a crystal held | Withheld while Don't break obsidian is on. |
 | An obsidian placement inside the debounce window | Withheld while Obsidian debounce is on. |
 
 Those last two rows are the only differences in the packet stream. No anticheat penalises a player
 for not mining or placing a block, but a server that forbids input filters can ask players to switch
-Safe Crystal and Obsidian debounce off.
+Don't break obsidian and Obsidian debounce off.
 
 ## Honest limits of this claim
 
@@ -154,6 +184,38 @@ Safe Crystal and Obsidian debounce off.
 Server rules differ and this project cannot guarantee acceptance by every server or anticheat.
 Review the rules of every multiplayer server and obtain staff approval when required. Where a server
 forbids client-side prediction of any kind, turn Ghost crystals off and do not use this mod there.
+
+## Lab evidence (2.4.0)
+
+Crystal Lab (in the private KoHs-Debug-Tools repository) runs the Crystal Tweaks development client
+against a local Fabric server with Grim Anticheat 2.3.74 on the client's protocol, with Ravenclaw's
+Ping Equalizer adding latency. The tester is not an operator, is in survival, cannot be pushed by
+explosions (explosion knockback resistance 1) and stands on a bedrock field. A macro walks forward
+and to the left and, twenty times per scenario, presses the obsidian key and Use, the crystal key
+and Use, then Attack as soon as the crystal is under the crosshair: real key presses, handled by the
+game. Each version runs four scenarios: optimizations on and forced off (the same build, so Vanilla
+behaviour), each with no added latency and with 100 ms. Every packet the client sends is recorded
+as it leaves.
+
+| Version (server) | Grim alerts, 4 scenarios | Hidden after the hit, on / off | Explosion heard, on / off (+100 ms) |
+| --- | --- | --- | --- |
+| 1.21.11 (1.21.11) | 0 | 0.05 ms / 25.5 ms | 0.19 ms / 133.6 ms |
+| 26.1 (26.1.2) | 0 | 0.05 ms / 16.5 ms | 0.20 ms / 133.5 ms |
+| 26.2 (26.2) | 0 | 0.06 ms / 49.0 ms | 0.20 ms / about 150 ms |
+
+Medians. On every version each cycle sent the same packets in the same order with the optimizations
+on as with them off (hotbar change, use on the obsidian, swing, hotbar change, use, swing, attack,
+swing); the only differences were the cycles where the macro itself missed a crystal, in both modes.
+26.1.1, 26.1.2 and 26.3 share the code and the Mixin targets of the versions measured, checked by
+`tools/verify-mixins.py`; 26.3 has no Grim build yet.
+
+**Other anticheats.** Grim is one server-side anticheat among several, and not the strictest by
+reputation. The claim here does not rest on it: a server-side anticheat, Grim, Vulcan, Polar,
+Gladiator or any other, only ever sees the packets the client sends, their content, order and
+timing. With the optimizations on, those packets are the ones Vanilla sends for the same input, so
+there is nothing for any of them to tell apart. What a server-side anticheat cannot see, the hidden
+crystal, the sound and the burst, exists only on this screen. A client-side anticheat or a launcher
+that inspects installed mods is a different matter: it sees the JAR whatever the mod does.
 
 ## Verification evidence
 

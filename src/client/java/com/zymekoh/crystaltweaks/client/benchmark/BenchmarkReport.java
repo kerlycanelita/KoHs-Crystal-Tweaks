@@ -227,6 +227,7 @@ final class BenchmarkReport {
         stat("place→spawn [net]", run.placeToSpawnNetwork());
         stat("place→spawn [shown]", run.placeToSpawnShown());
         stat("attack→explosion [net]", run.attackToExplosionNetwork());
+        stat("attack→explosion heard", run.attackToExplosionHeard());
         stat("attack→remove [net]", run.attackToRemovalNetwork());
         stat("attack→remove [shown]", run.attackToRemovalShown());
         stat("attack→not drawn", run.attackToGone());

@@ -22,6 +22,10 @@ import java.util.Map;
 public final class CrystalVisualConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final int DEFAULT_COLOR = 0xFFFFFFFF;
+    /** A fresh install's crystal: purple frame, lighter purple inner frame, lavender core. */
+    private static final int DEFAULT_OUTER = 0xFF8702F2;
+    private static final int DEFAULT_INNER = 0xFFB45CFF;
+    private static final int DEFAULT_CORE = 0xFFD08CFF;
     private static final Object LOCK = new Object();
     private static volatile boolean customSoundEnabled;
     private static volatile String customSoundFileName = "";
@@ -51,9 +55,18 @@ public final class CrystalVisualConfig {
     private static final Map<String, String> practiceKits = new LinkedHashMap<>();
     private static volatile CrystalFlashStyle flashStyle = CrystalFlashStyle.EXPLOSION;
     private static volatile boolean loaded;
-    private static final CrystalAppearance playerVisuals = new CrystalAppearance();
+    private static final CrystalAppearance playerVisuals = defaultPlayerVisuals();
     private static CrystalAppearance enemyVisuals = defaultEnemyVisuals();
     private static boolean enemyCustomEnabled = true;
+
+    /** Your crystals out of the box: purple all through, layers and glow. */
+    private static CrystalAppearance defaultPlayerVisuals() {
+        CrystalAppearance player = new CrystalAppearance();
+        player.outerColor = DEFAULT_OUTER;
+        player.innerColor = DEFAULT_INNER;
+        player.coreColor = DEFAULT_CORE;
+        return player;
+    }
 
     /** Enemy crystals glow red out of the box; yours stay the crystal purple. */
     private static CrystalAppearance defaultEnemyVisuals() {
@@ -64,7 +77,7 @@ public final class CrystalVisualConfig {
 
     /** A fresh profile with the shipped defaults, for the settings screen's reset. */
     public static CrystalAppearance defaults(boolean enemy) {
-        return enemy ? defaultEnemyVisuals() : new CrystalAppearance();
+        return enemy ? defaultEnemyVisuals() : defaultPlayerVisuals();
     }
 
     public static CrystalAppearance visuals(boolean enemy) {
@@ -95,9 +108,9 @@ public final class CrystalVisualConfig {
                     JsonObject visuals = root.has("visuals") && root.get("visuals").isJsonObject()
                             ? root.getAsJsonObject("visuals")
                             : new JsonObject();
-                    playerVisuals.outerColor = parseColor(visuals, "outerColor", DEFAULT_COLOR);
-                    playerVisuals.innerColor = parseColor(visuals, "innerColor", DEFAULT_COLOR);
-                    playerVisuals.coreColor = parseColor(visuals, "coreColor", DEFAULT_COLOR);
+                    playerVisuals.outerColor = parseColor(visuals, "outerColor", DEFAULT_OUTER);
+                    playerVisuals.innerColor = parseColor(visuals, "innerColor", DEFAULT_INNER);
+                    playerVisuals.coreColor = parseColor(visuals, "coreColor", DEFAULT_CORE);
                     playerVisuals.rotationSpeedPercent = clamp(intValue(visuals, "rotationSpeedPercent", 100), 0, 300);
                     playerVisuals.floatingSpeedPercent = clamp(intValue(visuals, "floatingSpeedPercent", 100), 0, 300);
 
@@ -339,9 +352,9 @@ public final class CrystalVisualConfig {
     }
 
     public static void resetColors() {
-        playerVisuals.outerColor = DEFAULT_COLOR;
-        playerVisuals.innerColor = DEFAULT_COLOR;
-        playerVisuals.coreColor = DEFAULT_COLOR;
+        playerVisuals.outerColor = DEFAULT_OUTER;
+        playerVisuals.innerColor = DEFAULT_INNER;
+        playerVisuals.coreColor = DEFAULT_CORE;
     }
 
     public static int rotationSpeedPercent() {

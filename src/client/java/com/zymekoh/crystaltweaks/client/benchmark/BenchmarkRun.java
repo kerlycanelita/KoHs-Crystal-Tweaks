@@ -39,7 +39,9 @@ public record BenchmarkRun(
         BenchmarkStats swapToPlace,
         BenchmarkStats frameTime,
         double averageFps,
-        double onePercentLowFps
+        double onePercentLowFps,
+        // When the explosion's sound and burst played on this client; absent in runs saved before 2.4.0.
+        BenchmarkStats attackToExplosionHeard
 ) {
     /** A run long enough to say something: a handful of breaks and placements each. */
     public boolean meaningful() {

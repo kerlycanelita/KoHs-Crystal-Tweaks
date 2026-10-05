@@ -90,6 +90,10 @@ public final class BenchmarkHooks {
     }
 
     public static void removal(ClientboundRemoveEntitiesPacket packet) {
+        if (network()) {
+            // The removal reader: a crystal the server removed stops being drawn on arrival.
+            com.zymekoh.crystaltweaks.core.CrystalBreakPrediction.serverRemoving(packet.getEntityIds());
+        }
         if (CrystalBenchmark.recording()) {
             CrystalBenchmark.onRemoval(packet.getEntityIds(), network());
         }

@@ -18,7 +18,7 @@ import net.minecraft.util.Mth;
  * the label stays shadowed wherever the handle passes under it. On a side panel it is lit by the
  * glow like everything else there.
  */
-public final class HubSlider extends AbstractSliderButton {
+public final class HubSlider extends AbstractSliderButton implements Clippable {
     private final DoubleUnaryOperator toValue;
     private final DoubleConsumer onChange;
     private final DoubleFunction<String> formatter;
@@ -123,5 +123,17 @@ public final class HubSlider extends AbstractSliderButton {
         int textX = x + (width - font.width(text)) / 2;
         CrystalUi.label(graphics, font, text, textX, y + (height - 8) / 2,
                 CrystalTheme.fade(this.active ? skin.text : skin.disabled, fade), true);
+    }
+
+    private HubLayout.Rect clip = HubLayout.Rect.EMPTY;
+
+    @Override
+    public void clipTo(HubLayout.Rect area) {
+        this.clip = area;
+    }
+
+    @Override
+    public boolean isMouseOver(double mouseX, double mouseY) {
+        return super.isMouseOver(mouseX, mouseY) && Clippable.inside(this.clip, mouseX, mouseY);
     }
 }

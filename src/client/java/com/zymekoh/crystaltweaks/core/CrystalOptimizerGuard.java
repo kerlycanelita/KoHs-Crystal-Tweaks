@@ -42,6 +42,17 @@ public final class CrystalOptimizerGuard {
     };
 
     /**
+     * Optimizers whose name says what they do without the words below, matched on the id and the
+     * name with spaces and punctuation ignored. Make My Crystals Faster hides an attacked crystal
+     * the way the break prediction does; Zero Delay Crystals calls itself Crystals Optimized.
+     */
+    private static final String[] KNOWN_OPTIMIZER_NAMES = {
+            "makemycrystalsfaster",
+            "zerodelaycrystal",
+            "crystalsoptimized",
+    };
+
+    /**
      * Words that, next to "crystal", describe driving crystals ahead of the server. "Fast" is not
      * one of them: FastCrystalSpin, Crystal Speed and their like only change how a crystal looks.
      */
@@ -54,21 +65,52 @@ public final class CrystalOptimizerGuard {
             "client sided",
             "client-sided",
             "clientsided",
+            "zero delay",
+            "zerodelay",
     };
 
     /**
      * What a crystal optimizer's own Mixin class tends to be named after. Only read for a Mixin that
-     * already overlaps this mod's interaction path.
+     * already overlaps this mod's interaction path. Attacking, breaking and placing are not on the
+     * list: a mod that keeps you from breaking your own crystals, or one that only counts them,
+     * names its Mixins after those too, and neither optimizes anything.
      */
     private static final String[] INTERACTION_WORDS = {
             "optimi",
             "clientside",
             "client_side",
             "predict",
-            "instant",
-            "attack",
-            "break",
-            "place",
+    };
+
+    /**
+     * Crystal mods that do things with crystals but optimize nothing: protections, skins, glows,
+     * spins, sizes, sounds and counters. A match here outranks the Mixin rule, so none of them can
+     * pause the optimizations however its Mixins are named. Matched on the id and the name, with
+     * spaces, dashes, dots, apostrophes and underscores ignored.
+     */
+    private static final String[] NOT_OPTIMIZER_WORDS = {
+            "safecrystal",
+            "crystalsafe",
+            "crystalprotect",
+            "protectcrystal",
+            "crystalglow",
+            "glowcrystal",
+            "crystalcustom",
+            "customcrystal",
+            "crystalskin",
+            "crystaltexture",
+            "crystalcolor",
+            "crystalcolour",
+            "crystalspin",
+            "crystalspeed",
+            "crystalsize",
+            "smallercrystal",
+            "biggercrystal",
+            "crystalsound",
+            "crystalparticle",
+            "crystalcount",
+            "crystalhud",
+            "nocrystaldamage",
     };
 
     /**
@@ -132,6 +174,7 @@ public final class CrystalOptimizerGuard {
     // JAR scan and no longer.
     private static volatile Status status = Status.CHECKING;
     private static volatile String detectedName = "";
+    private static volatile String detectedId = "";
     /** The player's own "Force off" switch, which outranks whatever the scan finds. */
     private static volatile boolean forcedOff;
 
@@ -200,14 +243,25 @@ public final class CrystalOptimizerGuard {
         return detectedName;
     }
 
+    /** The detected mod's id, for its icon in the settings screen; empty when there is none. */
+    public static String conflictingModId() {
+        return detectedId;
+    }
+
     public static synchronized void reportConflict(String modName) {
+        reportConflict(modName, "");
+    }
+
+    public static synchronized void reportConflict(String modName, String modId) {
         detectedName = modName == null ? "" : modName;
+        detectedId = modId == null ? "" : modId;
         status = Status.CONFLICT;
     }
 
     public static synchronized void clearConflict() {
         status = Status.CHECKING;
         detectedName = "";
+        detectedId = "";
     }
 
     /**
@@ -236,6 +290,9 @@ public final class CrystalOptimizerGuard {
         if (looksLikeOptimizer(modId, modName)) {
             return true;
         }
+        if (doesThingsWithCrystals(modId, modName)) {
+            return false;
+        }
         for (String mixinClass : mixinClasses) {
             if (actsOnCrystals(mixinClass)) {
                 return true;
@@ -262,6 +319,18 @@ public final class CrystalOptimizerGuard {
             }
         }
         return false;
+    }
+
+    /**
+     * True for a mod that does something with crystals without optimizing them: Safe Crystal style
+     * protections, skins, glows, spins, sounds and counters.
+     */
+    public static boolean doesThingsWithCrystals(String modId, String modName) {
+        String squeezed = ((modId == null ? "" : modId) + " " + (modName == null ? "" : modName))
+                .toLowerCase(Locale.ROOT).replaceAll("[\\s_\\-'.]", "");
+        // "End crystal" or "crystal": both spellings reach the same words, plurals included.
+        squeezed = squeezed.replace("endcrystal", "crystal");
+        return containsAny(squeezed, NOT_OPTIMIZER_WORDS);
     }
 
     /** True for a mod that speeds the game up rather than driving crystals. Exact ids only. */
@@ -293,7 +362,18 @@ public final class CrystalOptimizerGuard {
                 return true;
             }
         }
+        String squeezed = (id + (modName == null ? "" : modName)).toLowerCase(Locale.ROOT).replaceAll("[\\s_\\-'.]", "");
+        if (containsAny(squeezed, KNOWN_OPTIMIZER_NAMES)) {
+            return true;
+        }
         String haystack = (id + " " + (modName == null ? "" : modName)).toLowerCase(Locale.ROOT);
-        return haystack.contains("crystal") && containsAny(haystack, OPTIMIZER_WORDS);
+        if (!haystack.contains("crystal")) {
+            return false;
+        }
+        if (haystack.contains("optimi")) {
+            return true;
+        }
+        // A crystal glow or skin may call itself client-side; that alone does not make it an optimizer.
+        return !doesThingsWithCrystals(modId, modName) && containsAny(haystack, OPTIMIZER_WORDS);
     }
 }

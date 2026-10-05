@@ -15,9 +15,10 @@ import net.minecraft.client.Minecraft;
  *
  * <p>Two signals are used. A mod that names itself a crystal optimizer is taken at its word. Beyond
  * that, the Conflict Monitor's own scan is consulted: a mod whose Mixins land on the same
- * interaction path <em>and</em> whose overlapping Mixin is named for acting on crystals is optimizing
- * them too, whatever the mod calls itself. Saying "crystal" is not enough on its own: counters,
- * skins and spin tweaks for the End Crystal say it too.</p>
+ * interaction path <em>and</em> whose overlapping Mixin is named for optimizing or predicting
+ * crystals is optimizing them too, whatever the mod calls itself. Saying "crystal" is not enough:
+ * Safe Crystal style protections, crystal glows and skins, counters and spin tweaks say it too, and
+ * none of them can pause anything.</p>
  *
  * <p>The scan reads jars and parses class files, so it runs off the render thread. Until it
  * finishes, the fast metadata check has already yielded to known/named optimizers.</p>
@@ -58,7 +59,7 @@ public final class OptimizerConflictDetector {
             }
             String name = container.getMetadata().getName();
             if (CrystalOptimizerGuard.looksLikeOptimizer(id, name)) {
-                standDown(name.isBlank() ? id : name, "it names itself a crystal optimizer");
+                standDown(name.isBlank() ? id : name, id, "it names itself a crystal optimizer");
                 return true;
             }
         }
@@ -70,7 +71,7 @@ public final class OptimizerConflictDetector {
             ConflictScanner.ConflictReport report = ConflictScanner.scan();
             for (ConflictScanner.ConflictEntry entry : report.conflicts()) {
                 if (optimizesCrystals(entry)) {
-                    standDown(entry.modName(), "its Mixins land on the same crystal interaction path");
+                    standDown(entry.modName(), entry.modId(), "its Mixins land on the same crystal interaction path");
                     return;
                 }
             }
@@ -107,14 +108,14 @@ public final class OptimizerConflictDetector {
                 entry.modId(), entry.modName(), interactionMixins);
     }
 
-    private static void standDown(String modName, String reason) {
+    private static void standDown(String modName, String modId, String reason) {
         Minecraft minecraft = Minecraft.getInstance();
         if (!minecraft.isSameThread()) {
-            minecraft.execute(() -> standDown(modName, reason));
+            minecraft.execute(() -> standDown(modName, modId, reason));
             return;
         }
 
-        CrystalOptimizerGuard.reportConflict(modName);
+        CrystalOptimizerGuard.reportConflict(modName, modId);
         // Serialize shutdown with client prediction updates so no in-flight task can repopulate
         // the cleared state after the background scan finishes.
         CrystalBreakPrediction.reset();

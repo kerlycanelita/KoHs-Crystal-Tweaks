@@ -72,7 +72,10 @@ public final class CrystalAttackOptimizer {
             return;
         }
 
-        CrystalBreakPrediction.markBroken(crystal, System.nanoTime());
+        long now = System.nanoTime();
+        CrystalBreakPrediction.markBroken(crystal, now);
+        // Its explosion with it: the sound and the burst at the hit, not a round trip later.
+        InstantExplosion.play(crystal, now);
     }
 
     /**

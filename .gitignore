@@ -24,3 +24,6 @@ archive/builds/
 *.hprof
 __pycache__/
 *.pyc
+
+# IDE compiler output
+bin/

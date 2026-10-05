@@ -228,7 +228,10 @@ public final class SidePanel {
             drawTitle(graphics, font, titleIn, mouseX, mouseY, frameMillis, skin);
         }
         if (this.list != null) {
-            this.list.render(graphics, font, now, open, skin.litAccent(), skin.muted, skin.sideBorder);
+            // The rows' controls only answer the pointer once the panel has finished opening.
+            boolean ready = fullyOpen(now);
+            this.list.render(graphics, font, now, open, skin.litAccent(), skin.muted, skin.sideBorder,
+                    ready ? mouseX : -10_000, ready ? mouseY : -10_000, 0.0F);
         }
     }
 

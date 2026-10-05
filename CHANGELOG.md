@@ -4,21 +4,44 @@
 
 ### Added
 
+- **Instant explosion** (core, always on): the explosion of a crystal you break, its sound (or your
+  custom one) and its burst, plays at the hit instead of a round trip later. When the server's
+  explosion arrives, its sound and burst are skipped so nothing plays twice; its knockback and
+  block debris still come from the server. In the lab, at 100 ms of added latency, the explosion
+  is heard 0.2 ms after the hit instead of 133 ms after it.
+- **Removal reader** (core, always on): the server's entity removals are read on the network thread
+  as they arrive, so a crystal the server removed, anyone's, stops being drawn at once instead of on
+  a later frame.
+- The benchmark measures **attack → explosion heard**.
+- Crystal Lab, the measurement rig behind these numbers: a local server with Grim Anticheat for
+  each protocol, Ravenclaw's Ping Equalizer, and a walking obsidian-crystal macro played through the
+  player's own keys. On 1.21.11, 26.1 and 26.2 Grim raised no alert in any scenario, and the client
+  sent the same packets, cycle for cycle, with the optimizations on as with them forced off. See
+  `docs/audits/LEGITIMACY_AUDIT.md`.
 - A new settings screen built around your crystal. It turns in the centre with every setting on it
   (colours, glow, flash and sound): **Colours** opens on the left, **Glow** on the right, and both
   side panels take on the glow colour, partly, while you change it. Click the crystal to explode
   it and right-click to place it again.
-- An intro the first time you open it in a session, when no other crystal optimizer is installed:
-  an animated crystal explains the local optimization. It is client-side and legitimate: it only
-  changes what you see, adds or changes no packet, and the server still decides every hit and
-  placement. **Don't show again** or **Continue**, and the crystal flies to the centre.
+- A gate on the way in: your crystal alone on a wall of stone its glow lights, and **Click the
+  crystal to enter**. The click (or Enter, or Space) blows it up: the stone turns to obsidian and
+  crying obsidian, the blocks crack and burst, and their pieces rain off to both sides while the
+  menu comes up.
+- An intro the first time you open it in a session, when no other crystal optimizer is installed,
+  on the same lit stone: your crystal explains the local optimization. It is client-side and
+  legitimate: it only changes what you see and hear, adds or changes no packet, and the server still
+  decides every hit and placement. **Don't show again** or **Continue** sends the crystal to the
+  gate.
 - Tabs above the crystal that scroll sideways with the mouse wheel, with a wheel hint the first
-  time: **Sound**, **Crystal Tweaks** (ghost crystals, Safe Crystal, obsidian debounce, force off,
-  the optimizer benchmark, the Conflict Monitor and Herzium) and **KoHs** (Discord, website,
-  Modrinth and Buy me a coffee). The first visit to Crystal Tweaks explains that any crystal
-  optimizer can be used with it, and that Crystal Tweaks then turns its own optimization off.
-- Tab icons from the game: a small spinning crystal that shifts colour, a glowing one, and a music
-  disc for Sound.
+  time: **Sound**, **Crystal Tweaks** (ghost crystals, Don't break obsidian, obsidian debounce),
+  **Advanced** (force off, the optimizer benchmark, the Conflict Monitor and Herzium) and **KoHs**
+  (Discord, website, Modrinth and Buy me a coffee). The open tab shows its name, the others their
+  icons with their names on hover, and a small End Crystal hops on the open tab: click it again and
+  the crystal takes the middle back. The first visit to Crystal Tweaks explains that any crystal
+  optimizer can be used with it, showing Crystal Tweaks and the detected optimizer by their own
+  icons, and that Crystal Tweaks then turns its own optimization off.
+- Icons are the game's own: the Pigstep disc, the End Crystal, a comparator, a note block, a clock
+  and an observer's face; the crystals in the panel and window titles are the real model, turning in
+  place.
 - **Enemy crystals** in the top-left corner: your menu shatters and the red enemy menu drops in,
   with **Profile** and **Advanced** tabs, its side panels lit by the enemy glow. Advanced is
   "Coming soon", with a small mining game below it: a crystal with a pickaxe breaks obsidian, then
@@ -28,7 +51,19 @@
 
 ### Changed
 
+- A fresh install's crystal is purple all through: its frame, inner frame and core, as its glow
+  already was. Colours you already chose are kept; Reset returns to this purple.
 - The enemy profile left the Glow tab for its own menu.
+- Safe Crystal is now **Don't break obsidian** (**Evitar romper obsidiana**); it does the same and
+  keeps its setting.
+- Only real crystal optimizers pause Crystal Tweaks. Mods that do things with crystals, Safe
+  Crystal style protections, glows, skins, colours, spins, sizes, sounds, particles and counters,
+  never do, whatever their Mixins are called; a Mixin named for attacking, breaking or placing no
+  longer counts as an optimizer's. Make My Crystals Faster and Zero Delay Crystals are recognised.
+  Checked against the 173 crystal mods on Modrinth: the 18 optimizers are found and nothing else.
+- Rows in the panels and drawers scroll clipped to their panel and fade in and out at its edges
+  instead of popping, and only the visible part of a half-shown row takes clicks. The wheel moves as
+  far as it turns, and the scroll glides.
 - **Reset** on a side panel asks **Sure?** first.
 - In a narrow window the side panels become drawers opened from handles at the edges. Escape, or
   a click beside an open one, folds it away.

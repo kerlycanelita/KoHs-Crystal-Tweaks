@@ -14,12 +14,14 @@ import net.minecraft.util.FormattedCharSequence;
  * A column of rows that scrolls inside a viewport: the content of a side panel or a drawer.
  *
  * <p>Rows hold widgets, headings, wrapped notes or anything drawn by a {@link Painter}. Every frame
- * {@link #place} puts each widget exactly where its row is drawn, so the hitbox always matches what
- * is on screen; a widget whose row is not wholly inside the viewport is hidden rather than clipped,
- * because a half-drawn control would still take clicks where the player cannot see it.</p>
+ * {@link #place} puts each widget exactly where its row is drawn, and {@link #render} draws the
+ * widgets itself, clipped to the viewport: a row scrolling in shows a little more of itself each
+ * frame and fades up as it comes, instead of popping in whole. Its controls take clicks only on the
+ * part that shows (see {@link Clippable}), so the hitbox is always what is drawn.</p>
  *
- * <p>Scrolling is smooth: the wheel moves a target and the drawn offset follows it on a short
- * spring. When the rows first appear, each one fades and slides in a little after the one above.</p>
+ * <p>Scrolling is smooth: the wheel moves a target, by as much as the wheel turned, and the drawn
+ * offset glides after it. When the rows first appear, each one fades and slides in a little after
+ * the one above.</p>
  */
 public final class RowList {
     /** Draws a row's own decoration into its bounds. */
@@ -48,6 +50,8 @@ public final class RowList {
 
     private static final long ROW_STAGGER_NANOS = 32_000_000L;
     private static final long ROW_FADE_NANOS = 230_000_000L;
+    /** How long the drawn offset takes to settle on the target, in milliseconds. */
+    private static final float SCROLL_TAU_MILLIS = 95.0F;
 
     private final List<Row> rows = new ArrayList<>();
     private final List<AbstractWidget> widgets = new ArrayList<>();
@@ -192,7 +196,9 @@ public final class RowList {
             return false;
         }
         int before = this.scrollTarget;
-        this.scrollTarget -= (int) Math.signum(amount) * Math.max(8, step);
+        // A notched wheel turns by whole steps; a smooth wheel or a touchpad by fractions of one.
+        double turned = Math.max(-3.0D, Math.min(3.0D, amount));
+        this.scrollTarget -= (int) Math.round(turned * Math.max(8, step));
         clampScroll();
         if (this.scrollTarget != before) {
             this.scrolledByPlayer = true;
@@ -217,7 +223,7 @@ public final class RowList {
      *                    while anything covers the list, so its rows can stay drawn under it
      */
     public void place(long now, float frameMillis, float alpha, boolean interactive) {
-        this.scroll = HubMotion.damp(this.scroll, this.scrollTarget, frameMillis, 55.0F);
+        this.scroll = HubMotion.damp(this.scroll, this.scrollTarget, frameMillis, SCROLL_TAU_MILLIS);
         if (Math.abs(this.scroll - this.scrollTarget) < 0.3F) {
             this.scroll = this.scrollTarget;
         }
@@ -227,7 +233,7 @@ public final class RowList {
             float fade = rowFade(now, index);
             int slide = Math.round((1.0F - fade) * 9.0F) * -this.slideDirection;
             int y = this.viewport.y() + row.y - offset;
-            boolean inside = y >= this.viewport.y() && y + row.height <= this.viewport.bottom();
+            float edge = edgeFade(y, row.height);
             for (Cell cell : row.cells) {
                 if (cell.widget() == null) {
                     continue;
@@ -235,10 +241,32 @@ public final class RowList {
                 AbstractWidget widget = cell.widget();
                 widget.setX(this.viewport.x() + row.indent + cell.x() + slide);
                 widget.setY(y);
-                widget.visible = inside && fade > 0.05F && alpha > 0.05F;
-                widget.setAlpha(Math.max(0.0F, Math.min(1.0F, fade * alpha)));
+                widget.visible = edge > 0.02F && fade > 0.05F && alpha > 0.05F;
+                widget.setAlpha(Math.max(0.0F, Math.min(1.0F, fade * alpha * edge)));
+                if (widget instanceof Clippable clippable) {
+                    clippable.clipTo(this.viewport);
+                }
             }
         }
+    }
+
+    /**
+     * How much of a row shows, eased: 1 well inside the viewport, falling to 0 as it scrolls out of
+     * either edge. Rows fade as they leave and come up as they arrive.
+     */
+    private float edgeFade(int y, int height) {
+        int top = this.viewport.y();
+        int bottom = this.viewport.bottom();
+        int shown = Math.min(y + height, bottom) - Math.max(y, top);
+        if (shown <= 0 || height <= 0) {
+            return 0.0F;
+        }
+        float zone = Math.max(6.0F, Math.min(16.0F, this.viewport.height() / 6.0F));
+        float center = y + height / 2.0F;
+        float fromEdge = Math.min(center - top, bottom - center) + height / 2.0F;
+        float soft = HubMotion.clamp01(fromEdge / zone);
+        float part = HubMotion.clamp01(shown / (float) height);
+        return HubMotion.smoothstep(0.0F, 1.0F, Math.min(soft, 0.35F + 0.65F * part));
     }
 
     /** Hides every widget: the list is gone or covered. */
@@ -253,6 +281,16 @@ public final class RowList {
      * the scrollbar and the fades at the edges where rows continue.
      */
     public void render(GuiGraphicsExtractor graphics, Font font, long now, float alpha, int accent, int muted, int line) {
+        render(graphics, font, now, alpha, accent, muted, line, -10_000, -10_000, 0.0F);
+    }
+
+    /**
+     * Draws the rows and their widgets, clipped to the viewport.
+     *
+     * @param mouseX where the pointer is, or far off screen while something covers the list
+     */
+    public void render(GuiGraphicsExtractor graphics, Font font, long now, float alpha, int accent, int muted, int line,
+            int mouseX, int mouseY, float partialTick) {
         if (alpha <= 0.02F || this.viewport.isEmpty()) {
             return;
         }
@@ -267,6 +305,7 @@ public final class RowList {
                 trunkTop = row.indent > 0 ? trunkTop : -1;
                 continue;
             }
+            fade *= edgeFade(y, row.height);
             int x = this.viewport.x() + row.indent;
             if (row.heading != null) {
                 int textY = y + 2;
@@ -300,6 +339,12 @@ public final class RowList {
                 trunkTop = armY;
             } else {
                 trunkTop = -1;
+            }
+        }
+        // The controls last, inside the same clip, each at the opacity place() gave it.
+        for (AbstractWidget widget : this.widgets) {
+            if (widget.visible) {
+                widget.extractRenderState(graphics, mouseX, mouseY, partialTick);
             }
         }
         graphics.disableScissor();

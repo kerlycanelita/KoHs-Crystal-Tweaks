@@ -5,9 +5,11 @@ import com.zymekoh.crystaltweaks.client.benchmark.CrystalBenchmarkScreen;
 import com.zymekoh.crystaltweaks.client.compat.HerziumBridge;
 import com.zymekoh.crystaltweaks.client.compat.OptimizerConflictDetector;
 import com.zymekoh.crystaltweaks.client.hub.CrystalStage;
+import com.zymekoh.crystaltweaks.client.hub.GateScene;
 import com.zymekoh.crystaltweaks.client.hub.HubButton;
 import com.zymekoh.crystaltweaks.client.hub.HubColorPicker;
 import com.zymekoh.crystaltweaks.client.hub.HubDraw;
+import com.zymekoh.crystaltweaks.client.hub.HubEditBox;
 import com.zymekoh.crystaltweaks.client.hub.HubLayout;
 import com.zymekoh.crystaltweaks.client.hub.HubLayout.Rect;
 import com.zymekoh.crystaltweaks.client.hub.HubMotion;
@@ -51,16 +53,18 @@ import net.minecraft.util.Mth;
  * helpers ("Crystal Tweaks") and the KoHs page in a drawer; under it, Crystal Practice. A switch in
  * the corner breaks the menu apart and drops the enemy profile's in its place, in crimson.</p>
  *
- * <p>The first time in a session, when no other crystal optimizer is installed, the crystal comes
- * up alone with what the local optimization is and why it is legitimate; continuing sends it to
- * its place and the menu unfolds around it.</p>
+ * <p>It opens on a gate: the crystal alone in the middle of a wall of stone its glow lights, and a
+ * line saying to click it. The first time in a session, when no other crystal optimizer is
+ * installed, what the local optimization is and why it is legitimate comes first, beside the
+ * crystal; continuing sends the crystal to the middle of the gate. The click blows it up: the stone
+ * turns to obsidian and crying obsidian, bursts, and rains away while the menu comes up.</p>
  *
  * <p>Geometry comes from {@link HubLayout}, shared by drawing and input. Widgets are placed every
  * frame where their rows are drawn; while anything covers or rebuilds the menu they are hidden,
  * so no control is ever clickable where it is not drawn.</p>
  */
 public final class CrystalTweaksScreen extends Screen {
-    private enum Phase { INTRO, SETTLE, MAIN, TRANSITION }
+    private enum Phase { INTRO, GATE, ENTER, SETTLE, MAIN, TRANSITION }
 
     private enum Layer { OUTER, INNER, CORE }
 
@@ -81,7 +85,9 @@ public final class CrystalTweaksScreen extends Screen {
     private final SidePanel rightPanel = new SidePanel(SidePanel.Side.RIGHT);
     private final MiniCrystal colorsIcon = new MiniCrystal(0.0F);
     private final MiniCrystal glowIcon = new MiniCrystal(0.45F);
+    private final MiniCrystal titleCrystal = new MiniCrystal(0.7F);
     private final HubOverlays overlays;
+    private final GateScene gate;
     private final TabCarousel userTabs;
     private final TabCarousel enemyTabs;
     private final List<AbstractWidget> drawerWidgets = new ArrayList<>();
@@ -131,13 +137,15 @@ public final class CrystalTweaksScreen extends Screen {
                 .map(container -> "v" + container.getMetadata().getVersion().getFriendlyString())
                 .orElse("");
         this.overlays = new HubOverlays(this, this.spanish);
+        this.gate = new GateScene(this.spanish);
         this.userTabs = new TabCarousel(List.of(
                 new TabCarousel.Item("sound", this.spanish ? "Sonido" : "Sound", HubOverlays::soundIcon),
                 new TabCarousel.Item("tweaks", "Crystal Tweaks", HubOverlays::tweaksIcon),
+                new TabCarousel.Item("advanced", this.spanish ? "Avanzado" : "Advanced", HubOverlays::toolsIcon),
                 new TabCarousel.Item("kohs", "KoHs", HubOverlays::kohsIcon)), 1, false);
         this.enemyTabs = new TabCarousel(List.of(
                 new TabCarousel.Item("profile", this.spanish ? "Perfil" : "Profile", HubOverlays::profileIcon),
-                new TabCarousel.Item("advanced", this.spanish ? "Avanzado" : "Advanced", HubOverlays::advancedIcon)), 0, false);
+                new TabCarousel.Item("soon", this.spanish ? "Avanzado" : "Advanced", HubOverlays::advancedIcon)), 0, false);
     }
 
     /** What Mod Menu opens. The intro, when due, is part of the screen itself. */
@@ -165,6 +173,7 @@ public final class CrystalTweaksScreen extends Screen {
         this.saved = false;
         this.layout = HubLayout.fit(this.width, this.height);
         this.overlays.layout(this.font, this.width, this.height);
+        this.gate.layout(this.width, this.height);
         clearWidgets();
         this.drawerWidgets.clear();
         this.leftPanel.setGeometry(this.layout.left, this.layout);
@@ -184,12 +193,14 @@ public final class CrystalTweaksScreen extends Screen {
                 this.stage.setTarget(this.overlays.introCrystal(), true);
                 this.stage.appear(now);
             } else {
-                startSettle(now, true);
+                showGate(now, true);
             }
         } else {
             // A resize or a return from another screen: everything as it was, at once.
             if (this.phase == Phase.INTRO) {
                 this.stage.setTarget(this.overlays.introCrystal(), true);
+            } else if (this.phase == Phase.GATE) {
+                this.stage.setTarget(this.gate.crystalRect(), true);
             } else {
                 if (this.phase != Phase.MAIN) {
                     this.overlays.endTransition();
@@ -200,6 +211,33 @@ public final class CrystalTweaksScreen extends Screen {
             }
         }
         this.drawerProgress = currentTabs().open() ? 1.0F : 0.0F;
+    }
+
+    /** The gate: the crystal in the middle of the stone, waiting for its click. */
+    private void showGate(long now, boolean appear) {
+        this.phase = Phase.GATE;
+        this.phaseAt = now;
+        this.leftPanel.hide();
+        this.rightPanel.hide();
+        if (appear) {
+            Rect target = this.gate.crystalRect();
+            this.stage.setTarget(new Rect(target.centerX(), target.centerY(), 0, 0), true);
+            this.stage.setTarget(target, false);
+            this.stage.appear(now);
+        } else {
+            this.stage.setTarget(this.gate.crystalRect(), false);
+        }
+    }
+
+    /** The click on the gate's crystal: it explodes, the stone turns and bursts, the menu follows. */
+    private void beginEnter(long now) {
+        if (this.phase != Phase.GATE) {
+            return;
+        }
+        this.stage.explode(now, visuals().copy(), true);
+        this.gate.enter(now, this.stage.centerX(), this.stage.centerY());
+        this.phase = Phase.ENTER;
+        this.phaseAt = now;
     }
 
     private void startSettle(long now, boolean appear) {
@@ -284,13 +322,13 @@ public final class CrystalTweaksScreen extends Screen {
     // Called back by the overlays
     // ------------------------------------------------------------------------------------------
 
-    /** The intro's Continue: the crystal goes to the stage and the menu unfolds. */
+    /** The intro's Continue: the crystal goes to the middle of the gate and waits for its click. */
     public void introContinued(boolean dismissForever) {
         if (dismissForever) {
             CrystalVisualConfig.setOptimizerNoticeDismissed(true);
             CrystalVisualConfig.save();
         }
-        startSettle(System.nanoTime(), false);
+        showGate(System.nanoTime(), false);
     }
 
     public void popupClosed(boolean dismissForever) {
@@ -418,7 +456,7 @@ public final class CrystalTweaksScreen extends Screen {
         }
         for (AbstractWidget widget : list.widgets()) {
             widget.visible = false;
-            addRenderableWidget(widget);
+            addWidget(widget);
         }
         panel.setList(list, keepScroll);
     }
@@ -453,7 +491,7 @@ public final class CrystalTweaksScreen extends Screen {
         this.coreButton = list.cell(layerButton(Layer.CORE), (third + gap) * 2, width - (third + gap) * 2);
         list.row(control);
         int hexWidth = Math.min(70, width / 2);
-        this.layerHex = list.cell(new EditBox(this.font, 0, 0, hexWidth, control, Component.literal(this.spanish ? "Color hexadecimal" : "Hex colour")),
+        this.layerHex = list.cell(new HubEditBox(this.font, 0, 0, hexWidth, control, Component.literal(this.spanish ? "Color hexadecimal" : "Hex colour")),
                 0, hexWidth);
         this.layerHex.setMaxLength(7);
         this.layerHex.setResponder(this::onLayerHex);
@@ -539,7 +577,7 @@ public final class CrystalTweaksScreen extends Screen {
         if (look.customGlowColor) {
             list.row(control);
             int hexWidth = Math.min(70, width / 2);
-            this.glowHex = list.cell(new EditBox(this.font, 0, 0, hexWidth, control,
+            this.glowHex = list.cell(new HubEditBox(this.font, 0, 0, hexWidth, control,
                     Component.literal(this.spanish ? "Color de brillo hexadecimal" : "Glow hex colour")), 0, hexWidth);
             this.glowHex.setMaxLength(7);
             this.glowHex.setResponder(this::onGlowHex);
@@ -769,9 +807,10 @@ public final class CrystalTweaksScreen extends Screen {
     private void resetPanel(SidePanel panel) {
         CrystalAppearance defaults = CrystalVisualConfig.defaults(this.enemy);
         if (panel == this.leftPanel) {
-            visuals().outerColor = -1;
-            visuals().innerColor = -1;
-            visuals().coreColor = -1;
+            // Back to the shipped look: purple for your crystals, the plain texture for the enemy's.
+            visuals().outerColor = defaults.outerColor;
+            visuals().innerColor = defaults.innerColor;
+            visuals().coreColor = defaults.coreColor;
             visuals().rotationSpeedPercent = 100;
             visuals().floatingSpeedPercent = 100;
             commit();
@@ -819,6 +858,7 @@ public final class CrystalTweaksScreen extends Screen {
         RowList list = switch (this.drawerId) {
             case "sound" -> buildSound(width);
             case "tweaks" -> buildTweaks(width);
+            case "advanced" -> buildAdvanced(width);
             case "profile" -> buildProfile(width);
             default -> null;
         };
@@ -826,13 +866,13 @@ public final class CrystalTweaksScreen extends Screen {
             this.drawerList = list;
             for (AbstractWidget widget : list.widgets()) {
                 widget.visible = false;
-                addRenderableWidget(widget);
+                addWidget(widget);
                 this.drawerWidgets.add(widget);
             }
             list.setViewport(drawerViewport(currentDrawerTarget()));
             list.reveal(System.nanoTime(), 1);
         }
-        if (this.drawerId.equals("tweaks")) {
+        if (this.drawerId.equals("tweaks") || this.drawerId.equals("advanced")) {
             applyPauseReason();
         }
     }
@@ -841,13 +881,14 @@ public final class CrystalTweaksScreen extends Screen {
         return switch (id) {
             case "sound" -> 0.6F;
             case "tweaks" -> 0.64F;
+            case "advanced" -> 0.66F;
             case "profile" -> 0.46F;
             default -> 1.0F;
         };
     }
 
     private boolean drawerHidesCrystal() {
-        return this.drawerId.equals("kohs") || this.drawerId.equals("advanced");
+        return this.drawerId.equals("kohs") || this.drawerId.equals("soon");
     }
 
     /** The drawer's full size for the selected tab, open or not. */
@@ -872,6 +913,9 @@ public final class CrystalTweaksScreen extends Screen {
     private Rect crystalTarget() {
         if (this.phase == Phase.INTRO) {
             return this.overlays.introCrystal();
+        }
+        if (this.phase == Phase.GATE || this.phase == Phase.ENTER) {
+            return this.gate.crystalRect();
         }
         boolean open = currentTabs().open();
         if (open && drawerHidesCrystal()) {
@@ -970,7 +1014,7 @@ public final class CrystalTweaksScreen extends Screen {
             }).switchOf(CrystalVisualConfig::ghostCrystals));
         }
         list.row(control);
-        this.safeToggle = list.full(new HubButton(0, 0, 0, 0, Component.literal(this.spanish ? "Cristal seguro" : "Safe Crystal"), ignored -> {
+        this.safeToggle = list.full(new HubButton(0, 0, 0, 0, Component.literal(this.spanish ? "Evitar romper obsidiana" : "Don't break obsidian"), ignored -> {
             CrystalVisualConfig.setSafeCrystal(!CrystalVisualConfig.safeCrystal());
             commit();
         }).switchOf(CrystalVisualConfig::safeCrystal));
@@ -993,6 +1037,18 @@ public final class CrystalTweaksScreen extends Screen {
                         ObsidianDebounce.settingsChanged();
                     }, value -> (this.spanish ? "Tiempo: " : "Window: ") + debounceLabel(debounceStep(value))).onRelease(this::commit));
         }
+        list.space(1);
+        list.note(this.font, this.spanish
+                ? "Evitar romper obsidiana y el antirrebote filtran clics: envían menos acciones que Vanilla. Apágalos si tu servidor no permite filtros de entrada."
+                : "Don't break obsidian and the debounce filter clicks: they send fewer actions than Vanilla. Turn them off if your server forbids input filters.", 0);
+        return list;
+    }
+
+    /** Optimization, compatibility and Herzium: the tools behind the helpers. */
+    private RowList buildAdvanced(int width) {
+        int control = this.layout.controlHeight;
+        int indent = width >= 150 ? 9 : 5;
+        RowList list = new RowList(width, this.layout.rowGap);
         list.heading(this.spanish ? "Optimización" : "Optimization");
         list.row(control);
         HubButton forceOff = list.full(new HubButton(0, 0, 0, 0, Component.literal(this.spanish ? "Forzar apagado" : "Force off"), ignored -> {
@@ -1007,8 +1063,8 @@ public final class CrystalTweaksScreen extends Screen {
             applyPauseReason();
         }).switchOf(CrystalVisualConfig::forceOffOptimizations).style(HubButton.Style.DANGER));
         forceOff.setTooltip(Tooltip.create(Component.literal(this.spanish
-                ? "Apaga todas las optimizaciones de cristal de Crystal Tweaks: la rotura instantánea en pantalla, los cristales fantasma, Cristal seguro y el seguimiento de colocaciones. Todo queda como en Vanilla; colores, brillo, destellos y sonidos siguen igual."
-                : "Turns off every crystal optimization of Crystal Tweaks: the instant break on screen, ghost crystals, Safe Crystal and placement tracking. Everything behaves like Vanilla; colours, glow, flashes and sounds stay as they are.")));
+                ? "Apaga todas las optimizaciones de cristal de Crystal Tweaks: la rotura y la explosión instantáneas en pantalla, los cristales fantasma, Evitar romper obsidiana y el seguimiento de colocaciones. Todo queda como en Vanilla; colores, brillo, destellos y sonidos siguen igual."
+                : "Turns off every crystal optimization of Crystal Tweaks: the instant break and explosion on screen, ghost crystals, Don't break obsidian and placement tracking. Everything behaves like Vanilla; colours, glow, flashes and sounds stay as they are.")));
         list.row(control);
         HubButton benchmark = list.full(new HubButton(0, 0, 0, 0, Component.literal(this.spanish ? "Benchmark de optimizadores…" : "Optimizer benchmark…"),
                 ignored -> this.minecraft.setScreen(new CrystalBenchmarkScreen(this))).icon(HubOverlays::chartIcon));
@@ -1064,10 +1120,6 @@ public final class CrystalTweaksScreen extends Screen {
                     ? "Qué ranura gana si pulsas dos teclas de hotbar a la vez. Herzium: la última. Vanilla: la más alta. Vanilla invertido: la más baja. Cambia la ranura real que sostienes, así que el servidor lo ve; revisa sus normas."
                     : "Which slot wins when you press two hotbar keys at once. Herzium: the last one. Vanilla: the highest. Vanilla reversed: the lowest. It changes the slot you really hold, so the server sees it; check its rules.")));
         }
-        list.space(1);
-        list.note(this.font, this.spanish
-                ? "Cristal seguro y el antirrebote filtran clics: envían menos acciones que Vanilla. Apágalos si tu servidor no permite filtros de entrada."
-                : "Safe Crystal and the debounce filter clicks: they send fewer actions than Vanilla. Turn them off if your server forbids input filters.", 0);
         return list;
     }
 
@@ -1120,7 +1172,8 @@ public final class CrystalTweaksScreen extends Screen {
             this.rescanButton.setMessage(rescanMessage());
             this.rescanButton.active = !pending;
         }
-        if (this.drawerId.equals("tweaks") && CrystalOptimizerGuard.pauseReason() != this.shownPauseReason) {
+        if ((this.drawerId.equals("tweaks") || this.drawerId.equals("advanced"))
+                && CrystalOptimizerGuard.pauseReason() != this.shownPauseReason) {
             applyPauseReason();
         }
     }
@@ -1138,7 +1191,7 @@ public final class CrystalTweaksScreen extends Screen {
                     : "Draws a stand-in crystal while the server's real one is in flight, so placing does not depend on your ping. Visual only: it is not an entity, cannot be hit and changes no packet."));
         }
         if (this.safeToggle != null) {
-            this.safeToggle.setMessage(Component.literal((this.spanish ? "Cristal seguro" : "Safe Crystal") + paused));
+            this.safeToggle.setMessage(Component.literal((this.spanish ? "Evitar romper obsidiana" : "Don't break obsidian") + paused));
             this.safeToggle.active = allowed;
             this.safeToggle.setTooltip(helperTooltip(this.spanish
                     ? "Evita minar la obsidiana sobre la que pones cristales mientras sostienes uno. Envía menos acciones que Vanilla; apágalo si tu servidor no permite filtros de entrada."
@@ -1148,7 +1201,7 @@ public final class CrystalTweaksScreen extends Screen {
 
     private Tooltip helperTooltip(String description) {
         String reason = switch (CrystalOptimizerGuard.pauseReason()) {
-            case FORCED_OFF -> this.spanish ? "activaste «Forzar apagado» en esta pestaña." : "you turned on \"Force off\" in this tab.";
+            case FORCED_OFF -> this.spanish ? "activaste «Forzar apagado» en la pestaña Avanzado." : "you turned on \"Force off\" in the Advanced tab.";
             case CONFLICT -> this.spanish
                     ? CrystalOptimizerGuard.conflictingModName() + " ya optimiza cristales y dos optimizadores sobre el mismo clic se pelean. Quítalo y pulsa «Volver a comprobar»."
                     : CrystalOptimizerGuard.conflictingModName() + " already optimizes crystals, and two optimizers on the same click fight. Remove it and press \"Re-check\".";
@@ -1189,8 +1242,9 @@ public final class CrystalTweaksScreen extends Screen {
         HubDraw.isolate(graphics);
 
         boolean main = this.phase == Phase.MAIN || this.phase == Phase.SETTLE;
+        boolean gateUp = this.phase == Phase.INTRO || this.phase == Phase.GATE || this.phase == Phase.ENTER;
         boolean interactive = this.phase == Phase.MAIN && !this.overlays.blocking();
-        float chrome = this.phase == Phase.INTRO ? 0.0F
+        float chrome = gateUp ? 0.0F
                 : this.phase == Phase.SETTLE ? HubMotion.easeOutCubic(HubMotion.progress(now - this.phaseAt - 380_000_000L, 360_000_000L)) : 1.0F;
         if (this.phase == Phase.TRANSITION) {
             chrome = this.overlays.transitionLanded(now) ? 1.0F : 0.0F;
@@ -1198,7 +1252,7 @@ public final class CrystalTweaksScreen extends Screen {
         drawHeader(graphics, now, seconds, chrome, skin);
         this.switchButton.visible = chrome > 0.5F && (this.phase == Phase.MAIN || this.phase == Phase.SETTLE);
         this.switchButton.setAlpha(chrome);
-        this.doneButton.visible = this.phase != Phase.INTRO;
+        this.doneButton.visible = !gateUp;
         this.doneButton.setAlpha(Math.max(0.35F, chrome));
 
         // The drawer's height follows the carousel.
@@ -1209,6 +1263,11 @@ public final class CrystalTweaksScreen extends Screen {
         }
         if (this.phase != Phase.INTRO) {
             this.stage.setTarget(crystalTarget(), false);
+        }
+        // The stone wall: behind the intro and the gate, and still breaking while the menu comes up.
+        if (gateUp || (this.gate.entering() && !this.gate.finished(now))) {
+            this.gate.renderBackdrop(graphics, now, look.haloColor(), glowPower(look), this.stage.centerX(), this.stage.centerY(),
+                    this.stage.size(), 1.0F);
         }
 
         // The panels, their rows and the drawer: placed first, so their widgets are where they are drawn.
@@ -1233,9 +1292,14 @@ public final class CrystalTweaksScreen extends Screen {
         if (this.phase == Phase.INTRO) {
             this.overlays.renderIntroBehind(graphics, now, look.haloColor(), this.stage.centerX(), this.stage.centerY(), this.stage.size());
         }
-        if (main || this.phase == Phase.INTRO || this.overlays.transitionLanded(now)) {
-            float stageAlpha = this.phase == Phase.TRANSITION ? 1.0F : 1.0F;
-            this.stage.render(graphics, this.font, now, frame, look, stageAlpha, mouseX, mouseY, this.phase == Phase.MAIN);
+        if (main || gateUp || this.overlays.transitionLanded(now)) {
+            this.stage.render(graphics, this.font, now, frame, look, 1.0F, mouseX, mouseY, this.phase == Phase.MAIN);
+        }
+        if (this.phase == Phase.GATE || this.phase == Phase.ENTER) {
+            Rect at = this.gate.crystalRect();
+            boolean onCrystal = this.phase == Phase.GATE && !this.overlays.blocking() && this.stage.contains(mouseX, mouseY);
+            this.gate.renderPrompt(graphics, this.font, now, frame, at.centerX(), Math.min(this.height - 22, at.bottom() + 6), 1.0F,
+                    onCrystal);
         } else if (this.phase == Phase.TRANSITION) {
             // The old crystal's explosion keeps playing while the menu breaks.
             this.stage.render(graphics, this.font, now, frame, look, 1.0F, -1, -1, false);
@@ -1243,9 +1307,11 @@ public final class CrystalTweaksScreen extends Screen {
         if (main || this.overlays.transitionLanded(now)) {
             int originX = this.stage.centerX();
             int originY = this.stage.centerY();
+            int pointerX = interactive ? mouseX : -10_000;
+            int pointerY = interactive ? mouseY : -10_000;
             if (this.layout.wide) {
-                this.leftPanel.render(graphics, this.font, now, frame, mouseX, mouseY, originX, originY);
-                this.rightPanel.render(graphics, this.font, now, frame, mouseX, mouseY, originX, originY);
+                this.leftPanel.render(graphics, this.font, now, frame, pointerX, pointerY, originX, originY);
+                this.rightPanel.render(graphics, this.font, now, frame, pointerX, pointerY, originX, originY);
                 drawPanelIcons(graphics, now, look);
             }
             drawDrawer(graphics, drawer, now, frame, mouseX, mouseY, chrome, look);
@@ -1259,7 +1325,7 @@ public final class CrystalTweaksScreen extends Screen {
                     Rect body = this.layout.body;
                     graphics.fill(body.x(), body.y(), body.right(), body.bottom(),
                             CrystalTheme.withAlpha(0x05020A, Math.round(150 * open.openProgress(now))));
-                    open.render(graphics, this.font, now, frame, mouseX, mouseY, originX, originY);
+                    open.render(graphics, this.font, now, frame, pointerX, pointerY, originX, originY);
                     drawPanelIcons(graphics, now, look);
                 }
             }
@@ -1287,10 +1353,33 @@ public final class CrystalTweaksScreen extends Screen {
         } else if (narrowOpen && this.phase == Phase.MAIN && !CrystalVisualConfig.scrollHintDone()) {
             (this.narrow == Narrow.LEFT ? this.leftPanel : this.rightPanel).renderScrollHint(graphics, this.font, now);
         }
+        // The blast and the pieces of the gate fall in front of the menu as it comes up.
+        this.gate.renderBlast(graphics, now, look.haloColor());
+        this.gate.renderDebris(graphics, now);
         this.overlays.render(graphics, this.font, now, frame, mouseX, mouseY, this.width, this.height);
         drawStatusTooltip(graphics, mouseX, mouseY);
         drawHandleTooltip(graphics, mouseX, mouseY);
         drawResetTooltip(graphics, mouseX, mouseY);
+        drawFoldTooltip(graphics, mouseX, mouseY);
+    }
+
+    /** On the open tab: a second click folds it and gives the crystal the middle back. */
+    private void drawFoldTooltip(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+        if (this.overlays.blocking() || this.phase != Phase.MAIN || (!this.layout.wide && this.narrow != Narrow.NONE)) {
+            return;
+        }
+        String text = null;
+        if (currentTabs().openTabBox(this.font).contains(mouseX, mouseY)) {
+            text = this.spanish ? "Haz clic otra vez: el cristal vuelve al centro" : "Click again: the crystal goes back to the middle";
+        } else {
+            // The tabs beside the open one show only their icons: their names on hover.
+            text = currentTabs().hoveredLabel(this.font, mouseX, mouseY);
+        }
+        if (text != null) {
+            HubDraw.isolate(graphics);
+            CrystalUi.tooltip(graphics, this.font, CrystalUi.wrap(this.font, text, Math.min(200, this.width - 30)), mouseX, mouseY,
+                    this.width, this.height);
+        }
     }
 
     /** What the reset buttons do, since a symbol alone does not say it. */
@@ -1317,8 +1406,12 @@ public final class CrystalTweaksScreen extends Screen {
 
     /** The phase machine: settle into the main menu, finish transitions, play the intro out. */
     private void advance(long now) {
-        if (this.phase == Phase.INTRO && this.overlays.introGone(now)) {
+        if (this.overlays.introGone(now)) {
             this.overlays.clearIntro();
+        }
+        if (this.phase == Phase.ENTER && this.gate.opened(now)) {
+            // The first blocks have burst: the crystal comes back on the stage and the menu unfolds.
+            startSettle(now, true);
         }
         if (this.phase == Phase.SETTLE && now - this.phaseAt >= SETTLE_NANOS) {
             this.phase = Phase.MAIN;
@@ -1326,6 +1419,11 @@ public final class CrystalTweaksScreen extends Screen {
         if (this.phase == Phase.TRANSITION) {
             this.overlays.tickTransition(now);
         }
+    }
+
+    /** How strongly the glow lights the gate's stone: 0 with the glow off, 1 from 150% power up. */
+    private static float glowPower(CrystalAppearance look) {
+        return look.glowActive() ? Mth.clamp(look.glowPowerPercent / 150.0F, 0.15F, 1.0F) : 0.0F;
     }
 
     /** How much of the glow lights the side panels: a little always, more while it is being changed. */
@@ -1377,7 +1475,8 @@ public final class CrystalTweaksScreen extends Screen {
         }
         boolean showTitle = titleX >= left && titleX + titleWidth <= chipRight - chipWidth - 4;
         if (showTitle) {
-            CrystalUi.crystalIcon(graphics, titleX - 9, titleY + 4, 9, seconds, alpha);
+            // The player's own crystal before the title, turning in place.
+            this.titleCrystal.draw(graphics, titleX - 15, titleY - 4, 14, MiniCrystal.spinning(visuals()), now, 0.2F, 1.5F);
             CrystalUi.label(graphics, this.font, title, titleX, titleY, CrystalTheme.fade(skin.title, alpha), true);
             CrystalUi.label(graphics, this.font, brand, titleX + this.font.width(title), titleY, CrystalTheme.fade(skin.muted, alpha));
             CrystalUi.glint(graphics, this.font, title + brand, titleX, titleY, seconds + 1.3D, alpha);
@@ -1468,12 +1567,14 @@ public final class CrystalTweaksScreen extends Screen {
                     skin.border, alpha * Math.min(1.0F, open * 1.4F));
         }
         if (this.drawerList != null) {
-            this.drawerList.render(graphics, this.font, now, alpha * open, skin.accent, skin.muted, skin.border);
+            boolean pointer = this.phase == Phase.MAIN && !this.overlays.blocking();
+            this.drawerList.render(graphics, this.font, now, alpha * open, skin.accent, skin.muted, skin.border,
+                    pointer ? mouseX : -10_000, pointer ? mouseY : -10_000, 0.0F);
         } else if (this.drawerId.equals("kohs")) {
             graphics.enableScissor(drawer.x(), drawer.y(), drawer.right(), drawer.bottom());
             this.overlays.renderKohs(graphics, this.font, drawer, mouseX, mouseY, alpha * open, frame);
             graphics.disableScissor();
-        } else if (this.drawerId.equals("advanced")) {
+        } else if (this.drawerId.equals("soon")) {
             graphics.enableScissor(drawer.x(), drawer.y(), drawer.right(), drawer.bottom());
             this.overlays.renderComingSoon(graphics, this.font, drawer, now, mouseX, mouseY, look, alpha * open);
             graphics.disableScissor();
@@ -1525,9 +1626,10 @@ public final class CrystalTweaksScreen extends Screen {
         CrystalUi.label(graphics, this.font, label, x + iconSize + 4, box.centerY() - 4,
                 CrystalTheme.fade(CrystalTheme.lerp(0xFFFFD5E0, 0xFFFFFFFF, this.practiceHover), fade), true);
         for (int side = 0; side < 2; side++) {
-            float bob = (float) Math.sin(seconds * 2.4D + side * 1.7D) * 1.5F;
-            int crystalX = side == 0 ? box.x() + 8 : box.right() - 8;
-            CrystalUi.crystalIcon(graphics, crystalX, Math.round(box.centerY() + bob), 7, seconds + side, fade);
+            float bob = (float) Math.sin(seconds * 2.4D + side * 1.7D) * 1.0F;
+            int crystalX = side == 0 ? box.x() + 9 : box.right() - 9;
+            HubDraw.icon(graphics, HubDraw.vanilla("textures/item/end_crystal.png"), crystalX, box.centerY() + bob,
+                    Math.min(10, box.height() - 6), 0.0F, CrystalTheme.fade(0xFFFFFFFF, fade));
         }
     }
 
@@ -1580,6 +1682,12 @@ public final class CrystalTweaksScreen extends Screen {
         double mouseY = event.y();
         if (this.overlays.blocking()) {
             this.overlays.mouseClicked(mouseX, mouseY);
+            return true;
+        }
+        if (this.phase == Phase.GATE) {
+            if (this.stage.contains(mouseX, mouseY)) {
+                beginEnter(System.nanoTime());
+            }
             return true;
         }
         if (this.phase != Phase.MAIN) {
@@ -1639,7 +1747,7 @@ public final class CrystalTweaksScreen extends Screen {
                 if (this.drawerId.equals("kohs") && this.overlays.kohsClicked(this.font, drawer, mouseX, mouseY)) {
                     return true;
                 }
-                if (this.drawerId.equals("advanced") && this.overlays.comingSoonClicked(mouseX, mouseY)) {
+                if (this.drawerId.equals("soon") && this.overlays.comingSoonClicked(mouseX, mouseY)) {
                     return true;
                 }
             }
@@ -1721,6 +1829,11 @@ public final class CrystalTweaksScreen extends Screen {
             if (event.isEscape() || event.isConfirmation()) {
                 this.overlays.closeTopmost();
             }
+            return true;
+        }
+        if (this.phase == Phase.GATE && event.isConfirmation()) {
+            // Enter or Space opens the gate as the click does.
+            beginEnter(System.nanoTime());
             return true;
         }
         if (event.isEscape() && !this.layout.wide && this.narrow != Narrow.NONE) {

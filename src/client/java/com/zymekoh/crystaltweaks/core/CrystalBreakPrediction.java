@@ -45,6 +45,15 @@ public final class CrystalBreakPrediction {
 
     private static final Map<Integer, Long> HIDDEN = new ConcurrentHashMap<>();
 
+    /**
+     * The crystals this client knows of, by entity id, kept from the client thread so the network
+     * thread can tell a crystal's removal from any other entity's without touching the world.
+     */
+    private static final java.util.Set<Integer> CRYSTALS = ConcurrentHashMap.newKeySet();
+
+    /** How long a crystal the server removed stays undrawn before the world catches up, at most. */
+    private static final long REMOVAL_HIDE_NANOS = 1_000_000_000L;
+
     /** Last place-to-appear round trip the placement observer measured, or -1 when unknown. */
     private static volatile long measuredLatencyMillis = -1L;
 
@@ -143,6 +152,33 @@ public final class CrystalBreakPrediction {
     public static void forget(Entity entity) {
         if (entity instanceof EndCrystal) {
             HIDDEN.remove(entity.getId());
+            CRYSTALS.remove(entity.getId());
+        }
+    }
+
+    /** A crystal entered the client world: its id is known to the removal reader. */
+    public static void track(Entity entity) {
+        if (entity instanceof EndCrystal) {
+            CRYSTALS.add(entity.getId());
+        }
+    }
+
+    /**
+     * The removal reader. Runs on the network thread the moment the server's removal arrives, before
+     * the client thread gets to it: a crystal the server has removed, anyone's, stops being drawn at
+     * once instead of on the frame after next. The entity itself is left to the client thread, which
+     * removes it as Vanilla does; this only marks it undrawn, the same mark a predicted break uses.
+     */
+    public static void serverRemoving(it.unimi.dsi.fastutil.ints.IntList ids) {
+        if (!CrystalOptimizerGuard.optimizationsAllowed() || CRYSTALS.isEmpty()) {
+            return;
+        }
+        long deadline = System.nanoTime() + REMOVAL_HIDE_NANOS;
+        for (int index = 0; index < ids.size(); index++) {
+            int id = ids.getInt(index);
+            if (CRYSTALS.contains(id) && HIDDEN.size() < MAX_TRACKED * 4) {
+                HIDDEN.merge(id, deadline, Math::max);
+            }
         }
     }
 
@@ -155,6 +191,8 @@ public final class CrystalBreakPrediction {
 
     public static void reset() {
         HIDDEN.clear();
+        CRYSTALS.clear();
         measuredLatencyMillis = -1L;
+        InstantExplosion.reset();
     }
 }

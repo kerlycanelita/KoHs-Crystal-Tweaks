@@ -23,6 +23,10 @@ public final class HubOverlays {
     private static final Identifier MUSIC_DISC = HubDraw.vanilla("textures/item/music_disc_pigstep.png");
     private static final Identifier END_CRYSTAL = HubDraw.vanilla("textures/item/end_crystal.png");
     private static final Identifier PICKAXE = HubDraw.vanilla("textures/item/netherite_pickaxe.png");
+    private static final Identifier COMPARATOR = HubDraw.vanilla("textures/item/comparator.png");
+    private static final Identifier NOTE_BLOCK = HubDraw.vanilla("textures/block/note_block.png");
+    private static final Identifier CLOCK = HubDraw.vanilla("textures/item/clock_00.png");
+    private static final Identifier OBSERVER = HubDraw.vanilla("textures/block/observer_front.png");
 
     private final CrystalTweaksScreen screen;
     private final boolean spanish;
@@ -205,7 +209,7 @@ public final class HubOverlays {
     public void drawerOpened(String id) {
         if (id.equals("kohs")) {
             this.kohs.enter();
-        } else if (id.equals("advanced")) {
+        } else if (id.equals("soon")) {
             this.comingSoon.enter();
         }
     }
@@ -236,30 +240,25 @@ public final class HubOverlays {
     }
 
     /** A music disc turning, with a note rising off it now and then. */
+    /** The Pigstep disc, turning as it would in a jukebox. Inside its square: nothing floats out. */
     public static void soundIcon(GuiGraphicsExtractor graphics, int x, int y, int size, int color) {
         double seconds = System.nanoTime() / 1_000_000_000.0D;
         HubDraw.icon(graphics, MUSIC_DISC, x + size / 2.0F, y + size / 2.0F, size, (float) (seconds * 2.2D), whiteWith(color));
-        double rise = (seconds * 0.8D) % 1.0D;
-        int noteX = x + size - 2;
-        int noteY = y + 1 - (int) Math.round(rise * 4.0D);
-        int alpha = Math.round(255 * (1.0F - (float) rise) * ((color >>> 24) / 255.0F));
-        noteIcon(graphics, noteX - 2, noteY - 2, 5, CrystalTheme.withAlpha(0xFF8AD8, alpha));
     }
 
-    /** A small eighth note in pixels. */
+    /** The note block, for the custom sound. */
     public static void noteIcon(GuiGraphicsExtractor graphics, int x, int y, int size, int color) {
-        int s = Math.max(4, size);
-        int stemX = x + s * 3 / 5;
-        graphics.fill(stemX, y, stemX + 1, y + s - 1, color);
-        graphics.fill(stemX, y, stemX + Math.max(2, s / 3), y + 1, color);
-        graphics.fill(x + 1, y + s - 3, stemX + 1, y + s, color);
+        HubDraw.icon(graphics, NOTE_BLOCK, x + size / 2.0F, y + size / 2.0F, size, 0.0F, whiteWith(color));
     }
 
-    /** The End Crystal item, bobbing. */
+    /** The End Crystal item. */
     public static void tweaksIcon(GuiGraphicsExtractor graphics, int x, int y, int size, int color) {
-        double seconds = System.nanoTime() / 1_000_000_000.0D;
-        float bob = (float) Math.sin(seconds * 3.0D) * 0.8F;
-        HubDraw.icon(graphics, END_CRYSTAL, x + size / 2.0F, y + size / 2.0F + bob, size, 0.0F, whiteWith(color));
+        HubDraw.icon(graphics, END_CRYSTAL, x + size / 2.0F, y + size / 2.0F, size, 0.0F, whiteWith(color));
+    }
+
+    /** A redstone comparator: the tools that measure and compare. */
+    public static void toolsIcon(GuiGraphicsExtractor graphics, int x, int y, int size, int color) {
+        HubDraw.icon(graphics, COMPARATOR, x + size / 2.0F, y + size / 2.0F, size, 0.0F, whiteWith(color));
     }
 
     public static void kohsIcon(GuiGraphicsExtractor graphics, int x, int y, int size, int color) {
@@ -278,39 +277,23 @@ public final class HubOverlays {
         HubDraw.icon(graphics, PICKAXE, x + size / 2.0F, y + size / 2.0F, size, rock, whiteWith(color));
     }
 
+    /** The End Crystal item in red: someone else's crystals. */
     public static void enemyCrystalIcon(GuiGraphicsExtractor graphics, int x, int y, int size, int color) {
-        crystalGlyph(graphics, x, y, size, 0xFFFF4A5E, 0xFFFFC2C8, color);
+        HubDraw.icon(graphics, END_CRYSTAL, x + size / 2.0F, y + size / 2.0F, size, 0.0F, (color & 0xFF000000) | 0xFF8A8A);
     }
 
+    /** The End Crystal item as it is: your own crystals. */
     public static void ownCrystalIcon(GuiGraphicsExtractor graphics, int x, int y, int size, int color) {
-        crystalGlyph(graphics, x, y, size, 0xFFB064F0, 0xFF86ECFF, color);
+        HubDraw.icon(graphics, END_CRYSTAL, x + size / 2.0F, y + size / 2.0F, size, 0.0F, whiteWith(color));
     }
 
-    private static void crystalGlyph(GuiGraphicsExtractor graphics, int x, int y, int size, int outer, int inner, int color) {
-        float alpha = (color >>> 24) / 255.0F;
-        double seconds = System.nanoTime() / 1_000_000_000.0D;
-        float pulse = HubMotion.breathe(seconds, 1.4D);
-        int half = Math.max(2, size / 2);
-        int centerX = x + half;
-        int centerY = y + half;
-        int body = CrystalTheme.fade(CrystalTheme.lerp(outer, 0xFFFFFFFF, 0.15F * pulse), alpha);
-        for (int row = -half; row <= half; row++) {
-            int span = half - Math.abs(row);
-            graphics.fill(centerX - span, centerY + row, centerX + span + 1, centerY + row + 1, body);
-        }
-        int core = Math.max(1, half / 2);
-        int coreColor = CrystalTheme.fade(inner, alpha);
-        for (int row = -core; row <= core; row++) {
-            int span = core - Math.abs(row);
-            graphics.fill(centerX - span, centerY + row, centerX + span + 1, centerY + row + 1, coreColor);
-        }
-    }
-
+    /** A clock: the benchmark times your crystals. */
     public static void chartIcon(GuiGraphicsExtractor graphics, int x, int y, int size, int color) {
-        CrystalUi.icon(graphics, PurpleCloseButton.Icon.CHART, x + (size - 7) / 2, y + (size - 7) / 2, color);
+        HubDraw.icon(graphics, CLOCK, x + size / 2.0F, y + size / 2.0F, size, 0.0F, whiteWith(color));
     }
 
+    /** An observer's face: the Conflict Monitor watches the other mods. */
     public static void gearIcon(GuiGraphicsExtractor graphics, int x, int y, int size, int color) {
-        CrystalUi.icon(graphics, PurpleCloseButton.Icon.GEAR, x + (size - 7) / 2, y + (size - 7) / 2, color);
+        HubDraw.icon(graphics, OBSERVER, x + size / 2.0F, y + size / 2.0F, size, 0.0F, whiteWith(color));
     }
 }

@@ -20,7 +20,7 @@ import net.minecraft.util.Mth;
  * panel is "lit": it takes on the glow colour with its panel. Every animation runs inside the
  * widget's own bounds, so the hitbox is always what is drawn.
  */
-public final class HubButton extends AbstractButton {
+public final class HubButton extends AbstractButton implements Clippable {
     /** Draws an icon in a square of {@code size} pixels at (x, y). */
     public interface Icon {
         void draw(GuiGraphicsExtractor graphics, int x, int y, int size, int color);
@@ -213,5 +213,17 @@ public final class HubButton extends AbstractButton {
     @Override
     public void updateWidgetNarration(NarrationElementOutput output) {
         this.defaultButtonNarrationText(output);
+    }
+
+    private HubLayout.Rect clip = HubLayout.Rect.EMPTY;
+
+    @Override
+    public void clipTo(HubLayout.Rect area) {
+        this.clip = area;
+    }
+
+    @Override
+    public boolean isMouseOver(double mouseX, double mouseY) {
+        return super.isMouseOver(mouseX, mouseY) && Clippable.inside(this.clip, mouseX, mouseY);
     }
 }

@@ -17,7 +17,7 @@ import net.minecraft.util.Mth;
  * so it is drawn in a GUI stratum of its own: its columns would otherwise make every element drawn
  * after it test against each of them.
  */
-public final class HubColorPicker extends AbstractWidget {
+public final class HubColorPicker extends AbstractWidget implements Clippable {
     private static final int[] HUE_STOPS = {0xFFFF0000, 0xFFFFFF00, 0xFF00FF00, 0xFF00FFFF, 0xFF0000FF, 0xFFFF00FF, 0xFFFF0000};
 
     private final IntConsumer onChange;
@@ -209,5 +209,17 @@ public final class HubColorPicker extends AbstractWidget {
             }
         }
         return 0xFF000000 | Math.round(red * 255.0F) << 16 | Math.round(green * 255.0F) << 8 | Math.round(blue * 255.0F);
+    }
+
+    private HubLayout.Rect clip = HubLayout.Rect.EMPTY;
+
+    @Override
+    public void clipTo(HubLayout.Rect area) {
+        this.clip = area;
+    }
+
+    @Override
+    public boolean isMouseOver(double mouseX, double mouseY) {
+        return super.isMouseOver(mouseX, mouseY) && Clippable.inside(this.clip, mouseX, mouseY);
     }
 }

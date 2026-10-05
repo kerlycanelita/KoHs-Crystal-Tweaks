@@ -13,8 +13,10 @@ import net.minecraft.util.FormattedCharSequence;
 /**
  * The window that drops in the first time the Crystal Tweaks tab is opened in a session: any
  * crystal optimizer can be used alongside, and Crystal Tweaks steps aside for it on its own. Above
- * the words, two crystals stand for the two mods, with light running between them toward whichever
- * one is driving crystals right now; under them, what the compatibility check actually found.
+ * the words stand the two mods by their own icons, Crystal Tweaks' breathing in its glow and the
+ * detected optimizer's as its JAR ships it, with light running toward whichever one is driving
+ * crystals right now; under them, what the compatibility check actually found. The title carries
+ * the player's crystal, turning in place.
  */
 final class OptimizerPopup {
     enum Action { NONE, CLOSE, DISMISS }
@@ -25,7 +27,11 @@ final class OptimizerPopup {
     private final boolean spanish;
     private final OverlayButton dismiss;
     private final OverlayButton close;
+    private static final net.minecraft.resources.Identifier OWN_ICON = HubDraw.own("icon.png");
+    private static final net.minecraft.resources.Identifier END_CRYSTAL = HubDraw.vanilla("textures/item/end_crystal.png");
+
     private final long shownAt = System.nanoTime();
+    private final MiniCrystal titleCrystal = new MiniCrystal(0.15F);
     private long leavingAt = Long.MIN_VALUE;
     private Rect card = Rect.EMPTY;
     private final List<FormattedCharSequence> lines = new ArrayList<>();
@@ -127,13 +133,15 @@ final class OptimizerPopup {
         HubDraw.halo(graphics, card.x(), card.y(), card.width(), card.height(), skin.accent, 4, 0.35F * fade);
         HubDraw.glass(graphics, card.x(), card.y(), card.width(), card.height(), 0xF01B0928, 0xF00A0310, skin.border, fade);
         CrystalUi.comets(graphics, card.x(), card.y(), card.width(), card.height(), seconds, skin.accentBright);
-        CrystalUi.crystalIcon(graphics, card.x() + 14, card.y() + 12, 9, seconds, fade);
+        com.zymekoh.crystaltweaks.client.CrystalAppearance look = MiniCrystal.spinning(
+                com.zymekoh.crystaltweaks.client.CrystalVisualConfig.visuals(false));
+        this.titleCrystal.draw(graphics, card.x() + 5, card.y() + 3, 18, look, now, 0.2F, 1.5F);
         CrystalUi.label(graphics, font, HubDraw.fit(font, title(), card.width() - 34), card.x() + 24, card.y() + 8,
                 CrystalTheme.fade(skin.title, fade), true);
         graphics.fill(card.x() + 10, card.y() + 21, card.right() - 10, card.y() + 22, CrystalTheme.fade(CrystalTheme.withAlpha(skin.border, 120), fade));
         int textTop = this.textTop + offset;
         if (textTop - card.y() > 30) {
-            drawHandOver(graphics, font, card, card.y() + 24, seconds, fade, skin);
+            drawHandOver(graphics, font, card, card.y() + 24, seconds, fade, skin, look.haloColor());
         }
         int lineY = textTop;
         for (FormattedCharSequence line : this.lines) {
@@ -170,14 +178,35 @@ final class OptimizerPopup {
         HubDraw.isolate(graphics);
     }
 
-    /** Two crystals, Crystal Tweaks and "an optimizer", with light running to whichever drives. */
-    private void drawHandOver(GuiGraphicsExtractor graphics, Font font, Rect card, int top, double seconds, float fade, HubSkin skin) {
+    /**
+     * The two mods by their own icons, with light running to whichever drives: Crystal Tweaks'
+     * breathing in its glow, the detected optimizer's as its JAR ships it, or a grey crystal for
+     * "any optimizer" when none is installed.
+     */
+    private void drawHandOver(GuiGraphicsExtractor graphics, Font font, Rect card, int top, double seconds, float fade, HubSkin skin,
+            int halo) {
         boolean other = CrystalOptimizerGuard.conflictDetected();
         int leftX = card.x() + card.width() / 2 - 60;
         int rightX = card.x() + card.width() / 2 + 60;
         int y = top + 12;
-        CrystalUi.crystalIcon(graphics, leftX, y, 13, seconds, fade * (other ? 0.45F : 1.0F));
-        CrystalUi.crystalIcon(graphics, rightX, y, 13, seconds + 1.1D, fade * (other ? 1.0F : 0.45F));
+        float breath = HubMotion.breathe(seconds, 2.2D);
+        float oursFade = fade * (other ? 0.5F : 1.0F);
+        HubDraw.isolate(graphics);
+        HubDraw.glowDisc(graphics, leftX, y, 13, halo, (0.25F + 0.3F * breath) * oursFade);
+        HubDraw.texture(graphics, OWN_ICON, 256, 256, leftX, y, 18 + 1.6F * breath, 18 + 1.6F * breath,
+                (float) Math.sin(seconds * 1.3D) * 0.06F, CrystalTheme.fade(0xFFFFFFFF, oursFade));
+        float theirsFade = fade * (other ? 1.0F : 0.55F);
+        java.util.Optional<com.zymekoh.crystaltweaks.client.ModIcons.Icon> icon = other
+                ? com.zymekoh.crystaltweaks.client.ModIcons.of(CrystalOptimizerGuard.conflictingModId()) : java.util.Optional.empty();
+        if (icon.isPresent()) {
+            com.zymekoh.crystaltweaks.client.ModIcons.Icon found = icon.get();
+            float scale = 18.0F / Math.max(found.width(), found.height());
+            HubDraw.texture(graphics, found.texture(), found.width(), found.height(), rightX, y, found.width() * scale,
+                    found.height() * scale, 0.0F, CrystalTheme.fade(0xFFFFFFFF, theirsFade));
+        } else {
+            HubDraw.icon(graphics, END_CRYSTAL, rightX, y, 14, 0.0F, CrystalTheme.fade(other ? 0xFFFFFFFF : 0xFF9C94A8, theirsFade));
+        }
+        HubDraw.isolate(graphics);
         for (int dot = 0; dot < 6; dot++) {
             double travel = (seconds * 0.8D + dot / 6.0D) % 1.0D;
             if (!other) {

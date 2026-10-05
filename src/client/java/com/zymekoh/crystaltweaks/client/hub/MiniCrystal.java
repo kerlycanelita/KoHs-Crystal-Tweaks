@@ -48,6 +48,16 @@ public final class MiniCrystal {
                 x + size, y + size);
     }
 
+    /** The player's own look, turning in place: for icons, where a bobbing crystal would leave its square. */
+    public static CrystalAppearance spinning(CrystalAppearance base) {
+        CrystalAppearance look = base.copy();
+        look.rotationSpeedPercent = Math.max(80, look.rotationSpeedPercent);
+        look.floatingSpeedPercent = 0;
+        look.glowReflectionsPercent = 0;
+        look.flashEnabled = false;
+        return look;
+    }
+
     /** A look whose three layers run through the hues, each a third of the wheel from the others. */
     public static CrystalAppearance rainbow(long now, boolean glow, int haloColor) {
         CrystalAppearance look = new CrystalAppearance();
@@ -56,7 +66,8 @@ public final class MiniCrystal {
         look.innerColor = HubColorPicker.hsvToArgb(hue + 0.33F, 0.55F, 1.0F);
         look.coreColor = HubColorPicker.hsvToArgb(hue + 0.66F, 0.7F, 1.0F);
         look.rotationSpeedPercent = 160;
-        look.floatingSpeedPercent = 60;
+        // Icons turn in place: a crystal that bobs climbs out of its square.
+        look.floatingSpeedPercent = 0;
         look.glowEnabled = glow;
         look.glowPowerPercent = 85;
         look.glowReflectionsPercent = 0;

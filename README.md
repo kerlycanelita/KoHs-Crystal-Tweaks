@@ -50,14 +50,15 @@ Crystal Tweaks brings End Crystal visual and sound controls into one animated co
 - Separate colors, glow, and animation speeds for crystals that were not placed by you (with approximate identification).
 - Rotation and floating speed controls from `0%` to `300%`.
 - Custom local explosion sounds with volume and playback-speed controls.
-- A settings screen around a live crystal: colours on the left, glow on the right, scrolling tabs above (Sound, Crystal Tweaks, KoHs), a red menu of its own for enemy crystals, an optimizer status chip, and a preview that explodes with your flash and sound when you click it.
+- A settings screen around a live crystal, entered through a gate of stone its glow lights (click the crystal and the stone turns to obsidian, bursts and rains away): colours on the left, glow on the right, scrolling tabs above (Sound, Crystal Tweaks, Advanced, KoHs) with the game's own items as icons, a red menu of its own for enemy crystals, an optimizer status chip, and a preview that explodes with your flash and sound when you click it.
 - Automatic optimizer conflict handling: interaction helpers step aside while visuals, sounds, and the preview stay active.
-- Safe Crystal (switchable), optional ghost crystals (off by default), and a local Conflict Monitor.
+- Don't break obsidian (switchable; formerly Safe Crystal), optional ghost crystals (off by default), and a local Conflict Monitor.
+- Only real crystal optimizers pause the optimization: crystal glows, skins, spins, protections and counters never do.
 - Crystal Practice (experimental): a singleplayer world against a bot that plays real crystal PvP techniques by difficulty (hit-crystal, d-tap, safe and double anchors, butterfly and more, listed with how each works), your own kit arranged in a kit editor with presets modelled on MCTiers, MCPVP and PVPHQ, a Knockback I or II sword, your choice of totems, and a netherite flat, a hole arena or a natural meadow in eight biomes.
 - Spanish localization for Minecraft language codes beginning with `es`; English for every other locale.
 - Optional Mod Menu integration.
 
-Crystal Tweaks optimizes the client only: a crystal you break disappears on your screen straight away, but what reaches the server is not sped up. For that, Marlow's Crystal Optimizer is recommended (check your server's rules); with it installed, Crystal Tweaks turns all of its own optimizations off.
+Crystal Tweaks optimizes the client only: a crystal you break disappears on your screen straight away and its explosion plays at the hit, and a crystal the server removes stops being drawn the moment the removal arrives; what reaches the server is not sped up. For that, Marlow's Crystal Optimizer is recommended (check your server's rules); with it installed, Crystal Tweaks turns all of its own optimizations off.
 
 See the [Crystal Tweaks Wiki](docs/WIKI.md) for installation, configuration, preview controls, compatibility notes, and troubleshooting.
 
@@ -92,12 +93,12 @@ Server rules differ. Review the rules of every multiplayer server and obtain sta
 Crystal Tweaks never fabricates, delays, reorders or duplicates a gameplay packet, and never changes
 reach, rotation, attack cooldown or click rate. The server stays authoritative over every crystal.
 
-Its one predictive behavior is hiding a crystal you just hit before the server confirms the break,
-which is latency compensation for an action you already performed. It is constrained to hits the
-server is expected to accept.
+Its predictive behavior is hiding a crystal you just hit, and playing its explosion, before the
+server confirms the break, which is latency compensation for an action you already performed. It is
+constrained to hits the server is expected to accept, and it never adds, changes or delays a packet.
 
 See [docs/audits/LEGITIMACY_AUDIT.md](docs/audits/LEGITIMACY_AUDIT.md) for the full client/server boundary of every feature,
-including the one place where the mod changes which packets are sent: Safe Crystal, which you can switch off.
+including the one place where the mod changes which packets are sent: Don't break obsidian (and the optional obsidian debounce), which you can switch off.
 
 ## Building
 

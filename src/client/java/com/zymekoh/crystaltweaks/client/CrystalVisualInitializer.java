@@ -30,6 +30,7 @@ public final class CrystalVisualInitializer implements ClientModInitializer {
         PracticeSession.initialize();
         PracticeWorld.initialize();
 
+        ClientEntityEvents.ENTITY_LOAD.register((entity, level) -> CrystalBreakPrediction.track(entity));
         ClientEntityEvents.ENTITY_UNLOAD.register((entity, level) -> {
             CrystalAfterglow.onRemoved(entity);
             CrystalSoundManager.onEntityUnloaded(entity);
