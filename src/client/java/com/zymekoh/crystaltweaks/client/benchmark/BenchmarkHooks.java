@@ -1,5 +1,6 @@
 package com.zymekoh.crystaltweaks.client.benchmark;
 
+import com.zymekoh.crystaltweaks.client.CrystalOwnership;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -80,6 +81,10 @@ public final class BenchmarkHooks {
         // The network pass only: that is where it arrives after the spawns the same tick sent.
         if (CrystalBenchmark.recording() && network()) {
             CrystalBenchmark.onPlacementsAcknowledged(packet.sequence());
+        }
+        // The game pass: in order with the crystals the game has loaded, which is what tells whose they are.
+        if (!network()) {
+            CrystalOwnership.acknowledged(packet.sequence());
         }
     }
 

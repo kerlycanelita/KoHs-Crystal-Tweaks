@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import net.minecraft.client.renderer.SubmitNodeCollector;
-import net.minecraft.client.renderer.entity.EndCrystalRenderer;
 import net.minecraft.client.renderer.entity.state.EndCrystalRenderState;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
@@ -108,11 +107,14 @@ public final class CrystalGlowRenderer {
     public static void submit(EndCrystalRenderState state, PoseStack poses,
             SubmitNodeCollector collector, CameraRenderState camera) {
         CrystalAppearance look = CrystalAppearanceAccess.of(state);
-        if (!look.glowActive() || state.distanceToCameraSq > 4096) return;
+        float reach = CrystalVisualConfig.glowQuality().lightRange;
+        if (!look.glowActive() || state.distanceToCameraSq > reach * reach) return;
         float power = CrystalGlowMath.power(look.glowPowerPercent);
         if (CrystalVisualConfig.oldGlow()) {
-            draw(state, look, poses, collector, camera, CrystalFlashStyle.EXPLOSION, CrystalGlowMath.radius(power),
-                    1F, power, 0F, null, List.of(), true);
+            // The halo grows and shrinks with the crystal it surrounds.
+            float size = CrystalPose.size(look);
+            draw(state, look, poses, collector, camera, CrystalFlashStyle.EXPLOSION, CrystalGlowMath.radius(power) * size,
+                    size, power, 0F, null, List.of(), true);
         }
         submitReflections(state, look, poses, collector, camera, look.haloColor(), power, centerHeight(state, look));
     }
@@ -143,7 +145,7 @@ public final class CrystalGlowRenderer {
     }
 
     private static float centerHeight(EndCrystalRenderState state, CrystalAppearance look) {
-        return 2F + EndCrystalRenderer.getY(state.ageInTicks * look.floatingSpeedPercent / 100F);
+        return CrystalPose.centreHeight(state.ageInTicks, look);
     }
 
     /**
@@ -160,7 +162,11 @@ public final class CrystalGlowRenderer {
         int color = look.haloColor();
         // In the world the pose is a plain translation; anything else is the settings preview.
         boolean world = translationOnly(poses.last().pose());
-        DiskDetail detail = world ? DISK_DETAIL[detailLevel(state.distanceToCameraSq, camera)] : DISK_DETAIL[0];
+        // The live halo is drawn coarser in the lighter quality modes; a flash is one disc for a moment.
+        int coarser = behindModel ? CrystalVisualConfig.glowQuality().haloCoarser : 0;
+        DiskDetail detail = world
+                ? DISK_DETAIL[Math.min(DISK_DETAIL.length - 1, detailLevel(state.distanceToCameraSq, camera) + coarser)]
+                : DISK_DETAIL[0];
         // Additive, depth-tested, writing no depth: see CrystalGlowMaterial.
         poses.pushPose();
         poses.translate(0, centerY, 0);
@@ -202,7 +208,13 @@ public final class CrystalGlowRenderer {
             // Preserve the original halo's gain at 100%; extra passes avoid byte-alpha overflow.
             disk(glow, matrix, detail, color, radius, 0.42F * gain);
             disk(glow, matrix, detail, color, 0.54F * detailScale, 0.7F * gain);
-            disk(glow, matrix, detail, CrystalGlowMath.hotColor(color), 0.25F * detailScale, 0.9F * gain);
+            // The hot middle is the core's light: around a live crystal it follows the Core control,
+            // gone at 0%, as it always was at 100%, wider and denser past it. A flash has no core.
+            float coreGlow = behindModel ? look.coreGlowPercent / 100F : 1F;
+            if (coreGlow > 0F) {
+                disk(glow, matrix, detail, CrystalGlowMath.hotColor(color),
+                        0.25F * detailScale * (1F + 0.35F * Math.max(0F, coreGlow - 1F)), 0.9F * gain * coreGlow);
+            }
             // Stable facet rays, with bright narrow spines and a wider colored skirt.
             double turn = state.ageInTicks * look.rotationSpeedPercent / 100F * 0.002;
             for (int ray = 0; ray < 16; ray++) {
@@ -266,7 +278,7 @@ public final class CrystalGlowRenderer {
         return level;
     }
 
-    private static boolean translationOnly(Matrix4f pose) {
+    static boolean translationOnly(Matrix4f pose) {
         return Math.abs(pose.m00() - 1F) < 1.0E-4F && Math.abs(pose.m11() - 1F) < 1.0E-4F
                 && Math.abs(pose.m22() - 1F) < 1.0E-4F
                 && Math.abs(pose.m01()) < 1.0E-4F && Math.abs(pose.m02()) < 1.0E-4F
@@ -291,7 +303,8 @@ public final class CrystalGlowRenderer {
         // Each block top is split so the falloff is sampled every quarter block; far away, where a
         // block is a few pixels wide, every half block draws the same pool.
         boolean far = translationOnly(poses.last().pose()) && detailLevel(state.distanceToCameraSq, camera) > 0;
-        int cells = far ? 2 : 4;
+        int fine = CrystalVisualConfig.glowQuality().spillCells;
+        int cells = far ? Math.min(2, fine) : fine;
         collector.submitCustomGeometry(poses, CrystalGlowMaterial.glow(), (pose, buffer) -> {
             for (int pass = 0; pass < reflectionPasses; pass++) for (Surface surface : surfaces) {
                 for (int ix = 0; ix < cells; ix++) for (int iz = 0; iz < cells; iz++) {

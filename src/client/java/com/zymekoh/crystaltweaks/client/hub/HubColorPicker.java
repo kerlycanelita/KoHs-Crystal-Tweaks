@@ -60,7 +60,8 @@ public final class HubColorPicker extends AbstractWidget implements Clippable {
     @Override
     protected void extractWidgetRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         HubSkin skin = HubSkin.current();
-        float fade = Mth.clamp(this.alpha, 0.0F, 1.0F);
+        // Dimmed while it has nothing to colour.
+        float fade = Mth.clamp(this.alpha, 0.0F, 1.0F) * (this.active ? 1.0F : 0.35F);
         int squareWidth = squareWidth();
         int squareHeight = Math.max(1, this.height);
         int hueColor = hsvToArgb(this.hue, 1.0F, 1.0F);

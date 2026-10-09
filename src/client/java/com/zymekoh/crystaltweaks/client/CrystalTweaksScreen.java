@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.zymekoh.crystaltweaks.client.benchmark.CrystalBenchmarkScreen;
 import com.zymekoh.crystaltweaks.client.compat.HerziumBridge;
 import com.zymekoh.crystaltweaks.client.compat.OptimizerConflictDetector;
+import com.zymekoh.crystaltweaks.client.hub.ConverterGrid;
 import com.zymekoh.crystaltweaks.client.hub.CrystalStage;
 import com.zymekoh.crystaltweaks.client.hub.GateScene;
 import com.zymekoh.crystaltweaks.client.hub.HubButton;
@@ -33,6 +34,7 @@ import java.util.List;
 import java.util.Locale;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
@@ -75,7 +77,10 @@ public final class CrystalTweaksScreen extends Screen {
     private static final long FLASH_PREVIEW_DELAY_NANOS = 320_000_000L;
     private static final long SOUND_PREVIEW_DELAY_NANOS = 380_000_000L;
     private static boolean introShownThisSession;
+    /** The gate's stone and its burst are an entrance: they play the first time the menu opens, once per launch. */
+    private static boolean gateOpenedThisSession;
     private static boolean popupShownThisSession;
+    private static boolean converterNoticeShownThisSession;
 
     private final Screen parent;
     private final boolean spanish;
@@ -93,6 +98,7 @@ public final class CrystalTweaksScreen extends Screen {
     private final List<AbstractWidget> drawerWidgets = new ArrayList<>();
     private HubLayout layout;
     private RowList drawerList;
+    private HubButton profileUse;
     private String drawerId = "";
     private boolean enemy;
     private Phase phase = Phase.MAIN;
@@ -122,6 +128,12 @@ public final class CrystalTweaksScreen extends Screen {
     private EditBox layerHex;
     private HubColorPicker layerPicker;
     private EditBox glowHex;
+    private HubSlider blurSlider;
+    private ConverterGrid converterGrid;
+    private HubEditBox converterSearch;
+    private String converterQuery = "";
+    private boolean converterEntities;
+    private boolean converterNoticeOpen;
     private HubColorPicker glowPicker;
     private HubButton soundFileButton;
     private HubButton ghostToggle;
@@ -142,9 +154,11 @@ public final class CrystalTweaksScreen extends Screen {
                 new TabCarousel.Item("sound", this.spanish ? "Sonido" : "Sound", HubOverlays::soundIcon),
                 new TabCarousel.Item("tweaks", "Crystal Tweaks", HubOverlays::tweaksIcon),
                 new TabCarousel.Item("advanced", this.spanish ? "Avanzado" : "Advanced", HubOverlays::toolsIcon),
+                new TabCarousel.Item("converter", "Converter", HubOverlays::converterIcon),
                 new TabCarousel.Item("kohs", "KoHs", HubOverlays::kohsIcon)), 1, false);
         this.enemyTabs = new TabCarousel(List.of(
                 new TabCarousel.Item("profile", this.spanish ? "Perfil" : "Profile", HubOverlays::profileIcon),
+                new TabCarousel.Item("converter", "Converter", HubOverlays::converterIcon),
                 new TabCarousel.Item("soon", this.spanish ? "Avanzado" : "Advanced", HubOverlays::advancedIcon)), 0, false);
     }
 
@@ -192,6 +206,8 @@ public final class CrystalTweaksScreen extends Screen {
                 this.overlays.showIntro();
                 this.stage.setTarget(this.overlays.introCrystal(), true);
                 this.stage.appear(now);
+            } else if (gateOpenedThisSession) {
+                startSettle(now, true);
             } else {
                 showGate(now, true);
             }
@@ -234,6 +250,7 @@ public final class CrystalTweaksScreen extends Screen {
         if (this.phase != Phase.GATE) {
             return;
         }
+        gateOpenedThisSession = true;
         this.stage.explode(now, visuals().copy(), true);
         this.gate.enter(now, this.stage.centerX(), this.stage.centerY());
         this.phase = Phase.ENTER;
@@ -328,14 +345,23 @@ public final class CrystalTweaksScreen extends Screen {
             CrystalVisualConfig.setOptimizerNoticeDismissed(true);
             CrystalVisualConfig.save();
         }
-        showGate(System.nanoTime(), false);
+        if (gateOpenedThisSession) {
+            startSettle(System.nanoTime(), false);
+        } else {
+            showGate(System.nanoTime(), false);
+        }
     }
 
     public void popupClosed(boolean dismissForever) {
         if (dismissForever) {
-            CrystalVisualConfig.setOptimizerPopupDismissed(true);
+            if (this.converterNoticeOpen) {
+                CrystalVisualConfig.setConverterNoticeDismissed(true);
+            } else {
+                CrystalVisualConfig.setOptimizerPopupDismissed(true);
+            }
             CrystalVisualConfig.save();
         }
+        this.converterNoticeOpen = false;
     }
 
     /** The shards have flown and the new menu has landed: its controls come up. */
@@ -474,10 +500,8 @@ public final class CrystalTweaksScreen extends Screen {
         if (this.enemy) {
             list.row(control);
             HubButton use = list.full(new HubButton(0, 0, 0, 0, Component.literal(this.spanish ? "Usar este perfil" : "Use this profile"),
-                    ignored -> {
-                        CrystalVisualConfig.setEnemyCustomEnabled(!CrystalVisualConfig.enemyCustomEnabled());
-                        commit();
-                    }).switchOf(CrystalVisualConfig::enemyCustomEnabled).lit());
+                    ignored -> profileUseChanged()).switchOf(CrystalVisualConfig::enemyCustomEnabled).lit());
+            this.profileUse = use;
             use.setTooltip(Tooltip.create(Component.literal(this.spanish
                     ? "Apagado, los cristales ajenos se ven con tu propio perfil."
                     : "When off, crystals you did not place use your own profile.")));
@@ -503,16 +527,47 @@ public final class CrystalTweaksScreen extends Screen {
         list.heading(this.spanish ? "Animación" : "Animation");
         list.row(slider);
         list.full(HubSlider.linear(0, 0, 0, 0, 0.0D, 300.0D, visuals().rotationSpeedPercent,
-                value -> visuals().rotationSpeedPercent = (int) Math.round(value),
+                value -> {
+                    visuals().rotationSpeedPercent = (int) Math.round(value);
+                    refreshBlurControl();
+                },
                 value -> speedLabel(this.spanish ? "Giro" : "Rotation", (int) Math.round(value))).lit().onRelease(this::commit));
         list.row(slider);
         list.full(HubSlider.linear(0, 0, 0, 0, 0.0D, 300.0D, visuals().floatingSpeedPercent,
-                value -> visuals().floatingSpeedPercent = (int) Math.round(value),
+                value -> {
+                    visuals().floatingSpeedPercent = (int) Math.round(value);
+                    refreshBlurControl();
+                },
                 value -> speedLabel(this.spanish ? "Flotación" : "Floating", (int) Math.round(value))).lit().onRelease(this::commit));
+        list.heading(this.spanish ? "Tamaño" : "Size");
+        list.row(slider);
+        HubSlider size = list.full(HubSlider.linear(0, 0, 0, 0, CrystalAppearance.MIN_SIZE, CrystalAppearance.MAX_SIZE,
+                visuals().sizePercent, value -> visuals().sizePercent = (int) Math.round(value),
+                value -> (this.spanish ? "Tamaño: " : "Size: ") + Math.round(value) + "%" + (Math.round(value) == 100 ? " (Vanilla)" : ""))
+                .lit().onRelease(this::commit));
+        size.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "Lo grande que se dibuja el cristal, con su brillo. Solo cambia el dibujo: la zona que puedes golpear es la del servidor y sigue igual, centrada en el cristal."
+                : "How large the crystal is drawn, with its glow. Only the drawing changes: the box you can hit is the server's and stays the same, centred on the crystal.")));
         list.space(2);
         list.note(this.font, this.spanish ? "El tinte se aplica sobre la textura activa." : "The tint is applied over the active texture.", 0);
         replaceList(this.leftPanel, list, keepScroll);
         selectLayer(this.layer);
+        if (visuals().converted()) {
+            // Something else is drawn in the crystal's place: its layers' colours have nothing to tint.
+            Component note = Component.literal(this.spanish
+                    ? "No se usa mientras Converter My Crystal dibuja otra cosa en lugar del cristal: no hay capas que teñir."
+                    : "Not used while Converter My Crystal draws something else in the crystal's place: there are no layers to tint.");
+            for (AbstractWidget widget : List.of(this.outerButton, this.innerButton, this.coreButton, this.layerHex, this.layerPicker)) {
+                widget.active = false;
+                widget.setTooltip(Tooltip.create(note));
+            }
+            this.layerHex.setEditable(false);
+            // No layer is being edited: a selected one would look like the live control it is not.
+            this.outerButton.setSelected(false);
+            this.innerButton.setSelected(false);
+            this.coreButton.setSelected(false);
+        }
+        dimUnusedProfile(list, this.enemy ? this.profileUse : null);
     }
 
     private HubButton layerButton(Layer target) {
@@ -544,14 +599,32 @@ public final class CrystalTweaksScreen extends Screen {
             rebuildRight(true);
         }).switchOf(() -> visuals().glowEnabled).lit());
         glow.setTooltip(Tooltip.create(Component.literal(this.spanish
-                ? "Las tres capas del cristal brillan, cada una en su color, dentro de un aura del color del brillo; más sus reflejos en el suelo y la luz propia del cristal. El destello al explotar tiene su propio interruptor."
-                : "The crystal's three layers shine, each in its own colour, inside an aura in the glow colour; plus its reflections on the ground and the crystal's own light. The flash on explosion has its own switch.")));
+                ? "La luz del cristal: en sus marcos, la del núcleo, sus reflejos en el suelo y la luz propia del cristal. El destello al explotar y el desenfoque tienen su propio control."
+                : "The crystal's light: in its frames, the core's own, its reflections on the ground and the crystal's own light. The flash on explosion and the blur have controls of their own.")));
+        // The halo of Old KoHs Crystal Glow has no layers to light: what belongs to them is dimmed.
+        boolean halo = CrystalVisualConfig.oldGlow();
+        String haloNote = this.spanish
+                ? "No se usa con Old KoHs Crystal Glow, que es un halo detrás del cristal. Apágalo en Avanzado para usarlo."
+                : "Not used by Old KoHs Crystal Glow, which is a halo behind the crystal. Turn it off in Advanced to use this.";
+        // A crystal drawn as something else has no layers either: their style and their trail wait.
+        boolean converted = look.converted();
+        String convertedNote = this.spanish
+                ? "No se usa mientras Converter My Crystal dibuja otra cosa en lugar del cristal: su luz es un resplandor redondo."
+                : "Not used while Converter My Crystal draws something else in the crystal's place: its light is a round glow.";
         if (look.glowEnabled) {
             list.row(slider, indent);
             list.full(HubSlider.linear(0, 0, 0, 0, 0, 300, look.glowPowerPercent, value -> {
                 visuals().glowPowerPercent = (int) Math.round(value);
                 glowTouched();
             }, value -> (this.spanish ? "Potencia: " : "Power: ") + Math.round(value) + "%").lit().onRelease(this::commit));
+            list.row(slider, indent);
+            HubSlider core = list.full(HubSlider.linear(0, 0, 0, 0, 0, 300, look.coreGlowPercent, value -> {
+                visuals().coreGlowPercent = (int) Math.round(value);
+                glowTouched();
+            }, value -> (this.spanish ? "Núcleo: " : "Core: ") + Math.round(value) + "%").lit().onRelease(this::commit));
+            core.setTooltip(Tooltip.create(Component.literal(this.spanish
+                    ? "Cuánto brilla el núcleo, con cualquier tipo de brillo: en Luz, una luz redonda a su alrededor; en Capas, su propia luz y su aura; en Old KoHs Crystal Glow, el centro del halo. Con 0% solo brilla lo demás."
+                    : "How much the core glows, with every kind of glow: in Light, a round light about it; in Layers, its own light and aura; in Old KoHs Crystal Glow, the middle of the halo. At 0% only the rest glows.")));
             list.row(slider, indent);
             HubSlider reflections = list.full(HubSlider.linear(0, 0, 0, 0, 0, 300, look.glowReflectionsPercent, value -> {
                 visuals().glowReflectionsPercent = (int) Math.round(value);
@@ -560,16 +633,39 @@ public final class CrystalTweaksScreen extends Screen {
             reflections.setTooltip(Tooltip.create(Component.literal(this.spanish
                     ? "Luz de color simulada sobre los bloques cercanos, del cristal y de su destello. No cambia la iluminación del mundo."
                     : "Simulated coloured light on nearby block tops, from the crystal and its flash. Does not change world lighting.")));
-            list.row(slider, indent);
-            HubSlider blur = list.full(HubSlider.linear(0, 0, 0, 0, 0, 100, look.motionBlurPercent, value -> {
-                visuals().motionBlurPercent = (int) Math.round(value);
+            list.row(control, indent);
+            HubButton style = list.full(new HubButton(0, 0, 0, 0, Component.literal((this.spanish ? "Estilo: " : "Style: ")
+                    + CrystalVisualConfig.glowStyle().label(this.spanish)), ignored -> {
+                CrystalVisualConfig.setGlowStyle(CrystalVisualConfig.glowStyle().next());
                 glowTouched();
-            }, value -> (this.spanish ? "Desenfoque de movimiento: " : "Motion blur: ")
-                    + (Math.round(value) == 0 ? (this.spanish ? "No" : "Off") : Math.round(value) + "%")).lit().onRelease(this::commit));
-            blur.setTooltip(Tooltip.create(Component.literal(this.spanish
-                    ? "Las capas brillantes dejan una estela al girar, como una foto en movimiento. Más alto, estela más larga. Solo dibujo, en tu pantalla."
-                    : "The glowing layers leave a trail as they turn, like a photo in motion. Higher, a longer trail. Drawing only, on your screen.")));
+                commit();
+                rebuildRight(true);
+            }).lit());
+            style.active = !halo && !converted;
+            style.setTooltip(Tooltip.create(Component.literal(halo ? haloNote : converted ? convertedNote : this.spanish
+                    ? "Luz: un resplandor suave alrededor de cada marco, que no quema el color ni de día. Capas: las capas dibujadas otra vez como luz añadida, más intensas y saturadas. Lo comparten tus cristales y los ajenos."
+                    : "Light: a soft glow round every frame, which keeps its colour even in daylight. Layers: the layers drawn again as added light, stronger and more saturated. Shared by your crystals and the enemy's.")));
         }
+        list.heading(this.spanish ? "Movimiento" : "Motion");
+        list.row(slider);
+        this.blurSlider = list.full(HubSlider.linear(0, 0, 0, 0, 0, 100, look.motionBlurPercent, value -> {
+            visuals().motionBlurPercent = (int) Math.round(value);
+            glowTouched();
+        }, value -> (this.spanish ? "Desenfoque: " : "Motion blur: ")
+                + (Math.round(value) == 0 ? (this.spanish ? "No" : "Off") : Math.round(value) + "%")).lit().onRelease(this::commit));
+        refreshBlurControl();
+        list.heading(this.spanish ? "Calidad" : "Quality");
+        int qualityArrow = Math.max(12, Math.min(width / 6, control + 4));
+        list.row(control);
+        list.cell(new HubButton(0, 0, 0, 0, Component.literal("‹"), ignored -> changeGlowQuality(CrystalVisualConfig.glowQuality().previous())).lit(),
+                0, qualityArrow);
+        HubButton quality = list.cell(new HubButton(0, 0, 0, 0, Component.literal(CrystalVisualConfig.glowQuality().label(this.spanish)),
+                ignored -> changeGlowQuality(CrystalVisualConfig.glowQuality().next())).lit(), qualityArrow + 2, width - qualityArrow * 2 - 4);
+        quality.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "Cuánto dibujan el brillo, el desenfoque y los reflejos. Rendimiento: solo el marco exterior y el núcleo, estela corta, reflejos simples y nada a lo lejos. Equilibrado: todas las capas. Calidad: también las caras de atrás, la estela más larga y los reflejos más finos. Lo comparten tus cristales y los ajenos."
+                : "How much the glow, the blur and the reflections draw. Performance: the outer frame and the core only, a short trail, plain reflections and nothing far away. Balanced: every layer. Quality: the far faces too, the longest trail and the finest reflections. Shared by your crystals and the enemy's.")));
+        list.cell(new HubButton(0, 0, 0, 0, Component.literal("›"), ignored -> changeGlowQuality(CrystalVisualConfig.glowQuality().next())).lit(),
+                width - qualityArrow, qualityArrow);
         list.heading(this.spanish ? "Color del brillo" : "Glow colour");
         list.row(control);
         HubButton own = list.full(new HubButton(0, 0, 0, 0, Component.literal(this.spanish ? "Color propio" : "Own colour"), ignored -> {
@@ -650,6 +746,34 @@ public final class CrystalTweaksScreen extends Screen {
                     .lit().onRelease(this::commit));
         }
         replaceList(this.rightPanel, list, keepScroll);
+        dimUnusedProfile(list, null);
+    }
+
+    private void changeGlowQuality(CrystalGlowQuality quality) {
+        CrystalVisualConfig.setGlowQuality(quality);
+        commit();
+        rebuildRight(true);
+    }
+
+    /** The blur needs something that moves: a crystal that neither turns nor floats has nothing to trail. */
+    private void refreshBlurControl() {
+        if (this.blurSlider == null) {
+            return;
+        }
+        boolean moving = visuals().rotationSpeedPercent > 0 || visuals().floatingSpeedPercent > 0;
+        boolean converted = visuals().converted();
+        this.blurSlider.active = moving && !converted;
+        this.blurSlider.setTooltip(Tooltip.create(Component.literal(converted
+                ? (this.spanish
+                        ? "No se usa mientras Converter My Crystal dibuja otra cosa en lugar del cristal: la estela es la de sus capas."
+                        : "Not used while Converter My Crystal draws something else in the crystal's place: the trail is its layers'.")
+                : moving
+                ? (this.spanish
+                        ? "Las capas dejan una estela suave al girar, como una foto en movimiento. Más alto, estela más larga. Funciona también con el brillo apagado. Solo dibujo, en tu pantalla."
+                        : "The layers leave a soft trail as they turn, like a photo in motion. Higher, a longer trail. It works with the glow off too. Drawing only, on your screen.")
+                : (this.spanish
+                        ? "Un cristal que ni gira ni flota no deja estela: sube Giro o Flotación en Colores."
+                        : "A crystal that neither turns nor floats leaves no trail: raise Rotation or Floating in Colours."))));
     }
 
     private void changeFlashStyle(CrystalFlashStyle style) {
@@ -822,8 +946,10 @@ public final class CrystalTweaksScreen extends Screen {
             visuals().coreColor = defaults.coreColor;
             visuals().rotationSpeedPercent = 100;
             visuals().floatingSpeedPercent = 100;
+            visuals().sizePercent = 100;
             commit();
             rebuildLeft(true);
+            refreshBlurControl();
         } else {
             visuals().glowEnabled = defaults.glowEnabled;
             visuals().glowPowerPercent = defaults.glowPowerPercent;
@@ -835,8 +961,10 @@ public final class CrystalTweaksScreen extends Screen {
             visuals().flashOpacityPercent = defaults.flashOpacityPercent;
             visuals().flashDurationMillis = defaults.flashDurationMillis;
             visuals().motionBlurPercent = defaults.motionBlurPercent;
+            visuals().coreGlowPercent = defaults.coreGlowPercent;
             if (!this.enemy) {
                 CrystalVisualConfig.setFlashStyle(CrystalFlashStyle.EXPLOSION);
+                CrystalVisualConfig.setGlowStyle(CrystalGlowStyle.LIGHT);
             }
             glowTouched();
             commit();
@@ -861,6 +989,8 @@ public final class CrystalTweaksScreen extends Screen {
         this.safeToggle = null;
         this.rescanButton = null;
         this.herziumOrderButton = null;
+        this.converterGrid = null;
+        this.converterSearch = null;
         TabCarousel tabs = currentTabs();
         this.drawerId = tabs.selectedItem().id();
         Rect drawer = this.layout.drawer(10_000, drawerShare(this.drawerId));
@@ -870,6 +1000,7 @@ public final class CrystalTweaksScreen extends Screen {
             case "tweaks" -> buildTweaks(width);
             case "advanced" -> buildAdvanced(width);
             case "profile" -> buildProfile(width);
+            case "converter" -> buildConverter(width);
             default -> null;
         };
         if (list != null) {
@@ -893,6 +1024,7 @@ public final class CrystalTweaksScreen extends Screen {
             case "tweaks" -> 0.64F;
             case "advanced" -> 0.66F;
             case "profile" -> 0.46F;
+            case "converter" -> 0.74F;
             default -> 1.0F;
         };
     }
@@ -1054,6 +1186,124 @@ public final class CrystalTweaksScreen extends Screen {
         return list;
     }
 
+    /** Converter My Crystal: something else drawn in the crystal's place, chosen from a searched catalogue. */
+    private RowList buildConverter(int width) {
+        int control = this.layout.controlHeight;
+        int indent = width >= 150 ? 9 : 5;
+        RowList list = new RowList(width, this.layout.rowGap);
+        list.heading("Converter My Crystal");
+        list.row(control);
+        HubButton toggle = list.full(new HubButton(0, 0, 0, 0, Component.literal(this.enemy
+                ? (this.spanish ? "Convertir los cristales ajenos" : "Convert enemy crystals")
+                : (this.spanish ? "Convertir mi cristal" : "Convert my crystal")), ignored -> {
+            visuals().converterEnabled = !visuals().converterEnabled;
+            commit();
+            converterChanged();
+            rebuildDrawer();
+        }).switchOf(() -> visuals().converterEnabled));
+        toggle.setTooltip(Tooltip.create(Component.literal(this.spanish
+                ? "Dibuja un bloque, un ítem o una entidad en lugar del cristal. Solo cambia el dibujo en tu pantalla: el cristal sigue donde está, con la misma zona de golpe."
+                : "Draws a block, an item or an entity in the crystal's place. Only the drawing on your screen changes: the crystal stays where it is, with the same box to hit.")));
+        if (visuals().converterEnabled) {
+            int branch = width - indent;
+            int gap = 3;
+            int half = (branch - gap) / 2;
+            list.row(control, indent);
+            list.cell(new HubButton(0, 0, 0, 0, Component.literal(this.spanish ? "Bloques e ítems" : "Blocks & items"),
+                    ignored -> showConverterKind(false)), 0, half).setSelected(!this.converterEntities);
+            list.cell(new HubButton(0, 0, 0, 0, Component.literal(this.spanish ? "Entidades" : "Entities"),
+                    ignored -> showConverterKind(true)), half + gap, branch - half - gap).setSelected(this.converterEntities);
+            list.row(control, indent);
+            this.converterSearch = list.full(new HubEditBox(this.font, 0, 0, 0, control, Component.literal(this.spanish ? "Buscar" : "Search")));
+            this.converterSearch.setHint(Component.literal(this.spanish ? "Buscar por nombre o id…" : "Search by name or id…"));
+            this.converterSearch.setMaxLength(60);
+            this.converterSearch.setValue(this.converterQuery);
+            this.converterSearch.setResponder(value -> {
+                this.converterQuery = value;
+                if (this.converterGrid != null) {
+                    this.converterGrid.show(this.converterGrid.source(), value);
+                }
+            });
+            list.row(Math.max(64, Math.min(124, this.layout.stage.height() / 3)), indent);
+            this.converterGrid = list.full(new ConverterGrid(this.font, Component.literal(this.spanish ? "Catálogo" : "Catalogue"),
+                    this.spanish ? "Entra en un mundo para ver el catálogo." : "Join a world to see the catalogue.",
+                    this.spanish ? "Nada coincide con la búsqueda." : "Nothing matches the search.",
+                    () -> visuals().converterTarget, target -> {
+                        // A second click on the chosen one lets go of it.
+                        visuals().converterTarget = target.equals(visuals().converterTarget) ? "" : target;
+                        commit();
+                        converterChanged();
+                    }));
+            this.converterGrid.show(this.converterEntities ? ConverterGrid.entities() : ConverterGrid.items(), this.converterQuery);
+            list.row(this.font.lineHeight + 2, indent);
+            list.paint((graphics, font, x, y, cellWidth, height, alpha) -> drawConverterChoice(graphics, font, x, y, cellWidth, alpha), 0, branch);
+        }
+        list.space(1);
+        list.note(this.font, this.spanish
+                ? "Lo que elijas se dibuja por encima de la textura original de Minecraft y de la de cualquier resource pack. El giro, la flotación y el tamaño siguen en Colores; el brillo, en Brillo."
+                : "What you choose is drawn over Minecraft's own texture and over any resource pack's. Rotation, floating and size stay in Colours; the glow, in Glow.", 0);
+        dimUnusedProfile(list, null);
+        return list;
+    }
+
+    private void showConverterKind(boolean entities) {
+        this.converterEntities = entities;
+        rebuildDrawer();
+    }
+
+    /** The side panels dim what a converted crystal does not draw. */
+    private void converterChanged() {
+        rebuildLeft(true);
+        rebuildRight(true);
+    }
+
+    private void drawConverterChoice(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, float alpha) {
+        HubSkin skin = HubSkin.current();
+        String target = visuals().converterTarget;
+        String text;
+        int color = skin.muted;
+        if (target.isEmpty()) {
+            text = this.spanish ? "Nada elegido: el cristal se ve como siempre." : "Nothing chosen: the crystal looks as usual.";
+        } else if (!CrystalConverter.drawable(target)) {
+            boolean needsWorld = this.minecraft == null || this.minecraft.level == null;
+            text = ConverterGrid.nameOf(target) + (needsWorld
+                    ? (this.spanish ? ": se verá al entrar en un mundo." : ": shows once you are in a world.")
+                    : (this.spanish ? ": no se puede dibujar; el cristal se queda como cristal." : ": cannot be drawn; the crystal stays a crystal."));
+            color = 0xFFFFC48A;
+        } else {
+            text = (this.spanish ? "Elegido: " : "Chosen: ") + ConverterGrid.nameOf(target);
+            color = skin.text;
+        }
+        CrystalUi.label(graphics, font, HubDraw.fit(font, text, width), x, y + 1, CrystalTheme.fade(color, alpha));
+    }
+
+    /** The enemy profile switched off: its controls change nothing that is drawn, so they wait, dimmed. */
+    private void dimUnusedProfile(RowList list, AbstractWidget except) {
+        if (!this.enemy || CrystalVisualConfig.enemyCustomEnabled()) {
+            return;
+        }
+        Component note = Component.literal(this.spanish
+                ? "Este perfil está apagado: los cristales ajenos se ven con tu propio perfil. Enciende «Usar este perfil» para cambiarlo."
+                : "This profile is off: enemy crystals use your own profile. Turn \"Use this profile\" on to change it.");
+        for (AbstractWidget widget : list.widgets()) {
+            if (widget != except) {
+                widget.active = false;
+                widget.setTooltip(Tooltip.create(note));
+                if (widget instanceof EditBox box) {
+                    box.setEditable(false);
+                }
+            }
+        }
+    }
+
+    private void profileUseChanged() {
+        CrystalVisualConfig.setEnemyCustomEnabled(!CrystalVisualConfig.enemyCustomEnabled());
+        commit();
+        rebuildLeft(true);
+        rebuildRight(true);
+        rebuildDrawer();
+    }
+
     /** The old glow, optimization, compatibility and Herzium: the tools behind the helpers. */
     private RowList buildAdvanced(int width) {
         int control = this.layout.controlHeight;
@@ -1065,10 +1315,11 @@ public final class CrystalTweaksScreen extends Screen {
             CrystalVisualConfig.setOldGlow(!CrystalVisualConfig.oldGlow());
             glowTouched();
             commit();
+            rebuildRight(true);
         }).switchOf(CrystalVisualConfig::oldGlow));
         oldGlow.setTooltip(Tooltip.create(Component.literal(this.spanish
-                ? "El brillo de antes: un halo con rayos detrás del cristal en lugar de luz en sus tres capas. La potencia, los reflejos, el color y el desenfoque siguen igual. Para tus cristales y los ajenos."
-                : "The glow as it used to be: a halo with rays behind the crystal instead of light in its three layers. Power, reflections, colour and blur work the same. For your crystals and the enemy's.")));
+                ? "El brillo de antes: un halo con rayos detrás del cristal en lugar de luz en sus capas. La potencia, los reflejos, el color y el desenfoque siguen igual; el estilo y el brillo del núcleo, que son de las capas, quedan atenuados. Para tus cristales y los ajenos."
+                : "The glow as it used to be: a halo with rays behind the crystal instead of light in its layers. Power, reflections, colour and blur work the same; the style and the core's glow, which belong to the layers, are dimmed. For your crystals and the enemy's.")));
         list.heading(this.spanish ? "Optimización" : "Optimization");
         list.row(control);
         HubButton forceOff = list.full(new HubButton(0, 0, 0, 0, Component.literal(this.spanish ? "Forzar apagado" : "Force off"), ignored -> {
@@ -1147,10 +1398,8 @@ public final class CrystalTweaksScreen extends Screen {
         int control = this.layout.controlHeight;
         RowList list = new RowList(width, this.layout.rowGap);
         list.row(control);
-        list.full(new HubButton(0, 0, 0, 0, Component.literal(this.spanish ? "Usar este perfil" : "Use this profile"), ignored -> {
-            CrystalVisualConfig.setEnemyCustomEnabled(!CrystalVisualConfig.enemyCustomEnabled());
-            commit();
-        }).switchOf(CrystalVisualConfig::enemyCustomEnabled).style(HubButton.Style.DANGER));
+        list.full(new HubButton(0, 0, 0, 0, Component.literal(this.spanish ? "Usar este perfil" : "Use this profile"),
+                ignored -> profileUseChanged()).switchOf(CrystalVisualConfig::enemyCustomEnabled).style(HubButton.Style.DANGER));
         list.space(1);
         list.note(this.font, this.spanish
                 ? "Identificación aproximada: Crystal Tweaks relaciona tus intentos de colocación con las apariciones de cristales. Los que no coinciden, incluidos los de dueño desconocido, usan este perfil; el servidor no envía quién colocó cada cristal."
@@ -1800,6 +2049,17 @@ public final class CrystalTweaksScreen extends Screen {
             rebuildDrawer();
             this.overlays.drawerOpened(id);
         }
+        if (id.equals("converter") && currentTabs().open() && !converterNoticeShownThisSession
+                && !CrystalVisualConfig.converterNoticeDismissed()) {
+            converterNoticeShownThisSession = true;
+            this.converterNoticeOpen = true;
+            this.overlays.showNotice("Converter My Crystal", this.spanish
+                    ? "Converter My Crystal dibuja el bloque, el ítem o la entidad que elijas en lugar del End Crystal. Mientras esté activado, tu elección tiene prioridad sobre la textura original de Minecraft y sobre la de cualquier resource pack instalado: en tus cristales no verás ninguna de las dos. El giro y la flotación se mantienen, y se ajustan en sus propias secciones."
+                    : "Converter My Crystal draws the block, item or entity you choose in the End Crystal's place. While it is on, your choice takes priority over Minecraft's original texture and over any installed resource pack's: you will see neither on your crystals. The spin and the float stay, and are set in their own sections.",
+                    this.spanish
+                            ? "Solo cambia el dibujo en tu pantalla. El cristal sigue donde está, con la misma zona de golpe."
+                            : "Only the drawing on your screen changes. The crystal stays where it is, with the same box to hit.");
+        }
         if (id.equals("tweaks") && currentTabs().open() && !popupShownThisSession && !CrystalVisualConfig.optimizerPopupDismissed()) {
             popupShownThisSession = true;
             this.overlays.showOptimizerPopup();
@@ -1837,6 +2097,9 @@ public final class CrystalTweaksScreen extends Screen {
                 return true;
             }
         }
+        if (this.converterGrid != null && this.converterGrid.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) {
+            return true;
+        }
         if (this.drawerList != null && this.drawerList.mouseScrolled(mouseX, mouseY, verticalAmount, step)) {
             return true;
         }
@@ -1861,7 +2124,8 @@ public final class CrystalTweaksScreen extends Screen {
             openNarrow(Narrow.NONE);
             return true;
         }
-        boolean typing = (this.layerHex != null && this.layerHex.isFocused()) || (this.glowHex != null && this.glowHex.isFocused());
+        boolean typing = (this.layerHex != null && this.layerHex.isFocused()) || (this.glowHex != null && this.glowHex.isFocused())
+                || (this.converterSearch != null && this.converterSearch.isFocused());
         if (!typing && this.phase == Phase.MAIN && this.minecraft != null) {
             if (this.minecraft.options.keyAttack.matches(event)) {
                 this.stage.click(System.nanoTime(), true, visuals().copy());

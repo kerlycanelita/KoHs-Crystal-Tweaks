@@ -38,23 +38,38 @@ final class OptimizerPopup {
     private List<FormattedCharSequence> status = List.of();
     private int textTop;
 
+    /** The words of a notice that is not about optimizers; null for the optimizer window itself. */
+    private final String noticeTitle;
+    private final String noticeText;
+    private final String noticeStatus;
+
     OptimizerPopup(boolean spanish) {
+        this(spanish, null, null, null);
+    }
+
+    OptimizerPopup(boolean spanish, String noticeTitle, String noticeText, String noticeStatus) {
+        this.noticeTitle = noticeTitle;
+        this.noticeText = noticeText;
+        this.noticeStatus = noticeStatus;
         this.spanish = spanish;
         this.dismiss = new OverlayButton(spanish ? "No volver a mostrar" : "Don't show again", false);
         this.close = new OverlayButton(spanish ? "Entendido" : "Got it", true);
     }
 
     private String title() {
-        return this.spanish ? "Funciona con cualquier optimizador" : "Works with any optimizer";
+        return this.noticeTitle != null ? this.noticeTitle : this.spanish ? "Funciona con cualquier optimizador" : "Works with any optimizer";
     }
 
     private String text() {
-        return this.spanish
+        return this.noticeText != null ? this.noticeText : this.spanish
                 ? "Puedes usar Crystal Tweaks junto con cualquier optimizador de cristales: el de Marlow, G1ax, Kind's y otros. Si hay uno instalado, Crystal Tweaks apaga sus propias optimizaciones solo, para que únicamente uno maneje tus cristales. Los colores, el brillo, los destellos y los sonidos siguen funcionando."
                 : "You can use Crystal Tweaks together with any crystal optimizer: Marlow's, G1ax, Kind's and others. When one is installed, Crystal Tweaks turns its own optimizations off by itself, so only one of them drives your crystals. Colours, glow, flashes and sounds keep working.";
     }
 
     private String statusText() {
+        if (this.noticeStatus != null) {
+            return this.noticeStatus;
+        }
         return switch (CrystalOptimizerGuard.pauseReason()) {
             case CONFLICT -> this.spanish
                     ? "Ahora mismo: " + CrystalOptimizerGuard.conflictingModName() + " detectado. Las optimizaciones de Crystal Tweaks están apagadas."
@@ -75,7 +90,7 @@ final class OptimizerPopup {
         this.lines.clear();
         this.lines.addAll(CrystalUi.wrap(font, text(), textWidth));
         this.status = CrystalUi.wrap(font, statusText(), textWidth - 6);
-        int art = height >= 230 ? 38 : 0;
+        int art = this.noticeTitle == null && height >= 230 ? 38 : 0;
         int cardHeight = 26 + art + this.lines.size() * (font.lineHeight + 1) + 8 + this.status.size() * (font.lineHeight + 1) + 10 + 28;
         cardHeight = Math.min(height - 12, cardHeight);
         this.card = new Rect((width - cardWidth) / 2, (height - cardHeight) / 2, cardWidth, cardHeight);
@@ -140,7 +155,7 @@ final class OptimizerPopup {
                 CrystalTheme.fade(skin.title, fade), true);
         graphics.fill(card.x() + 10, card.y() + 21, card.right() - 10, card.y() + 22, CrystalTheme.fade(CrystalTheme.withAlpha(skin.border, 120), fade));
         int textTop = this.textTop + offset;
-        if (textTop - card.y() > 30) {
+        if (this.noticeTitle == null && textTop - card.y() > 30) {
             drawHandOver(graphics, font, card, card.y() + 24, seconds, fade, skin, look.haloColor());
         }
         int lineY = textTop;
@@ -155,7 +170,7 @@ final class OptimizerPopup {
         // What the check found, on a strip with a scan of light running along it.
         int stripHeight = this.status.size() * (font.lineHeight + 1) + 4;
         if (lineY + stripHeight <= this.close.rect().y() + offset - 2) {
-            boolean paused = CrystalOptimizerGuard.pauseReason() != CrystalOptimizerGuard.PauseReason.NONE;
+            boolean paused = this.noticeTitle != null || CrystalOptimizerGuard.pauseReason() != CrystalOptimizerGuard.PauseReason.NONE;
             int tone = paused ? 0xFFFFC48A : 0xFF6BE39A;
             graphics.fill(card.x() + 10, lineY - 2, card.right() - 10, lineY - 2 + stripHeight, CrystalTheme.fade(0x60140820, fade));
             graphics.fill(card.x() + 10, lineY - 2, card.x() + 12, lineY - 2 + stripHeight, CrystalTheme.fade(tone, fade));

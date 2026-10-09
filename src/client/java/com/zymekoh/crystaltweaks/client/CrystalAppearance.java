@@ -12,17 +12,23 @@ public final class CrystalAppearance {
     public static final int MAX_FLASH_DURATION = 3000;
     public static final int DEFAULT_FLASH_DURATION = 1200;
     public static final int DEFAULT_MOTION_BLUR = 50;
+    public static final int MIN_SIZE = 30;
+    public static final int MAX_SIZE = 200;
 
     public int outerColor = -1;
     public int innerColor = -1;
     public int coreColor = -1;
     public int rotationSpeedPercent = 100;
     public int floatingSpeedPercent = 100;
+    /** How large the crystal is drawn, 30-200; its hitbox is the server's and stays as it is. */
+    public int sizePercent = 100;
     /** The glow switch. Off hides the glow, its reflections and the crystal's own light, not the flash. */
     public boolean glowEnabled = true;
     /** Glow ships on: the mod's whole point is visible from the first launch, not after a hunt. */
     public int glowPowerPercent = 55;
     public int glowReflectionsPercent = 55;
+    /** How much the core glows next to the frames, 0-300: over 100 its light grows denser. */
+    public int coreGlowPercent = 100;
     public boolean customGlowColor = true;
     /** Crystal purple for your own; the enemy profile overrides this with red when it is created. */
     public int glowColor = 0xFFC880FF;
@@ -36,6 +42,10 @@ public final class CrystalAppearance {
     public int flashDurationMillis = DEFAULT_FLASH_DURATION;
     /** How far the glowing layers trail as they turn, 0-100; 0 is no blur. */
     public int motionBlurPercent = DEFAULT_MOTION_BLUR;
+    /** Converter My Crystal: something else is drawn in the crystal's place. Off until the player turns it on. */
+    public boolean converterEnabled;
+    /** What it draws, as "item:<id>" or "entity:<id>"; empty while nothing is chosen. */
+    public String converterTarget = "";
 
     public CrystalAppearance copy() {
         CrystalAppearance copy = new CrystalAppearance();
@@ -44,9 +54,12 @@ public final class CrystalAppearance {
         copy.coreColor = coreColor | 0xFF000000;
         copy.rotationSpeedPercent = clamp(rotationSpeedPercent, 300);
         copy.floatingSpeedPercent = clamp(floatingSpeedPercent, 300);
+        // A profile saved before the crystal had a size reads as zero.
+        copy.sizePercent = sizePercent <= 0 ? 100 : Math.max(MIN_SIZE, Math.min(MAX_SIZE, sizePercent));
         copy.glowEnabled = glowEnabled;
         copy.glowPowerPercent = clamp(glowPowerPercent, 300);
         copy.glowReflectionsPercent = clamp(glowReflectionsPercent, 300);
+        copy.coreGlowPercent = clamp(coreGlowPercent, 300);
         copy.customGlowColor = customGlowColor;
         copy.glowColor = glowColor | 0xFF000000;
         copy.flashEnabled = flashEnabled;
@@ -54,7 +67,14 @@ public final class CrystalAppearance {
         copy.flashOpacityPercent = Math.max(MIN_FLASH_OPACITY, Math.min(100, flashOpacityPercent));
         copy.flashDurationMillis = Math.max(MIN_FLASH_DURATION, Math.min(MAX_FLASH_DURATION, flashDurationMillis));
         copy.motionBlurPercent = clamp(motionBlurPercent, 100);
+        copy.converterEnabled = converterEnabled;
+        copy.converterTarget = converterTarget == null ? "" : converterTarget;
         return copy;
+    }
+
+    /** True when something else is drawn in the crystal's place. */
+    public boolean converted() {
+        return converterEnabled && converterTarget != null && !converterTarget.isEmpty();
     }
 
     /** True when the glow, its reflections and the crystal's own light are drawn. */

@@ -91,7 +91,7 @@ public final class CrystalPlacementFeedback {
         // what tells the renderer whose crystal this is, and no other mod is writing to it.
         CrystalOwnership.observeWorld(minecraft.level);
         if (usedStack.is(Items.END_CRYSTAL)) {
-            CrystalOwnership.record(base, System.nanoTime());
+            CrystalOwnership.record(base, packet.getSequence(), System.nanoTime());
             // Timed whoever handles the crystal, like the ownership colours.
             CrystalBenchmark.onPlacementSent(base, packet.getSequence());
         }

@@ -29,12 +29,6 @@ public final class CrystalLayerTint {
             return originalColor;
         }
         CrystalAppearance appearance = CrystalAppearanceAccess.of(model);
-        CrystalLayerGlowState glow = ((CrystalAppearanceAccess) (Object) model).crystalTweaks$glowPass();
-        if (glow != null) {
-            // A pass of the glow: light, whose share arrives in the tint's alpha.
-            return light(glow.ownColours ? shineColour(part, model, appearance) : appearance.haloColor(),
-                    (originalColor >>> 24) / 255.0F);
-        }
         if (part == model.cube && appearance.glowPowerPercent > 0) {
             int tint = appearance.coreColor;
             int hot = CrystalGlowMath.hotColor(tint);
@@ -58,26 +52,5 @@ public final class CrystalLayerTint {
             return (originalColor & 0xFF000000) | (appearance.coreColor & 0xFFFFFF);
         }
         return originalColor;
-    }
-
-    /**
-     * The colour a layer shines in: its own, the core's a step towards white so it burns hottest, and
-     * an unpainted layer's the glow colour, so a crystal left in its texture still glows in it.
-     */
-    private static int shineColour(ModelPart part, EndCrystalModel model, CrystalAppearance appearance) {
-        int colour = part == model.outerGlass ? appearance.outerColor
-                : part == model.innerGlass ? appearance.innerColor : appearance.coreColor;
-        if ((colour & 0xFFFFFF) == 0xFFFFFF) {
-            colour = appearance.haloColor();
-        }
-        return part == model.cube ? CrystalGlowMath.hotColor(colour) : colour;
-    }
-
-    /** {@code rgb} carrying {@code gain} of its light, premultiplied for the additive material. */
-    private static int light(int rgb, float gain) {
-        return CrystalGlowMath.alpha(gain) << 24
-                | Math.round(((rgb >> 16) & 255) * gain) << 16
-                | Math.round(((rgb >> 8) & 255) * gain) << 8
-                | Math.round((rgb & 255) * gain);
     }
 }

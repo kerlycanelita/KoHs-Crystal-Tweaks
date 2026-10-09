@@ -55,6 +55,8 @@ public final class MiniCrystal {
         look.floatingSpeedPercent = 0;
         look.glowReflectionsPercent = 0;
         look.flashEnabled = false;
+        // The mod's own mark stays a crystal, whatever the crystals in the world are drawn as.
+        look.converterEnabled = false;
         return look;
     }
 

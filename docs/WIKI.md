@@ -11,6 +11,7 @@ Welcome to the Crystal Tweaks documentation. This guide covers installation, con
 - [Client or server](#client-or-server)
 - [Colors](#colors)
 - [Glow](#glow)
+- [Converter My Crystal](#converter-my-crystal)
 - [Sound](#sound)
 - [Crystal Tweaks tab](#crystal-tweaks-tab)
 - [Advanced tab](#advanced-tab)
@@ -98,13 +99,21 @@ replace the crystal texture can change the final result, so mostly neutral textu
 Both sliders range from `0%` to `300%`: `0%` stops the movement, `100%` matches Vanilla and `300%`
 is the maximum. The preview crystal follows them.
 
+### Size
+
+**Size** draws the crystal from `30%` to `200%` of its size, with its glow, about the middle of its
+hitbox. Only the drawing changes: the box you can hit is the server's and stays where it is.
+
 ### Enemy crystals
 
 **Enemy crystals**, in the top-left corner, turns the whole screen into the enemy profile's: the
 same panels in red, for crystals you did not place, with **Profile** and **Advanced** tabs
 (Advanced is still to come). **Your crystals** brings yours back. The server does not say who placed
-a crystal, so this is an approximation: a crystal that appears where you just placed one is yours,
-and every other crystal uses the enemy profile. **Use this profile** turns the enemy look on or off.
+a crystal, so this is an approximation: a crystal that appears on a base you clicked is yours, and
+when someone else's reached that base first, the server's acknowledgement of your click tells the
+two apart. Every other crystal uses the enemy profile. **Use this profile** turns the enemy look on
+or off; while it is off the rest of the enemy menu waits dimmed, because the enemy's crystals are
+drawn with your own profile.
 
 ## Glow
 
@@ -113,13 +122,25 @@ motion blur, the flash style and its size, and the glow colour.
 
 - **Glow** switches the glow, its reflections and the crystal's own light. Its options fold away
   while it is off. It does not affect the flash, which has a switch of its own.
-- The glow is in the crystal: its three layers shine, each in its own colour (an unpainted layer in
-  the glow colour, the core a step towards white), inside a soft aura in the glow colour. It is the
-  crystal's own model drawn again as light, so it keeps the frames' pattern and turns with them.
+- The glow is in the crystal: its layers shine, each in its own colour (an unpainted layer in the
+  glow colour), and turn and float with it.
+- **Style** chooses how. **Light**, the default, is a soft glow round every frame and a round light
+  about the core; it is blended, not added, so it keeps its colour in daylight instead of burning
+  to white. **Layers** is the glow of 2.5.0: the layers drawn again as added light inside an aura,
+  stronger and more saturated. Both profiles share it.
 - **Power** and **Reflections** range from `0%` to `300%`. Reflections are a coloured light drawn
   on the tops of nearby blocks; world lighting is not changed.
-- **Motion blur** makes the glowing layers trail behind them as they turn: `0%` is none, `100%` a
-  trail 24 degrees long at Vanilla speed, longer as the crystal turns faster. It ships at `50%`.
+- **Core** (`0%`-`300%`) is how much the core glows, with every kind of glow: a round light about
+  it in Light, its own light and aura in Layers, the middle of the halo in Old KoHs Crystal Glow.
+  At `0%` only the rest glows; past `100%` its light grows wider and denser.
+- **Motion blur** makes the layers trail behind them as they turn: `0%` is none, `100%` a trail 24
+  degrees long at Vanilla speed, longer as the crystal turns faster. It ships at `50%`, works with
+  the glow off (a smear of the crystal as the world lights it), and waits dimmed while the crystal
+  neither turns nor floats.
+- **Quality** decides how much the glow, the blur and the reflections draw. **Performance**: the
+  outer frame and the core, a short trail, plain reflections, nothing far away. **Balanced**, the
+  default: every layer. **Quality**: the far side of the frames too, a longer and finer trail, a
+  fuller aura in the Layers style, and all of it from further away. Both profiles share it.
 - **Own colour** gives the glow and the flash a colour of their own. The crystal's layer colours are
   never changed by it.
 
@@ -154,6 +175,30 @@ measures out where a player is. With nobody in sight it draws a ring.
 Every style is drawing and nothing else. None of them change the explosion, its damage, its radius or
 its sound. Because they are visual, they keep working while another optimizer has the interaction
 helpers paused.
+
+## Converter My Crystal
+
+The **Converter** tab draws something else in the crystal's place: any block, item or entity of the
+game version you are playing. It is off until you turn **Convert my crystal** on, and a notice on
+the way in says what it means: what you choose is drawn over Minecraft's own texture and over any
+installed resource pack's.
+
+- **Blocks & items** and **Entities** switch the catalogue: every item, blocks first, or every
+  entity, shown by its spawn egg where it has one. Type in the search to narrow it by name or id.
+- Click one to choose it; click it again to let go of it. The line under the catalogue says what is
+  chosen. The game can only show items and entities once a world has loaded: on the title screen
+  before that the catalogue asks you to join one, and a choice you already made shows as soon as
+  you are in a world. Something the game cannot draw this way leaves the crystal a crystal.
+- The crystal keeps its spin and its float. A block turns on its corner as the crystal's frames do;
+  an item or an entity turns upright. **Rotation**, **Floating** and **Size**, in Colours, apply to
+  it; so do the glow's power, colour and reflections, as a round light about it.
+- While something is chosen, the layers' colours, **Style** and **Motion blur** wait dimmed: there
+  are no layers to tint, light or trail.
+- The enemy menu has its own Converter, so the enemy's crystals can be drawn as something else than
+  yours.
+
+It is drawing and nothing else. The crystal is still the entity the server sent, where it is, with
+the same box to hit and the same explosion.
 
 ## Sound
 
@@ -191,8 +236,8 @@ its own optimization off; it shows Crystal Tweaks and the detected optimizer by 
 The **Advanced** tab holds the tools behind the helpers.
 
 - **Old KoHs Crystal Glow** brings back the glow as it was before it moved into the crystal: a halo
-  with rays drawn behind it. Power, reflections, colour and motion blur keep working. It applies to
-  your crystals and the enemy's.
+  with rays drawn behind it. Power, Core, reflections, colour and motion blur keep working; Style
+  waits dimmed, because the halo has no layers. It applies to your crystals and the enemy's.
 - **Force off optimizations** turns every crystal optimization off, whatever the detection says.
   A paused helper names the reason on hover.
 - **Optimizer benchmark** measures your own placements and breaks while you play and
@@ -428,6 +473,13 @@ Check that the file is WAV, OGG, or MP3, is no longer than five seconds, and rem
 
 Scroll inside the side panel; a panel that scrolls shows a wheel hint the first time. In a narrow window, open the panels from the handles at the edges. The screen reflows when you change the window size or the GUI scale, without losing what you had open.
 
+### Converter My Crystal still shows a crystal
+
+Nothing is chosen yet (the line under the catalogue says so), you are on the title screen (the
+choice shows once you join a world), or the game cannot draw that entity on its own, in which case
+the crystal stays a crystal. A choice saved on one game version that does not exist
+on another is ignored the same way.
+
 ### The optimizer does nothing
 
 Open the configuration screen and look at the chip in the top-right corner; hover it for details:
@@ -473,7 +525,8 @@ would without the mod. A placement in that instant is sent at the crystal, as Va
 
 2.2.7 removed the crystal from the world instead and refreshed the crosshair, which let the next
 placement reach the obsidian sooner. That changed which packet the client sent, so later versions
-went back to Vanilla's. If you want placements to reach the server sooner, see
+went back to Vanilla's, and no switch brings it back: a server can tell, and some forbid optimizers
+that do it. If you want placements to reach the server sooner, see
 [Client or server](#client-or-server).
 
 ## Building from source

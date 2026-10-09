@@ -35,6 +35,7 @@ public final class CrystalVisualConfig {
     private static volatile boolean safeCrystal = true;
     private static volatile boolean optimizerNoticeDismissed;
     private static volatile boolean optimizerPopupDismissed;
+    private static volatile boolean converterNoticeDismissed;
     private static volatile boolean scrollHintDone;
     private static volatile boolean carouselHintDone;
     private static volatile boolean forceOffOptimizations;
@@ -56,6 +57,8 @@ public final class CrystalVisualConfig {
     private static volatile CrystalFlashStyle flashStyle = CrystalFlashStyle.EXPLOSION;
     /** The glow as it was before it moved into the crystal's layers: a halo behind it. */
     private static volatile boolean oldGlow;
+    private static volatile CrystalGlowStyle glowStyle = CrystalGlowStyle.LIGHT;
+    private static volatile CrystalGlowQuality glowQuality = CrystalGlowQuality.BALANCED;
     private static volatile boolean loaded;
     private static final CrystalAppearance playerVisuals = defaultPlayerVisuals();
     private static CrystalAppearance enemyVisuals = defaultEnemyVisuals();
@@ -115,6 +118,10 @@ public final class CrystalVisualConfig {
                     playerVisuals.coreColor = parseColor(visuals, "coreColor", DEFAULT_CORE);
                     playerVisuals.rotationSpeedPercent = clamp(intValue(visuals, "rotationSpeedPercent", 100), 0, 300);
                     playerVisuals.floatingSpeedPercent = clamp(intValue(visuals, "floatingSpeedPercent", 100), 0, 300);
+                    playerVisuals.sizePercent = clamp(intValue(visuals, "sizePercent", 100),
+                            CrystalAppearance.MIN_SIZE, CrystalAppearance.MAX_SIZE);
+                    playerVisuals.converterEnabled = booleanValue(visuals, "converterEnabled", false);
+                    playerVisuals.converterTarget = stringValue(visuals, "converterTarget", "");
 
                     JsonObject sounds = section(root, "sounds");
                     customSoundEnabled = booleanValue(sounds, "enabled", false);
@@ -135,6 +142,7 @@ public final class CrystalVisualConfig {
                     JsonObject notices = section(root, "notices");
                     optimizerNoticeDismissed = booleanValue(notices, "optimizerAdviceDismissed", false);
                     optimizerPopupDismissed = booleanValue(notices, "optimizerWindowDismissed", false);
+                    converterNoticeDismissed = booleanValue(notices, "converterNoticeDismissed", false);
                     scrollHintDone = booleanValue(notices, "scrollHintDone", false);
                     carouselHintDone = booleanValue(notices, "carouselHintDone", false);
 
@@ -183,6 +191,9 @@ public final class CrystalVisualConfig {
                     playerVisuals.motionBlurPercent = clamp(intValue(glow, "motionBlurPercent",
                             CrystalAppearance.DEFAULT_MOTION_BLUR), 0, 100);
                     oldGlow = booleanValue(glow, "oldStyle", false);
+                    playerVisuals.coreGlowPercent = clamp(intValue(glow, "coreGlowPercent", 100), 0, 300);
+                    glowStyle = CrystalGlowStyle.parse(stringValue(glow, "style", ""), CrystalGlowStyle.LIGHT);
+                    glowQuality = CrystalGlowQuality.parse(stringValue(glow, "quality", ""), CrystalGlowQuality.BALANCED);
                     playerVisuals.migrateLegacyGlow(glow.has("enabled"), glow.has("flashOpacityPercent"),
                             flashStyle.scalable());
 
@@ -229,6 +240,9 @@ public final class CrystalVisualConfig {
                 visuals.addProperty("coreColor", toHex(playerVisuals.coreColor));
                 visuals.addProperty("rotationSpeedPercent", playerVisuals.rotationSpeedPercent);
                 visuals.addProperty("floatingSpeedPercent", playerVisuals.floatingSpeedPercent);
+                visuals.addProperty("sizePercent", playerVisuals.sizePercent);
+                visuals.addProperty("converterEnabled", playerVisuals.converterEnabled);
+                visuals.addProperty("converterTarget", playerVisuals.converterTarget);
                 root.add("visuals", visuals);
 
                 root.remove("tweaks");
@@ -277,6 +291,7 @@ public final class CrystalVisualConfig {
                         : new JsonObject();
                 notices.addProperty("optimizerAdviceDismissed", optimizerNoticeDismissed);
                 notices.addProperty("optimizerWindowDismissed", optimizerPopupDismissed);
+                notices.addProperty("converterNoticeDismissed", converterNoticeDismissed);
                 notices.addProperty("scrollHintDone", scrollHintDone);
                 notices.addProperty("carouselHintDone", carouselHintDone);
                 root.add("notices", notices);
@@ -299,6 +314,9 @@ public final class CrystalVisualConfig {
                 glow.addProperty("flashDurationMillis", playerVisuals.flashDurationMillis);
                 glow.addProperty("motionBlurPercent", playerVisuals.motionBlurPercent);
                 glow.addProperty("oldStyle", oldGlow);
+                glow.addProperty("coreGlowPercent", playerVisuals.coreGlowPercent);
+                glow.addProperty("style", glowStyle.storageKey());
+                glow.addProperty("quality", glowQuality.storageKey());
                 root.add("glow", glow);
 
                 JsonObject sounds = root.has("sounds") && root.get("sounds").isJsonObject()
@@ -481,6 +499,17 @@ public final class CrystalVisualConfig {
     public static void setOptimizerPopupDismissed(boolean dismissed) {
         load();
         optimizerPopupDismissed = dismissed;
+    }
+
+    /** True once the player asked never to see Converter My Crystal's notice again. */
+    public static boolean converterNoticeDismissed() {
+        load();
+        return converterNoticeDismissed;
+    }
+
+    public static void setConverterNoticeDismissed(boolean dismissed) {
+        load();
+        converterNoticeDismissed = dismissed;
     }
 
     /** True once the player has scrolled a side panel: the turning-wheel hint has done its job. */
@@ -726,6 +755,28 @@ public final class CrystalVisualConfig {
     public static void setOldGlow(boolean enabled) {
         load();
         oldGlow = enabled;
+    }
+
+    /** How the layers glow, for every profile. */
+    public static CrystalGlowStyle glowStyle() {
+        load();
+        return glowStyle;
+    }
+
+    public static void setGlowStyle(CrystalGlowStyle style) {
+        load();
+        glowStyle = style == null ? CrystalGlowStyle.LIGHT : style;
+    }
+
+    /** How much the glow, the blur and the reflections draw, for every profile. */
+    public static CrystalGlowQuality glowQuality() {
+        load();
+        return glowQuality;
+    }
+
+    public static void setGlowQuality(CrystalGlowQuality quality) {
+        load();
+        glowQuality = quality == null ? CrystalGlowQuality.BALANCED : quality;
     }
 
     public static int glowColor() {

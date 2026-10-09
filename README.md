@@ -33,6 +33,10 @@ Crystal Tweaks brings End Crystal visual and sound controls into one animated co
 | --- | --- | --- |
 | ![The glowing layers trailing as the crystals turn](docs/images/glow-blur.png) | ![Old KoHs Crystal Glow, optimization and compatibility](docs/images/hub-advanced.png) | ![KoHs tab with Discord, website, Modrinth and Buy me a coffee](docs/images/hub-kohs.png) |
 
+| Converter My Crystal | The Converter tab |
+| --- | --- |
+| ![Your crystals drawn as diamond blocks and the enemy's as a creeper, each in its glow](docs/images/converter.png) | ![The catalogue, searched, with the chosen entity in the preview](docs/images/hub-converter.png) |
+
 | Crystal Practice | Kit editor | What the bot does |
 | --- | --- | --- |
 | ![Crystal Practice gear tab](docs/images/practice-gear.png) | ![Kit editor with the kit room and the practice inventory](docs/images/practice-kit.png) | ![Bot tab listing the Hard bot's techniques](docs/images/practice-bot.png) |
@@ -44,13 +48,15 @@ Crystal Tweaks brings End Crystal visual and sound controls into one animated co
 ## What it changes
 
 - Independent colors for the outer layer, inner layer, and crystal core.
-- Glow in the crystal's three layers, each shining in its own color inside an aura, with `0%`-`300%` power, colored reflections, its own color, a motion blur that trails the turning layers, and a smooth afterglow trail. The old halo stays available as Old KoHs Crystal Glow.
+- Glow in the crystal's three layers: a soft light round every frame and a round one about the core, or the stronger Layers style, with `0%`-`300%` power, a core control, colored reflections, its own color, a motion blur that trails the turning layers with or without the glow, and a smooth afterglow trail. Performance, Balanced and Quality modes decide how much it draws. The old halo stays available as Old KoHs Crystal Glow.
+- Converter My Crystal (off by default): your crystals, or the enemy's, drawn as any block, item or entity of your game version, picked from a searchable catalogue, still spinning and floating.
+- Crystal size from `30%` to `200%`, drawing only: the hitbox is the server's.
 - Fourteen flash styles for a destroyed crystal, in the glow color and sized from `10%` to `300%`: explosion, skull, your own head as a pale ghost, lightning toward the players you can see, heart, star, shockwave, vortex, crown, crescent, snowflake, flower, gem, and crossed swords.
 - Glow that respects walls instead of using an outline drawn through terrain.
 - Separate colors, glow, and animation speeds for crystals that were not placed by you (with approximate identification).
 - Rotation and floating speed controls from `0%` to `300%`.
 - Custom local explosion sounds with volume and playback-speed controls.
-- A settings screen around a live crystal, entered through a gate of stone its glow lights (click the crystal and the stone turns to obsidian, bursts and rains away): colours on the left, glow on the right, scrolling tabs above (Sound, Crystal Tweaks, Advanced, KoHs) with the game's own items as icons, a red menu of its own for enemy crystals, an optimizer status chip, and a preview that explodes with your flash and sound when you click it.
+- A settings screen around a live crystal, entered through a gate of stone its glow lights (click the crystal and the stone turns to obsidian, bursts and rains away): colours on the left, glow on the right, scrolling tabs above (Sound, Crystal Tweaks, Advanced, Converter, KoHs) with the game's own items as icons, a red menu of its own for enemy crystals, an optimizer status chip, and a preview that explodes with your flash and sound when you click it.
 - Automatic optimizer conflict handling: interaction helpers step aside while visuals, sounds, and the preview stay active.
 - Don't break obsidian (switchable; formerly Safe Crystal), optional ghost crystals (off by default), and a local Conflict Monitor.
 - Only real crystal optimizers pause the optimization: crystal glows, skins, spins, protections and counters never do.

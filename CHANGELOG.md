@@ -1,5 +1,63 @@
 # Changelog
 
+## 2.6.0
+
+### Added
+
+- **Converter My Crystal**, a tab of its own, off until you turn it on: your crystals drawn as any
+  block, item or entity of the game version you play. A catalogue of all of them, blocks first and
+  entities by their spawn egg, narrowed by a search over names and ids; one click chooses, a second
+  click on the same one lets go. The crystal keeps its spin and its float: a block turns on its
+  corner as the crystal's frames do, an item or an entity turns upright, and all of it follows
+  Rotation, Floating and Size. The enemy menu has a Converter of its own, so the enemy's crystals
+  can be something else than yours. A notice on the way in says what it means: your choice is drawn
+  over Minecraft's own texture and over any resource pack's. Drawing only: the crystal stays the
+  entity the server sent, where it is, with the same box to hit.
+- **Size** (Colours): how large the crystal is drawn, `30%` to `200%`, with its glow. The box you
+  can hit is the server's and does not change.
+- **Core** (Glow): how much the core glows, `0%` to `300%`, with every kind of glow: a round light
+  about it in the Light style, its own light and aura in Layers, the middle of the halo in Old KoHs
+  Crystal Glow.
+- **Style** (Glow): **Light**, the new default, a soft glow round every frame that keeps its colour
+  in daylight; **Layers**, the glow of 2.5.0, stronger and more saturated.
+- **Quality** (Glow): **Performance**, **Balanced** and **Quality** decide how much the glow, the
+  blur and the reflections draw, and from how far.
+
+### Changed
+
+- **The glow costs far less.** In 2.5.0 each glowing crystal took a dozen draws of its own;
+  now the light of every crystal in view reaches the graphics card as one
+  batch. On the test scene, 54 crystals in view in the 26.2 development client at 1920x1080:
+  frames per second with the default glow and blur went from 106 to 218 (Balanced), 294 on
+  Performance and 138 on Quality, beside about 340 with the glow off; the old halo went from 68 to
+  114. On an idle machine the same scene runs at 371, 453 and 251, beside 518 with the glow off,
+  and a converted crystal costs about what the crystal it replaces does.
+- **Motion blur works without the glow**: with the glow off the layers leave a smear of the crystal
+  as the world lights it, instead of nothing. It is dimmed while the crystal neither turns nor
+  floats.
+- **The gate plays once.** The stone bursts the first time the settings open after the game starts;
+  after that they open straight away.
+- **Controls that have nothing to act on wait dimmed**, with the reason on hover: Style under Old
+  KoHs Crystal Glow; the layers' colours, Style and Motion blur while Converter My Crystal
+  draws something else; the whole enemy menu while **Use this profile** is off.
+
+### Fixed
+
+- **Your own crystals drawn as the enemy's.** A ghost crystal wore the enemy profile, so with ghost
+  crystals on every placement flashed the enemy's colours before the real crystal arrived. And when
+  another crystal reached the base you had clicked before yours did, yours was the one taken for
+  the enemy's. Whose crystal is whose is now settled by the server's own acknowledgement of your
+  placement, which every client is sent anyway: nothing more is sent or asked for. It holds in
+  bursts on one base, and on servers that acknowledge a placement before they send its crystal.
+
+### Not added, on purpose
+
+- **A mode that does not wait for the server after a break.** What you see is already immediate;
+  the only thing left to gain is placing the next crystal before the server has removed the last
+  one, by letting the crosshair pass through it. That changes which packet the client sends, a
+  server can tell, and some forbid optimizers that do it. Crystal Tweaks still sends exactly what
+  Vanilla sends: the lab in the legitimacy audit was run again on this version.
+
 ## 2.5.0
 
 ### Changed

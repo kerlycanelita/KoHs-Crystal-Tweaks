@@ -79,6 +79,8 @@ public final class GhostCrystalRenderer {
             double x = above.getX() + 0.5D;
             double y = above.getY();
             double z = above.getZ() + 0.5D;
+            // The stand-in is the player's own placement, drawn before the server answers: their colours.
+            CrystalOwnership.markOwn(template);
             template.setPos(x, y, z);
             template.xOld = x;
             template.yOld = y;

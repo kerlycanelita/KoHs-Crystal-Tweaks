@@ -3,7 +3,7 @@
 [![Report an issue](https://img.shields.io/badge/GitHub-Report%20an%20issue-D73A49?logo=github&logoColor=white)](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/issues/new)
 [![Wiki](https://img.shields.io/badge/Wiki-Guide-7B2CBF?logo=readthedocs&logoColor=white)](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/wiki)
 
-# Crystal Tweaks 2.5.0
+# Crystal Tweaks 2.6.0
 
 ## The settings
 
@@ -12,7 +12,7 @@ stone turns to obsidian and crying obsidian, bursts, and rains away as the menu 
 crystal, which wears everything you set, colours, glow, flash and sound.
 
 - **Colours** on the left, **Glow** on the right; both panels take on the glow's colour while you change it.
-- Tabs above the crystal, turned with the mouse wheel: **Sound**, **Crystal Tweaks**, **Advanced** and **KoHs**.
+- Tabs above the crystal, turned with the mouse wheel: **Sound**, **Crystal Tweaks**, **Advanced**, **Converter** and **KoHs**.
 - **Enemy crystals** in the corner breaks your menu apart and drops the red one for other players' crystals.
 - **Crystal Practice** under the crystal.
 
@@ -23,9 +23,12 @@ crystal, which wears everything you set, colours, glow, flash and sound.
 
 Open the **Glow** panel, on the right of the settings:
 
-- **The glow is in the crystal:** its three layers shine, each in its own colour, inside a soft aura in the glow colour, and the light turns and floats with them.
+- **The glow is in the crystal:** its layers shine, each in its own colour, and the light turns and floats with them.
+- **Style:** **Light**, a soft glow round every frame that keeps its colour in daylight, or **Layers**, stronger and more saturated.
 - **Power:** from 0 to 300%. An extra glow layer keeps the effect visible in any lighting, not only at night.
-- **Motion blur:** the glowing layers trail behind them as they turn, from 0 to 100%.
+- **Core:** how much the core glows, from 0 to 300%, with every kind of glow.
+- **Motion blur:** the layers trail behind them as they turn, from 0 to 100%, with the glow on or off.
+- **Quality:** Performance, Balanced or Quality decide how much the glow draws. Even on Quality it costs less than the glow of 2.5.0 did.
 - **Reflections:** simulates colored light on the top faces of nearby blocks.
 - **Custom color:** uses the same color picker as the rest of the menu. It colors the light only; the crystal's own layer colors stay as you set them.
 - **Flash on explosion:** the light a destroyed crystal leaves behind fades smoothly, in one of fourteen styles, sized from 10% to 300%.
@@ -38,9 +41,22 @@ The glow respects walls and does not use Vanilla's outline that shows through te
 
 ![Glow settings](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/hub-glow-lit.png)
 
+## Converter My Crystal
+
+Turn your crystals into something else: any block, item or entity of your game version, picked from a searchable catalogue in the **Converter** tab. It is off until you turn it on.
+
+- The crystal keeps its spin and its float, and follows **Rotation**, **Floating** and the new **Size** (30% to 200%).
+- The enemy menu has a Converter of its own, so their crystals can be something else than yours.
+- Your choice is drawn over Minecraft's own texture and over any resource pack's.
+- Drawing only: the crystal stays where it is, with the same box to hit.
+
+![Converter My Crystal](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/converter.png)
+
+![The Converter tab](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/hub-converter.png)
+
 ## Other players' crystals
 
-Give crystals you did not place their own visual profile, with separate colors, glow and animation speeds so they stand out immediately. Identification is approximate because the server does not tell the client who placed a crystal. Anything that does not match your recent placements—including crystals that were already there when you joined—uses the other-player profile. Switch to it with **Enemy crystals** in the corner of the settings.
+Give crystals you did not place their own visual profile, with separate colors, glow and animation speeds so they stand out immediately. Identification is approximate because the server does not tell the client who placed a crystal. Anything that does not match your recent placements—including crystals that were already there when you joined—uses the other-player profile. The server's own acknowledgement of your placement tells your crystal from one that reached the same base first, also in fast bursts. Switch to it with **Enemy crystals** in the corner of the settings.
 
 ## Works alongside other mods
 

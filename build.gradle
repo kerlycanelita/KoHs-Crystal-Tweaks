@@ -70,6 +70,7 @@ def legacyGuiTransform = { String line -> line
 		.replace('centeredText', 'drawCenteredString')
 		.replace('graphics.text(', 'graphics.drawString(')
 		.replace('graphics.entity(', 'graphics.submitEntityRenderState(')
+		.replace('graphics.fakeItem(', 'graphics.renderFakeItem(')
 		.replace('player.sendSystemMessage(message);', 'player.displayClientMessage(message, false);')
 		.replace('this.minecraft.gui.extractDeferredSubtitles();', '') }
 
@@ -190,7 +191,7 @@ if (usesRemapping || usesModernRegistrySplit) {
 				}
 			}
 			if (usesRemapping) {
-				filesMatching(['**/EndCrystalGlowMixin.java', '**/CrystalGlowRenderer.java', '**/CrystalAfterglow.java', '**/CrystalAfterglowRendererMixin.java', '**/EndCrystalRendererMixin.java']) {
+				filesMatching(['**/EndCrystalGlowMixin.java', '**/CrystalConverter.java', '**/CrystalGlowRenderer.java', '**/CrystalAfterglow.java', '**/CrystalAfterglowRendererMixin.java', '**/EndCrystalRendererMixin.java']) {
 					filter { line -> cameraStateTransform(line) }
 				}
 			}

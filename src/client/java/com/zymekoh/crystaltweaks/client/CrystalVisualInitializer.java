@@ -58,6 +58,8 @@ public final class CrystalVisualInitializer implements ClientModInitializer {
             CrystalSoundManager.resetTracking();
             CrystalBreakPrediction.reset();
             GhostCrystalTracker.reset();
+            // On the client thread, where the stand-ins are drawn from.
+            client.execute(CrystalConverter::forget);
         });
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> CrystalSoundManager.cleanup());
     }

@@ -86,22 +86,43 @@ whenever another crystal optimizer is detected.
 
 ## Crystal ownership colours — L0 local heuristic
 
-The crystal that appears on a base after one of the player's own placements is drawn with the
-player's profile; every other crystal uses the enemy profile. The server does not send ownership,
-so this is an approximation built only from the player's own actions. It selects colours and nothing
-else.
+A crystal that appears on a base the player clicked is drawn with the player's profile; every other
+crystal uses the enemy profile. The server does not send ownership, so this is an approximation.
+Since 2.6.0 it also reads the block-change acknowledgement the server sends every client for its
+own placements (`ClientboundBlockChangedAckPacket`, by sequence number): the last crystal to have
+appeared on the base when the click is acknowledged is the player's, and one that reached the base
+before it was someone else's. Until the acknowledgement every crystal on a clicked base is taken to
+be the player's, so their own is never drawn as an enemy's. Some servers, and proxies in front of
+them, acknowledge a placement before they send its crystal: there an acknowledged click still
+claims the first crystal to appear on its base since it was sent. Nothing is sent, asked for or delayed;
+it selects colours and nothing else. The rules are plain Java, tested on timelines in
+`tools/tests/OwnershipLedgerTest.java`.
 
 ## Glow, motion blur, reflections and afterglow — L0 cosmetic
 
-The glow is the crystal's own model drawn again, around its own position, with Vanilla's additive
-energy-swirl material (the charged creeper's light) with its depth writes off and the depth test on:
-nothing shows through walls, and the crystal, its hitbox and its position are untouched. The aura
-is the same model slightly larger, and the motion blur the model at the angles it had a few ticks
-earlier; both only add light where the crystal already is. The old halo (Old KoHs Crystal Glow),
+The glow of the Light style is soft sheets of light on the faces of the crystal's own boxes and a
+round one about its core, baked from the crystal's texture (again when resource packs reload) and drawn with Vanilla's
+beacon-beam material: blended, depth-tested, without depth writes. The Layers style is the
+crystal's own boxes drawn again with Vanilla's additive energy-swirl material (the charged
+creeper's light), depth writes off and the depth test on, with an aura of the same boxes slightly
+larger. The motion blur is the sheets at the angles the crystal had a few ticks earlier. Nothing
+shows through walls, and the crystal, its hitbox and its position are untouched: all of it only
+puts light where the crystal already is. The quality modes change how much of it is drawn. The old halo (Old KoHs Crystal Glow),
 the coloured spill on block tops and the flash a destroyed crystal leaves are drawn with Vanilla's
 additive dragon-ray material, also depth-tested. The glow raises the crystal's own block light so
 it reads in the dark, the way an emissive resource pack does. Terrain under a crystal is sampled
 only to place the spill, within a small budget per tick.
+
+## Size and Converter My Crystal — L0 cosmetic
+
+Size scales the drawing of the crystal about the middle of its hitbox. Converter My Crystal draws an
+item's model, or the model of an entity that is built on the client and never added to any world,
+in the crystal's place, turning and floating as the crystal would. In both cases the entity the
+server sent is untouched: its position, its hitbox, what the crosshair picks and every packet are
+Vanilla's. Neither shows a crystal the player could not already see, and a converted crystal is
+hidden by walls exactly as a crystal is. They do change how conspicuous a crystal is on the
+player's own screen, as its colours and its glow do; a server that restricts crystal visuals
+restricts these too.
 
 ## Flash styles — L0 cosmetic, one with a visibility rule
 
@@ -152,6 +173,11 @@ called.
   limit.
 - It does not place, break, target or aim at anything on the player's behalf.
 - It does not send, delay, reorder, duplicate or rewrite any gameplay packet.
+- It does not act on a break before the server confirms it. A crystal the player hit is hidden, not
+  removed: it stays in the client's world and in the crosshair's way until the server removes it,
+  so a click in that instant is sent at the crystal, as Vanilla sends it. Letting the crosshair
+  pass through it would place the next crystal a round trip sooner; that changes which packet the
+  client sends, a server can tell, and it was considered for 2.6.0 and left out.
 - It does not read server state the Vanilla client is not already given, and it draws nothing that
   reveals an entity the player could not already see.
 
@@ -221,6 +247,36 @@ timing. With the optimizations on, those packets are the ones Vanilla sends for 
 there is nothing for any of them to tell apart. What a server-side anticheat cannot see, the hidden
 crystal, the sound and the burst, exists only on this screen. A client-side anticheat or a launcher
 that inspects installed mods is a different matter: it sees the JAR whatever the mod does.
+
+## Lab evidence (2.6.0)
+
+The same lab, run again on 2.6.0 on 2026-10-09: now on every version with a Grim build, with a
+capture before and after each scenario, and logging, for each crystal the macro hits, whose the mod
+took it for. Every crystal in the lab is the player's own.
+
+| Version (server) | Grim alerts, 4 scenarios | Hidden after the hit, on / off | Explosion heard, on / off (+100 ms) | Own crystals taken for own |
+| --- | --- | --- | --- | --- |
+| 1.21.11 (1.21.11) | 0 | 0.09 ms / 33.6 ms | 0.23 ms / 133.3 ms | 80 of 80 |
+| 26.1 (26.1.2) | 0 | 0.07 ms / 16.7 ms | 0.29 ms / 125.2 ms | 80 of 80 |
+| 26.1.1 (26.1.2) | 0 | 0.09 ms / 41.3 ms | 0.29 ms / 133.5 ms | 80 of 80 |
+| 26.1.2 (26.1.2) | 0 | 0.08 ms / 15.9 ms | 0.31 ms / 133.6 ms | 80 of 80 |
+| 26.2 (26.2) | 0 | 0.08 ms / 23.6 ms | 0.29 ms / 132.4 ms | 80 of 80 |
+| 26.3 (singleplayer: no Grim build, no added latency) | - | 0.06 ms / 15.1 ms | 0.20 ms / 16.2 ms | 61 of 61 |
+
+Medians. With the optimizations on, the client sent the same kinds of packets and the same number
+of each as with them off: without added latency, 40 uses on a block, 60 swings and 20 hits on every
+version. With 100 ms added, both modes also show the cycles where the macro's swing reached the
+block before the crystal had arrived: 17 hits and 6 block actions, and on 26.1.2 the Vanilla run
+had 18 and 4. The one cycle that differs is the first of the first scenario, whose hotbar slot was
+already selected.
+
+The glow and the ownership colours were changed once more after that run; neither sends, delays or
+reads anything new. On 26.2 the lab was run again on the final code with two more scenarios: a
+burst on one base, Use pressed every tick and every crystal hit the moment it is under the
+crosshair, and the same burst with every placement acknowledged ahead of the server, as a proxy
+that answers before the server does. Grim raised no alert in any of the eight scenarios, and every
+crystal was taken for the player's own: 40 of 40 in each burst without added latency, 17 of 17 with
+100 ms.
 
 ## Verification evidence
 

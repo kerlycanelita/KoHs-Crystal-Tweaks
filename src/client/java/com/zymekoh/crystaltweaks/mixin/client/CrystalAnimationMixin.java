@@ -1,12 +1,10 @@
 package com.zymekoh.crystaltweaks.mixin.client;
 
-import com.mojang.math.Axis;
 import com.zymekoh.crystaltweaks.client.CrystalAppearance;
 import com.zymekoh.crystaltweaks.client.CrystalAppearanceAccess;
-import com.zymekoh.crystaltweaks.client.CrystalLayerGlowState;
+import com.zymekoh.crystaltweaks.client.CrystalPose;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.object.crystal.EndCrystalModel;
-import net.minecraft.client.renderer.entity.EndCrystalRenderer;
 import net.minecraft.client.renderer.entity.state.EndCrystalRenderState;
 import org.joml.Quaternionf;
 import org.spongepowered.asm.mixin.Mixin;
@@ -22,11 +20,6 @@ public abstract class CrystalAnimationMixin implements CrystalAppearanceAccess {
 
     @Override public CrystalAppearance crystalTweaks$appearance() { return crystalTweaks$appearance; }
     @Override public void crystalTweaks$appearance(CrystalAppearance appearance) { crystalTweaks$appearance = appearance; }
-    @Unique private CrystalLayerGlowState crystalTweaks$glowPass;
-
-    @Override public CrystalLayerGlowState crystalTweaks$glowPass() { return crystalTweaks$glowPass; }
-    @Unique
-    private static final float CRYSTAL_TWEAKS_SINE_45 = (float) Math.sin(Math.PI / 4.0D);
 
     @Shadow
     public ModelPart base;
@@ -40,17 +33,19 @@ public abstract class CrystalAnimationMixin implements CrystalAppearanceAccess {
     @Shadow
     public ModelPart cube;
 
+    /**
+     * Poses the layers with the player's rotation speed, floating speed and size. The pose itself
+     * is {@link CrystalPose}'s, the same one the glow is built from. The bedrock base keeps its own
+     * place and size: it is the ground the crystal floats over, not part of the crystal.
+     */
     @Inject(method = "setupAnim", at = @At("TAIL"))
-    private void crystalTweaks$applyAnimationSpeeds(
+    private void crystalTweaks$applyPose(
             EndCrystalRenderState state,
             CallbackInfo callback
     ) {
-        this.crystalTweaks$appearance = CrystalAppearanceAccess.of(state);
-        // Posed right before it is drawn, so this is the pass the next draw belongs to.
-        this.crystalTweaks$glowPass = state instanceof CrystalLayerGlowState glow ? glow : null;
-        int rotationPercent = this.crystalTweaks$appearance.rotationSpeedPercent;
-        int floatingPercent = this.crystalTweaks$appearance.floatingSpeedPercent;
-        if (rotationPercent == 100 && floatingPercent == 100) {
+        CrystalAppearance look = CrystalAppearanceAccess.of(state);
+        this.crystalTweaks$appearance = look;
+        if (!CrystalPose.custom(look)) {
             return;
         }
 
@@ -60,31 +55,14 @@ public abstract class CrystalAnimationMixin implements CrystalAppearanceAccess {
         this.cube.resetPose();
         this.base.visible = state.showsBottom;
 
-        float rotationAge = state.ageInTicks * rotationPercent / 100.0F;
-        float floatingAge = state.ageInTicks * floatingPercent / 100.0F;
-        float rotationDegrees = rotationAge * 3.0F;
-        float offset = EndCrystalRenderer.getY(floatingAge) * 16.0F;
-
-        this.outerGlass.y += offset / 2.0F;
-        this.outerGlass.rotateBy(
-                Axis.YP.rotationDegrees(rotationDegrees)
-                        .rotateAxis(
-                                (float) (Math.PI / 3.0D),
-                                CRYSTAL_TWEAKS_SINE_45,
-                                0.0F,
-                                CRYSTAL_TWEAKS_SINE_45));
-        this.innerGlass.rotateBy(crystalTweaks$tilt(rotationDegrees));
-        this.cube.rotateBy(crystalTweaks$tilt(rotationDegrees));
-    }
-
-    @Unique
-    private static Quaternionf crystalTweaks$tilt(float rotationDegrees) {
-        return new Quaternionf()
-                .setAngleAxis(
-                        (float) (Math.PI / 3.0D),
-                        CRYSTAL_TWEAKS_SINE_45,
-                        0.0F,
-                        CRYSTAL_TWEAKS_SINE_45)
-                .rotateY(rotationDegrees * (float) (Math.PI / 180.0D));
+        float size = CrystalPose.size(look);
+        this.outerGlass.y = CrystalPose.modelCentre(state.ageInTicks, look);
+        this.outerGlass.xScale *= size;
+        this.outerGlass.yScale *= size;
+        this.outerGlass.zScale *= size;
+        this.outerGlass.rotateBy(CrystalPose.outerTurn(state.ageInTicks, look));
+        Quaternionf nested = CrystalPose.nestedTurn(state.ageInTicks, look);
+        this.innerGlass.rotateBy(nested);
+        this.cube.rotateBy(nested);
     }
 }

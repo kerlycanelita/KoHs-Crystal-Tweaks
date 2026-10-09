@@ -24,6 +24,7 @@ public final class HubOverlays {
     private static final Identifier END_CRYSTAL = HubDraw.vanilla("textures/item/end_crystal.png");
     private static final Identifier PICKAXE = HubDraw.vanilla("textures/item/netherite_pickaxe.png");
     private static final Identifier COMPARATOR = HubDraw.vanilla("textures/item/comparator.png");
+    private static final Identifier ENDER_EYE = HubDraw.vanilla("textures/item/ender_eye.png");
     private static final Identifier NOTE_BLOCK = HubDraw.vanilla("textures/block/note_block.png");
     private static final Identifier CLOCK = HubDraw.vanilla("textures/item/clock_00.png");
     private static final Identifier OBSERVER = HubDraw.vanilla("textures/block/observer_front.png");
@@ -93,6 +94,14 @@ public final class HubOverlays {
 
     public void showOptimizerPopup() {
         this.popup = new OptimizerPopup(this.spanish);
+        if (this.font != null) {
+            this.popup.layout(this.font, this.width, this.height);
+        }
+    }
+
+    /** A notice in the optimizer window's frame, with words of its own. */
+    public void showNotice(String title, String text, String status) {
+        this.popup = new OptimizerPopup(this.spanish, title, text, status);
         if (this.font != null) {
             this.popup.layout(this.font, this.width, this.height);
         }
@@ -259,6 +268,12 @@ public final class HubOverlays {
     /** A redstone comparator: the tools that measure and compare. */
     public static void toolsIcon(GuiGraphicsExtractor graphics, int x, int y, int size, int color) {
         HubDraw.icon(graphics, COMPARATOR, x + size / 2.0F, y + size / 2.0F, size, 0.0F, whiteWith(color));
+    }
+
+    /** An eye of ender, tilting from side to side: what a crystal is seen as. */
+    public static void converterIcon(GuiGraphicsExtractor graphics, int x, int y, int size, int color) {
+        double seconds = System.nanoTime() / 1_000_000_000.0D;
+        HubDraw.icon(graphics, ENDER_EYE, x + size / 2.0F, y + size / 2.0F, size, (float) Math.sin(seconds * 2.0D) * 0.2F, whiteWith(color));
     }
 
     public static void kohsIcon(GuiGraphicsExtractor graphics, int x, int y, int size, int color) {
