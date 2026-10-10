@@ -53,10 +53,10 @@ Crystal Tweaks brings End Crystal visual and sound controls into one animated co
 - Crystal size from `30%` to `200%`, drawing only: the hitbox is the server's.
 - Fourteen flash styles for a destroyed crystal, in the glow color and sized from `10%` to `300%`: explosion, skull, your own head as a pale ghost, lightning toward the players you can see, heart, star, shockwave, vortex, crown, crescent, snowflake, flower, gem, and crossed swords.
 - Glow that respects walls instead of using an outline drawn through terrain.
-- Separate colors, glow, and animation speeds for crystals that were not placed by you (with approximate identification).
+- Separate colors, glow, and animation speeds for crystals that were not placed by you (with approximate identification). Under repair for now: its menu is closed and every crystal uses your own profile.
 - Rotation and floating speed controls from `0%` to `300%`.
 - Custom local explosion sounds with volume and playback-speed controls.
-- A settings screen around a live crystal, entered through a gate of stone its glow lights (click the crystal and the stone turns to obsidian, bursts and rains away): colours on the left, glow on the right, scrolling tabs above (Sound, Crystal Tweaks, Advanced, Converter, KoHs) with the game's own items as icons, a red menu of its own for enemy crystals, an optimizer status chip, and a preview that explodes with your flash and sound when you click it.
+- A settings screen around a live crystal: colours on the left, glow on the right, scrolling tabs above (Sound, Crystal Tweaks, Advanced, Converter, KoHs) with the game's own items as icons, a red menu of its own for enemy crystals, an optimizer status chip, and a preview that explodes with your flash and sound when you click it.
 - Automatic optimizer conflict handling: interaction helpers step aside while visuals, sounds, and the preview stay active.
 - Don't break obsidian (switchable; formerly Safe Crystal), optional ghost crystals (off by default), and a local Conflict Monitor.
 - Only real crystal optimizers pause the optimization: crystal glows, skins, spins, protections and counters never do.

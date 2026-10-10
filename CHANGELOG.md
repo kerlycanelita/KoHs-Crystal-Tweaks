@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.6.1
+
+### Changed
+
+- **Enemy crystals is under repair.** Its button in the settings is dimmed and cannot be opened,
+  and for now every crystal, the enemy's too, is drawn with your own profile. The saved enemy
+  profile is kept as it is.
+- **No gate.** The settings open straight on the menu: the wall of stone that burst on the way in is
+  gone. The explanation of the local optimization still comes first, the first time in a session.
+
 ## 2.6.0
 
 ### Added

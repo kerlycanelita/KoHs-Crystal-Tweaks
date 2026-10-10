@@ -90,7 +90,13 @@ public final class CrystalVisualConfig {
         return enemy ? enemyVisuals : playerVisuals;
     }
 
-    public static boolean enemyCustomEnabled() { load(); return enemyCustomEnabled; }
+    /**
+     * The enemy profile is under repair: while this is set every crystal is drawn with the player's
+     * own profile and the settings cannot open the enemy menu. The saved switch is left as it is.
+     */
+    public static final boolean ENEMY_PROFILE_UNDER_REPAIR = true;
+
+    public static boolean enemyCustomEnabled() { load(); return !ENEMY_PROFILE_UNDER_REPAIR && enemyCustomEnabled; }
     public static void setEnemyCustomEnabled(boolean enabled) { load(); enemyCustomEnabled = enabled; }
 
     private CrystalVisualConfig() {

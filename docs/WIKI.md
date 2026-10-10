@@ -41,15 +41,10 @@ With Mod Menu installed:
 2. Select **Crystal Tweaks**.
 3. Press the configuration button.
 
-It opens on a gate: your crystal alone in the middle of a wall of stone that its glow lights, and
-**Click the crystal to enter** under it. The click (or Enter, or Space) blows it up: the stone
-turns to obsidian and crying obsidian, the blocks crack and burst, and their pieces rain off to
-both sides while the menu comes up.
-
-The first time you open it in a session, and only if no other crystal optimizer is installed, the
-gate is preceded by the local optimization explained beside the crystal, on the same lit stone (see
-[Client or server](#client-or-server)). **Continue** sends the crystal to the gate; **Don't show
-again** does the same and turns the explanation off for good.
+It opens straight on the menu. The first time you open it in a session, and only if no other
+crystal optimizer is installed, the local optimization is explained first, beside the crystal on a
+wall of stone its glow lights (see [Client or server](#client-or-server)). **Continue** brings the
+menu up; **Don't show again** does the same and turns the explanation off for good.
 
 Your crystal turns in the centre, with every setting on it. **Colours** is the panel on the left
 and **Glow** the panel on the right; while you change the glow, both panels take on its colour. The
@@ -105,6 +100,10 @@ is the maximum. The preview crystal follows them.
 hitbox. Only the drawing changes: the box you can hit is the server's and stays where it is.
 
 ### Enemy crystals
+
+**Under repair for now:** the **Enemy crystals** button is dimmed and cannot be opened, and every
+crystal, the enemy's too, is drawn with your own profile. What follows is how it works when it is
+back.
 
 **Enemy crystals**, in the top-left corner, turns the whole screen into the enemy profile's: the
 same panels in red, for crystals you did not place, with **Profile** and **Advanced** tabs
