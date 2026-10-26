@@ -27,7 +27,7 @@ Crystal Tweaks brings End Crystal visual and sound controls into one animated co
 
 | Settings | Glow | Flash shapes |
 | --- | --- | --- |
-| ![The Colours tab: layer cards on the left, the live crystal on the right](docs/images/hub-2.7-colours.png) | ![The Glow tab with its settings unfolded under the switch](docs/images/hub-2.7-glow.png) | ![The flash shapes in a window beside the crystal](docs/images/hub-2.7-shapes.png) |
+| ![The Colours page: the sections on the left, the crystal before its castle wall, the page on the right](docs/images/hub-2.7-colours.png) | ![The Glow page with its settings unfolded under the switch](docs/images/hub-2.7-glow.png) | ![The flash shapes over the page, the Crown's own settings unfolded](docs/images/hub-2.7-shapes.png) |
 
 | Motion blur | Advanced tab | KoHs |
 | --- | --- | --- |
