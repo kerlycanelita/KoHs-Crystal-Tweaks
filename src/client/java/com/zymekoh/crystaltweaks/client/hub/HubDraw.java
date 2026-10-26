@@ -76,31 +76,37 @@ public final class HubDraw {
         }
     }
 
-    /** A filled disc of light that fades out from its centre, in a few rings. */
+    /** A disc of light that fades out from its centre: one smooth texture, one element, at any size. */
     public static void glowDisc(GuiGraphicsExtractor graphics, int centerX, int centerY, int radius, int color, float strength) {
         if (radius <= 0 || strength <= 0.01F) {
             return;
         }
-        int rings = Math.max(3, Math.min(9, radius / 5));
-        for (int ring = rings; ring >= 1; ring--) {
-            int r = Math.round(radius * ring / (float) rings);
-            float t = ring / (float) rings;
-            int alpha = Math.round(255 * strength * (1.0F - t) * 0.32F + 6 * strength);
-            CrystalUi.ellipse(graphics, centerX, centerY, r, r, CrystalTheme.withAlpha(color, alpha));
-        }
+        int alpha = Math.round(255.0F * Math.min(1.0F, strength));
+        texture(graphics, GrimoireIcons.glow(), GrimoireIcons.GLOW_SIZE, GrimoireIcons.GLOW_SIZE, centerX + 0.5F, centerY + 0.5F, radius * 2.0F,
+                radius * 2.0F, 0.0F, alpha << 24 | (color & 0xFFFFFF));
     }
 
-    /** A circle's outline as a chain of small squares, cheap at any size. */
+    /** A solid round disc with a soft rim, {@code radius} pixels: a knob, a bead. */
+    public static void disc(GuiGraphicsExtractor graphics, float centerX, float centerY, float radius, int color) {
+        texture(graphics, GrimoireIcons.disc(), GrimoireIcons.DISC_SIZE, GrimoireIcons.DISC_SIZE, centerX, centerY, radius * 2.0F, radius * 2.0F,
+                0.0F, color);
+    }
+
+    /** A circle's outline as a chain of short straight strokes: a few dozen elements however large it is. */
     public static void ring(GuiGraphicsExtractor graphics, float centerX, float centerY, float radius, int thickness, int color) {
         if (radius < 1.0F || ((color >>> 24) & 255) < 4) {
             return;
         }
-        int points = Math.max(16, Math.min(180, Math.round(radius * 2.4F)));
-        for (int index = 0; index < points; index++) {
-            double angle = index * Math.PI * 2.0D / points;
-            int x = Math.round(centerX + (float) Math.cos(angle) * radius);
-            int y = Math.round(centerY + (float) Math.sin(angle) * radius);
-            graphics.fill(x, y, x + thickness, y + thickness, color);
+        int segments = Math.max(12, Math.min(48, Math.round(radius * 0.6F)));
+        float fromX = centerX + radius;
+        float fromY = centerY;
+        for (int index = 1; index <= segments; index++) {
+            double angle = index * Math.PI * 2.0D / segments;
+            float toX = centerX + (float) Math.cos(angle) * radius;
+            float toY = centerY + (float) Math.sin(angle) * radius;
+            line(graphics, fromX, fromY, toX, toY, thickness, color);
+            fromX = toX;
+            fromY = toY;
         }
     }
 
@@ -204,6 +210,12 @@ public final class HubDraw {
      */
     public static void isoBlock(GuiGraphicsExtractor graphics, Identifier top, Identifier side, float centerX, float centerY,
             float size, int crackStage, float alpha) {
+        isoBlock(graphics, top, side, centerX, centerY, size, crackStage, alpha, 0xFFFFFFFF);
+    }
+
+    /** The same cube with its faces multiplied by {@code tint}: white stained glass in a chosen colour. */
+    public static void isoBlock(GuiGraphicsExtractor graphics, Identifier top, Identifier side, float centerX, float centerY,
+            float size, int crackStage, float alpha, int tint) {
         if (alpha <= 0.01F || size < 2.0F) {
             return;
         }
@@ -211,9 +223,9 @@ public final class HubDraw {
         float halfHeight = size * 0.5F;
         // The cube's top centre sits at (centerX, centerY - size / 2), so the whole cube is centred.
         float topY = centerY - size * 0.5F;
-        int topColor = CrystalTheme.fade(0xFFFFFFFF, alpha);
-        int leftColor = CrystalTheme.fade(0xFFC8C8C8, alpha);
-        int rightColor = CrystalTheme.fade(0xFF9A9A9A, alpha);
+        int topColor = CrystalTheme.fade(multiply(0xFFFFFFFF, tint), alpha);
+        int leftColor = CrystalTheme.fade(multiply(0xFFC8C8C8, tint), alpha);
+        int rightColor = CrystalTheme.fade(multiply(0xFF9A9A9A, tint), alpha);
         Identifier crack = crackStage >= 0 && crackStage <= 9 ? DESTROY_STAGES[crackStage] : null;
         int crackColor = CrystalTheme.fade(0xD0000000, alpha);
         // Top face: from its left corner, one edge up-right and one down-right.
@@ -224,11 +236,21 @@ public final class HubDraw {
         face(graphics, side, centerX, topY + halfHeight, halfWidth, -halfHeight, 0.0F, size, rightColor, crack, crackColor);
     }
 
+    private static int multiply(int color, int tint) {
+        int red = ((color >> 16) & 255) * ((tint >> 16) & 255) / 255;
+        int green = ((color >> 8) & 255) * ((tint >> 8) & 255) / 255;
+        int blue = (color & 255) * (tint & 255) / 255;
+        return (color & 0xFF000000) | red << 16 | green << 8 | blue;
+    }
+
+    /** Reused for every face: the GUI is drawn on one thread, and a cube must not cost three new matrices a frame. */
+    private static final Matrix3x2f FACE = new Matrix3x2f();
+
     /** One face of a cube: a 16x16 texture mapped onto the parallelogram origin + u*edgeA + v*edgeB. */
     private static void face(GuiGraphicsExtractor graphics, Identifier texture, float originX, float originY, float edgeAX,
             float edgeAY, float edgeBX, float edgeBY, int color, Identifier crack, int crackColor) {
         graphics.pose().pushMatrix();
-        graphics.pose().mul(new Matrix3x2f(edgeAX / 16.0F, edgeAY / 16.0F, edgeBX / 16.0F, edgeBY / 16.0F, originX, originY));
+        graphics.pose().mul(FACE.set(edgeAX / 16.0F, edgeAY / 16.0F, edgeBX / 16.0F, edgeBY / 16.0F, originX, originY));
         graphics.blit(RenderPipelines.GUI_TEXTURED, texture, 0, 0, 0.0F, 0.0F, 16, 16, 16, 16, color);
         if (crack != null) {
             graphics.blit(RenderPipelines.GUI_TEXTURED, crack, 0, 0, 0.0F, 0.0F, 16, 16, 16, 16, crackColor);
@@ -266,10 +288,7 @@ public final class HubDraw {
         return font.plainSubstrByWidth(text, room) + ellipsis;
     }
 
-    /**
-     * A mouse with its wheel turning: the hint that a region scrolls. Vertical arrows for a list,
-     * sideways arrows for the tab carousel. {@code seconds} drives the wheel, {@code alpha} fades it.
-     */
+    /** A small mouse whose wheel rolls, with arrows: "this scrolls". */
     public static void wheelHint(GuiGraphicsExtractor graphics, int centerX, int centerY, double seconds, float alpha,
             boolean sideways, int accent) {
         if (alpha <= 0.02F) {
@@ -292,12 +311,11 @@ public final class HubDraw {
         graphics.fill(left + 3, wheelY, left + 6, wheelY + 3, CrystalTheme.fade(accent | 0xFF000000, alpha));
         float bounce = (float) Math.sin(seconds * Math.PI * 3.2D);
         int arrow = CrystalTheme.fade(CrystalTheme.withAlpha(accent, 230), alpha);
+        int offset = Math.round(2.0F * bounce);
         if (sideways) {
-            int offset = Math.round(2.0F * bounce);
             arrowLeft(graphics, left - 7 - offset, centerY - 2, arrow);
             arrowRight(graphics, left + 13 + offset, centerY - 2, arrow);
         } else {
-            int offset = Math.round(2.0F * bounce);
             arrowUp(graphics, centerX - 2, top - 7 - offset, arrow);
             arrowDown(graphics, centerX - 2, top + 16 + offset, arrow);
         }
@@ -327,12 +345,4 @@ public final class HubDraw {
         }
     }
 
-    /** A chevron pointing left or right, for the carousel's edges. */
-    public static void chevron(GuiGraphicsExtractor graphics, int x, int y, boolean right, int color) {
-        for (int step = 0; step < 4; step++) {
-            int column = right ? x + step : x + 3 - step;
-            graphics.fill(column, y + step, column + 1, y + step + 1, color);
-            graphics.fill(column, y + 6 - step, column + 1, y + 7 - step, color);
-        }
-    }
 }

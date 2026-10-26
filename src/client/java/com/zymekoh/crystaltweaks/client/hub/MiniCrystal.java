@@ -57,6 +57,8 @@ public final class MiniCrystal {
         look.flashEnabled = false;
         // The mod's own mark stays a crystal, whatever the crystals in the world are drawn as.
         look.converterEnabled = false;
+        // An icon is too small for the style's light round the crystal: only the crystal's own.
+        look.styleMotion = false;
         return look;
     }
 

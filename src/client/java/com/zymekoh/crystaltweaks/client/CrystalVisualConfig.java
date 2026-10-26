@@ -5,7 +5,6 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.zymekoh.crystaltweaks.CrystalTweaksClient;
-import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.Reader;
@@ -31,15 +30,22 @@ public final class CrystalVisualConfig {
     private static volatile String customSoundFileName = "";
     private static volatile float soundVolume = 1.0F;
     private static volatile float soundSpeed = 1.0F;
-    private static volatile boolean ghostCrystals;
-    private static volatile boolean safeCrystal = true;
-    private static volatile boolean optimizerNoticeDismissed;
-    private static volatile boolean optimizerPopupDismissed;
+    private static volatile boolean safeCrystal;
     private static volatile boolean converterNoticeDismissed;
     private static volatile boolean scrollHintDone;
     private static volatile boolean carouselHintDone;
-    private static volatile boolean forceOffOptimizations;
     private static volatile boolean obsidianDebounce;
+    /** The client-side crystal: a hit crystal hides and explodes on screen at once; packets stay Vanilla's. */
+    private static volatile boolean clientCrystal;
+    private static volatile boolean instantExplosion = true;
+    private static volatile boolean ghostCrystals;
+    private static volatile boolean refusedHitCue = true;
+    /** Placement at the server's pace: a click on the crystal just broken is sent when the server removes it. */
+    private static volatile boolean fastPlacement;
+    /** In a real fight: why a placement did not happen, the crystal round trip, and a recap when you die. */
+    private static volatile boolean placementDiagnostic;
+    private static volatile boolean latencyMeter;
+    private static volatile boolean deathRecap;
     private static volatile int obsidianDebounceMillis;
     private static volatile boolean herziumIntegration = true;
     private static volatile boolean benchmarkDevMode;
@@ -52,9 +58,20 @@ public final class CrystalVisualConfig {
     private static volatile String practicePreset = "standard";
     private static volatile String practiceWorld = "FLAT";
     private static volatile String practiceBiome = "plains";
+    private static volatile boolean practiceServerWindow = true;
+    private static volatile boolean practiceServerView = true;
+    private static volatile boolean practiceServerAlerts = true;
+    /** Back to the parked server by itself when its match starts. */
+    private static volatile boolean practiceAutoReturn;
+    /** The practice world's ping in milliseconds; -1 copies the parked server's. */
+    private static volatile int practicePing;
+    private static volatile String practiceDrill = "NONE";
+    private static volatile boolean practiceRoundReport = true;
+    private static volatile boolean practiceRoundMap = true;
+    private static volatile boolean practiceDamageMap;
     /** Kits the player rearranged and saved, by preset id, in {@link com.zymekoh.crystaltweaks.practice.KitLayout}'s text form. */
     private static final Map<String, String> practiceKits = new LinkedHashMap<>();
-    private static volatile CrystalFlashStyle flashStyle = CrystalFlashStyle.EXPLOSION;
+    private static volatile CrystalFlashStyle flashStyle = CrystalFlashStyle.CROWN;
     /** The glow as it was before it moved into the crystal's layers: a halo behind it. */
     private static volatile boolean oldGlow;
     private static volatile CrystalGlowStyle glowStyle = CrystalGlowStyle.LIGHT;
@@ -138,16 +155,20 @@ public final class CrystalVisualConfig {
                     soundSpeed = clamp(floatValue(sounds, "speed", 1.0F), 0.5F, 2.0F);
 
                     JsonObject gameplay = section(root, "gameplay");
-                    ghostCrystals = booleanValue(gameplay, "ghostCrystals", false);
-                    safeCrystal = booleanValue(gameplay, "safeCrystal", true);
-                    forceOffOptimizations = booleanValue(gameplay, "forceOffOptimizations", false);
+                    safeCrystal = booleanValue(gameplay, "safeCrystal", false);
                     obsidianDebounce = booleanValue(gameplay, "obsidianDebounce", false);
+                    clientCrystal = booleanValue(gameplay, "clientCrystal", false);
+                    instantExplosion = booleanValue(gameplay, "instantExplosion", true);
+                    ghostCrystals = booleanValue(gameplay, "ghostCrystals", false);
+                    refusedHitCue = booleanValue(gameplay, "refusedHitCue", true);
+                    fastPlacement = booleanValue(gameplay, "fastPlacement", false);
+                    placementDiagnostic = booleanValue(gameplay, "placementDiagnostic", false);
+                    latencyMeter = booleanValue(gameplay, "latencyMeter", false);
+                    deathRecap = booleanValue(gameplay, "deathRecap", false);
                     obsidianDebounceMillis = clamp(intValue(gameplay, "obsidianDebounceMillis", 0), 0,
                             MAX_OBSIDIAN_DEBOUNCE_MILLIS);
 
                     JsonObject notices = section(root, "notices");
-                    optimizerNoticeDismissed = booleanValue(notices, "optimizerAdviceDismissed", false);
-                    optimizerPopupDismissed = booleanValue(notices, "optimizerWindowDismissed", false);
                     converterNoticeDismissed = booleanValue(notices, "converterNoticeDismissed", false);
                     scrollHintDone = booleanValue(notices, "scrollHintDone", false);
                     carouselHintDone = booleanValue(notices, "carouselHintDone", false);
@@ -168,6 +189,15 @@ public final class CrystalVisualConfig {
                     practicePreset = stringValue(practice, "preset", "standard");
                     practiceWorld = stringValue(practice, "world", "FLAT");
                     practiceBiome = stringValue(practice, "biome", "plains");
+                    practiceServerWindow = booleanValue(practice, "serverWindow", true);
+                    practiceServerView = booleanValue(practice, "serverView", true);
+                    practiceServerAlerts = booleanValue(practice, "serverAlerts", true);
+                    practiceAutoReturn = booleanValue(practice, "autoReturn", false);
+                    practicePing = clamp(intValue(practice, "ping", 0), -1, MAX_PRACTICE_PING);
+                    practiceDrill = stringValue(practice, "drill", "NONE");
+                    practiceRoundReport = booleanValue(practice, "roundReport", true);
+                    practiceRoundMap = booleanValue(practice, "roundMap", true);
+                    practiceDamageMap = booleanValue(practice, "damageMap", false);
                     practiceKits.clear();
                     JsonObject kits = section(practice, "kits");
                     for (String key : kits.keySet()) {
@@ -180,12 +210,12 @@ public final class CrystalVisualConfig {
                     JsonObject glow = section(root, "glow");
                     // Read first: migrating a profile needs to know which style its flash size meant.
                     flashStyle = CrystalFlashStyle.parse(
-                            stringValue(glow, "flashStyle", ""), CrystalFlashStyle.EXPLOSION);
+                            stringValue(glow, "flashStyle", ""), CrystalFlashStyle.CROWN);
                     playerVisuals.glowReflectionsPercent = clamp(intValue(glow, "reflectionsPercent", 55), 0, 300);
                     playerVisuals.glowPowerPercent = clamp(intValue(glow, "powerPercent", 55), 0, 300);
                     playerVisuals.customGlowColor = booleanValue(glow, "customColor", true);
                     playerVisuals.glowColor = parseColor(glow, "color", 0xFFC880FF);
-                    playerVisuals.flashScalePercent = clamp(intValue(glow, "flashScalePercent", 100),
+                    playerVisuals.flashScalePercent = clamp(intValue(glow, "flashScalePercent", CrystalAppearance.DEFAULT_FLASH_SCALE),
                             CrystalAppearance.MIN_FLASH_SCALE, 300);
                     playerVisuals.glowEnabled = booleanValue(glow, "enabled", true);
                     playerVisuals.flashEnabled = booleanValue(glow, "flashEnabled", true);
@@ -199,6 +229,20 @@ public final class CrystalVisualConfig {
                     oldGlow = booleanValue(glow, "oldStyle", false);
                     playerVisuals.coreGlowPercent = clamp(intValue(glow, "coreGlowPercent", 100), 0, 300);
                     glowStyle = CrystalGlowStyle.parse(stringValue(glow, "style", ""), CrystalGlowStyle.LIGHT);
+                    JsonObject styles = section(glow, "styles");
+                    for (CrystalGlowStyle style : CrystalGlowStyle.values()) {
+                        JsonObject own = section(styles, style.storageKey());
+                        for (StyleSetting setting : style.settings()) {
+                            setting.set(intValue(own, setting.key(), setting.fallback()));
+                        }
+                    }
+                    JsonObject shapes = section(glow, "flashStyles");
+                    for (CrystalFlashStyle shape : CrystalFlashStyle.values()) {
+                        JsonObject own = section(shapes, shape.storageKey());
+                        for (StyleSetting setting : shape.settings()) {
+                            setting.set(intValue(own, setting.key(), setting.fallback()));
+                        }
+                    }
                     glowQuality = CrystalGlowQuality.parse(stringValue(glow, "quality", ""), CrystalGlowQuality.BALANCED);
                     playerVisuals.migrateLegacyGlow(glow.has("enabled"), glow.has("flashOpacityPercent"),
                             flashStyle.scalable());
@@ -207,7 +251,7 @@ public final class CrystalVisualConfig {
                     enemyCustomEnabled = booleanValue(enemy, "enabled", true);
                     try {
                         CrystalAppearance stored = GSON.fromJson(enemy, CrystalAppearance.class);
-                        if (stored.flashScalePercent <= 0) stored.flashScalePercent = 100;
+                        if (stored.flashScalePercent <= 0) stored.flashScalePercent = CrystalAppearance.DEFAULT_FLASH_SCALE;
                         stored.migrateLegacyGlow(enemy.has("glowEnabled"), enemy.has("flashOpacityPercent"),
                                 flashStyle.scalable());
                         enemyVisuals = stored.copy();
@@ -223,7 +267,6 @@ public final class CrystalVisualConfig {
                 }
             }
             loaded = true;
-            CrystalOptimizerGuard.setForcedOff(forceOffOptimizations);
         }
     }
 
@@ -258,9 +301,17 @@ public final class CrystalVisualConfig {
                         : new JsonObject();
                 // 2.2.7 briefly stored an instant-break toggle here; that behaviour is core now.
                 gameplay.remove("predictCrystalBreak");
+                // The switch that forced the old optimizations off went with the optimizer rule.
+                gameplay.remove("forceOffOptimizations");
+                gameplay.addProperty("clientCrystal", clientCrystal);
+                gameplay.addProperty("instantExplosion", instantExplosion);
                 gameplay.addProperty("ghostCrystals", ghostCrystals);
+                gameplay.addProperty("refusedHitCue", refusedHitCue);
+                gameplay.addProperty("fastPlacement", fastPlacement);
+                gameplay.addProperty("placementDiagnostic", placementDiagnostic);
+                gameplay.addProperty("latencyMeter", latencyMeter);
+                gameplay.addProperty("deathRecap", deathRecap);
                 gameplay.addProperty("safeCrystal", safeCrystal);
-                gameplay.addProperty("forceOffOptimizations", forceOffOptimizations);
                 gameplay.addProperty("obsidianDebounce", obsidianDebounce);
                 gameplay.addProperty("obsidianDebounceMillis", obsidianDebounceMillis);
                 root.add("gameplay", gameplay);
@@ -283,6 +334,15 @@ public final class CrystalVisualConfig {
                 practice.addProperty("preset", practicePreset);
                 practice.addProperty("world", practiceWorld);
                 practice.addProperty("biome", practiceBiome);
+                practice.addProperty("serverWindow", practiceServerWindow);
+                practice.addProperty("serverView", practiceServerView);
+                practice.addProperty("serverAlerts", practiceServerAlerts);
+                practice.addProperty("autoReturn", practiceAutoReturn);
+                practice.addProperty("ping", practicePing);
+                practice.addProperty("drill", practiceDrill);
+                practice.addProperty("roundReport", practiceRoundReport);
+                practice.addProperty("roundMap", practiceRoundMap);
+                practice.addProperty("damageMap", practiceDamageMap);
                 JsonObject kits = new JsonObject();
                 synchronized (practiceKits) {
                     for (Map.Entry<String, String> kit : practiceKits.entrySet()) {
@@ -295,8 +355,8 @@ public final class CrystalVisualConfig {
                 JsonObject notices = root.has("notices") && root.get("notices").isJsonObject()
                         ? root.getAsJsonObject("notices")
                         : new JsonObject();
-                notices.addProperty("optimizerAdviceDismissed", optimizerNoticeDismissed);
-                notices.addProperty("optimizerWindowDismissed", optimizerPopupDismissed);
+                notices.remove("optimizerAdviceDismissed");
+                notices.remove("optimizerWindowDismissed");
                 notices.addProperty("converterNoticeDismissed", converterNoticeDismissed);
                 notices.addProperty("scrollHintDone", scrollHintDone);
                 notices.addProperty("carouselHintDone", carouselHintDone);
@@ -322,6 +382,24 @@ public final class CrystalVisualConfig {
                 glow.addProperty("oldStyle", oldGlow);
                 glow.addProperty("coreGlowPercent", playerVisuals.coreGlowPercent);
                 glow.addProperty("style", glowStyle.storageKey());
+                JsonObject styles = new JsonObject();
+                for (CrystalGlowStyle style : CrystalGlowStyle.values()) {
+                    JsonObject own = new JsonObject();
+                    for (StyleSetting setting : style.settings()) {
+                        own.addProperty(setting.key(), setting.value());
+                    }
+                    styles.add(style.storageKey(), own);
+                }
+                glow.add("styles", styles);
+                JsonObject shapes = new JsonObject();
+                for (CrystalFlashStyle shape : CrystalFlashStyle.values()) {
+                    JsonObject own = new JsonObject();
+                    for (StyleSetting setting : shape.settings()) {
+                        own.addProperty(setting.key(), setting.value());
+                    }
+                    shapes.add(shape.storageKey(), own);
+                }
+                glow.add("flashStyles", shapes);
                 glow.addProperty("quality", glowQuality.storageKey());
                 root.add("glow", glow);
 
@@ -454,24 +532,6 @@ public final class CrystalVisualConfig {
     }
 
     /**
-     * Draws a stand-in crystal while the server's real one is still in flight. Purely visual: it is
-     * never an entity, so nothing Vanilla checks and no packet can see it.
-     *
-     * <p>Off until the player turns it on. It changes what the world looks like rather than only how
-     * quickly it catches up, and some servers ask that nothing be drawn that the server has not sent
-     * yet, so opting in is the player's call to make.</p>
-     */
-    public static boolean ghostCrystals() {
-        load();
-        return ghostCrystals;
-    }
-
-    public static void setGhostCrystals(boolean enabled) {
-        load();
-        ghostCrystals = enabled;
-    }
-
-    /**
      * Safe Crystal: keep the obsidian under your crystals from being mined by a stray click. It sends
      * fewer actions than Vanilla, so a player on a server that forbids input filters can turn it off.
      */
@@ -483,28 +543,6 @@ public final class CrystalVisualConfig {
     public static void setSafeCrystal(boolean enabled) {
         load();
         safeCrystal = enabled;
-    }
-
-    /** True once the player asked never to see the optimizer advice again. */
-    public static boolean optimizerNoticeDismissed() {
-        load();
-        return optimizerNoticeDismissed;
-    }
-
-    public static void setOptimizerNoticeDismissed(boolean dismissed) {
-        load();
-        optimizerNoticeDismissed = dismissed;
-    }
-
-    /** True once the player asked never to see the "works with any optimizer" window again. */
-    public static boolean optimizerPopupDismissed() {
-        load();
-        return optimizerPopupDismissed;
-    }
-
-    public static void setOptimizerPopupDismissed(boolean dismissed) {
-        load();
-        optimizerPopupDismissed = dismissed;
     }
 
     /** True once the player asked never to see Converter My Crystal's notice again. */
@@ -543,20 +581,6 @@ public final class CrystalVisualConfig {
     /** Longest obsidian debounce the slider offers. */
     public static final int MAX_OBSIDIAN_DEBOUNCE_MILLIS = 10_000;
 
-    /**
-     * Force off: every crystal optimization Crystal Tweaks provides stays off whatever the
-     * compatibility scan finds, as if another optimizer were installed. Visuals are untouched.
-     */
-    public static boolean forceOffOptimizations() {
-        load();
-        return forceOffOptimizations;
-    }
-
-    public static void setForceOffOptimizations(boolean enabled) {
-        load();
-        forceOffOptimizations = enabled;
-        CrystalOptimizerGuard.setForcedOff(enabled);
-    }
 
     /** Obsidian debounce: refuses a second obsidian placement too soon after the last one. */
     public static boolean obsidianDebounce() {
@@ -578,6 +602,61 @@ public final class CrystalVisualConfig {
     public static void setObsidianDebounceMillis(int millis) {
         load();
         obsidianDebounceMillis = clamp(millis, 0, MAX_OBSIDIAN_DEBOUNCE_MILLIS);
+    }
+
+    /** The client-side crystal: a crystal you hit hides at once, its hit box and every packet left to Vanilla. */
+    public static boolean clientCrystal() {
+        load();
+        return clientCrystal;
+    }
+
+    public static void setClientCrystal(boolean enabled) {
+        load();
+        clientCrystal = enabled;
+    }
+
+    /** The explosion of a crystal you hit, heard and seen at the hit instead of a round trip later. */
+    public static boolean instantExplosion() {
+        load();
+        return instantExplosion;
+    }
+
+    public static void setInstantExplosion(boolean enabled) {
+        load();
+        instantExplosion = enabled;
+    }
+
+    /** A stand-in crystal drawn on your obsidian until the server's arrives. */
+    public static boolean ghostCrystals() {
+        load();
+        return ghostCrystals;
+    }
+
+    public static void setGhostCrystals(boolean enabled) {
+        load();
+        ghostCrystals = enabled;
+    }
+
+    /** A low note when a crystal you hit comes back because the server kept it. */
+    public static boolean refusedHitCue() {
+        load();
+        return refusedHitCue;
+    }
+
+    public static void setRefusedHitCue(boolean enabled) {
+        load();
+        refusedHitCue = enabled;
+    }
+
+    /** A click on the crystal you just broke is sent as a placement the moment the server removes it. */
+    public static boolean fastPlacement() {
+        load();
+        return fastPlacement;
+    }
+
+    public static void setFastPlacement(boolean enabled) {
+        load();
+        fastPlacement = enabled;
     }
 
     /** Whether Crystal Tweaks shows and changes Herzium's hotbar order when Herzium is installed. */
@@ -697,6 +776,133 @@ public final class CrystalVisualConfig {
         return practiceBot;
     }
 
+    /** The window in the top-left corner showing the server parked behind the practice world. */
+    public static boolean practiceServerWindow() {
+        load();
+        return practiceServerWindow;
+    }
+
+    public static void setPracticeServerWindow(boolean enabled) {
+        load();
+        practiceServerWindow = enabled;
+    }
+
+    /** That window's live view of the server's world. */
+    public static boolean practiceServerView() {
+        load();
+        return practiceServerView;
+    }
+
+    public static void setPracticeServerView(boolean enabled) {
+        load();
+        practiceServerView = enabled;
+    }
+
+    /** A chime and a flash when something happens on the server behind. */
+    public static boolean practiceServerAlerts() {
+        load();
+        return practiceServerAlerts;
+    }
+
+    /** The most ping the practice world can be given, in milliseconds. */
+    public static final int MAX_PRACTICE_PING = 400;
+
+    public static boolean placementDiagnostic() {
+        load();
+        return placementDiagnostic;
+    }
+
+    public static void setPlacementDiagnostic(boolean enabled) {
+        load();
+        placementDiagnostic = enabled;
+    }
+
+    public static boolean latencyMeter() {
+        load();
+        return latencyMeter;
+    }
+
+    public static void setLatencyMeter(boolean enabled) {
+        load();
+        latencyMeter = enabled;
+    }
+
+    public static boolean deathRecap() {
+        load();
+        return deathRecap;
+    }
+
+    public static void setDeathRecap(boolean enabled) {
+        load();
+        deathRecap = enabled;
+    }
+
+    public static boolean practiceAutoReturn() {
+        load();
+        return practiceAutoReturn;
+    }
+
+    public static void setPracticeAutoReturn(boolean enabled) {
+        load();
+        practiceAutoReturn = enabled;
+    }
+
+    /** The practice world's ping in milliseconds, 0 for none; -1 copies the parked server's. */
+    public static int practicePing() {
+        load();
+        return practicePing;
+    }
+
+    public static void setPracticePing(int millis) {
+        load();
+        practicePing = clamp(millis, -1, MAX_PRACTICE_PING);
+    }
+
+    public static String practiceDrill() {
+        load();
+        return practiceDrill;
+    }
+
+    public static void setPracticeDrill(String drill) {
+        load();
+        practiceDrill = drill == null ? "NONE" : drill;
+    }
+
+    public static boolean practiceRoundReport() {
+        load();
+        return practiceRoundReport;
+    }
+
+    public static void setPracticeRoundReport(boolean enabled) {
+        load();
+        practiceRoundReport = enabled;
+    }
+
+    public static boolean practiceRoundMap() {
+        load();
+        return practiceRoundMap;
+    }
+
+    public static void setPracticeRoundMap(boolean enabled) {
+        load();
+        practiceRoundMap = enabled;
+    }
+
+    public static boolean practiceDamageMap() {
+        load();
+        return practiceDamageMap;
+    }
+
+    public static void setPracticeDamageMap(boolean enabled) {
+        load();
+        practiceDamageMap = enabled;
+    }
+
+    public static void setPracticeServerAlerts(boolean enabled) {
+        load();
+        practiceServerAlerts = enabled;
+    }
+
     public static void setPracticeBot(boolean enabled) {
         load();
         practiceBot = enabled;
@@ -749,7 +955,7 @@ public final class CrystalVisualConfig {
 
     public static void setFlashStyle(CrystalFlashStyle style) {
         load();
-        flashStyle = style == null ? CrystalFlashStyle.EXPLOSION : style;
+        flashStyle = style == null ? CrystalFlashStyle.CROWN : style;
     }
 
     /** Old KoHs Crystal Glow: the halo behind the crystal instead of light in its layers, for every profile. */

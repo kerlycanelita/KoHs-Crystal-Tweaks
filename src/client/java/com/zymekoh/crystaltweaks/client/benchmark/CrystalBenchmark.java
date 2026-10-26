@@ -4,7 +4,6 @@ import com.zymekoh.crystaltweaks.CrystalTweaksClient;
 import com.zymekoh.crystaltweaks.client.CrystalUi;
 import com.zymekoh.crystaltweaks.client.CrystalVisualConfig;
 import com.zymekoh.crystaltweaks.client.compat.HerziumBridge;
-import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
 import com.zymekoh.crystaltweaks.core.ObsidianDebounce;
 import it.unimi.dsi.fastutil.ints.IntList;
 import java.util.ArrayDeque;
@@ -246,7 +245,8 @@ public final class CrystalBenchmark {
         }
     }
 
-    /** Crystal Tweaks' own prediction just hid {@code entityId}. */
+
+    /** Crystal Tweaks' client-side crystal just hid {@code entityId}. */
     public static void onPredictedHidden(int entityId) {
         if (!recording) {
             return;
@@ -343,8 +343,8 @@ public final class CrystalBenchmark {
     }
 
     /**
-     * The explosion's sound and burst just played on this client, at (x, y, z): at the hit when
-     * Crystal Tweaks predicted it, or when the server's explosion was handled otherwise. Game thread.
+     * The explosion's sound and burst just played on this client, at (x, y, z): at the hit when the
+     * client-side crystal played it, or when the server's explosion was handled otherwise. Game thread.
      */
     public static void onExplosionHeard(double x, double y, double z) {
         if (!recording) {
@@ -575,15 +575,32 @@ public final class CrystalBenchmark {
 
     /** Who was handling crystals during the run, in words a player recognizes. */
     public static String optimizerInCharge() {
-        if (CrystalOptimizerGuard.forcedOff()) {
-            List<String> others = detectedOptimizers();
-            return others.isEmpty() ? "Vanilla (Crystal Tweaks forced off)" : String.join(", ", others);
+        List<String> drivers = standDownMods();
+        if (!drivers.isEmpty()) {
+            return String.join(", ", drivers);
         }
-        if (CrystalOptimizerGuard.conflictDetected()) {
-            String name = CrystalOptimizerGuard.conflictingModName();
-            return name.isBlank() ? "Another crystal optimizer" : name;
+        if (CrystalVisualConfig.clientCrystal()) {
+            return "Crystal Tweaks";
         }
-        return "Crystal Tweaks";
+        List<String> others = detectedOptimizers();
+        return others.isEmpty() ? "Vanilla (Crystal Tweaks client-side crystal off)" : String.join(", ", others);
+    }
+
+    /** The installed mods the client-side crystal stands down for: crystal optimizers such as Marlow's. */
+    public static List<String> standDownMods() {
+        List<String> names = new ArrayList<>();
+        for (ModContainer container : FabricLoader.getInstance().getAllMods()) {
+            String id = container.getMetadata().getId();
+            if (CrystalTweaksClient.MOD_ID.equals(id)) {
+                continue;
+            }
+            String name = container.getMetadata().getName();
+            if (OptimizerNames.standsDownFor(id, name)) {
+                names.add((name == null || name.isBlank() ? id : name) + " "
+                        + container.getMetadata().getVersion().getFriendlyString());
+            }
+        }
+        return List.copyOf(names);
     }
 
     /** Every installed mod that names itself a crystal optimizer or is a known one. */
@@ -595,7 +612,7 @@ public final class CrystalBenchmark {
                 continue;
             }
             String name = container.getMetadata().getName();
-            if (CrystalOptimizerGuard.looksLikeOptimizer(id, name)) {
+            if (OptimizerNames.looksLikeOptimizer(id, name)) {
                 names.add((name == null || name.isBlank() ? id : name) + " "
                         + container.getMetadata().getVersion().getFriendlyString());
             }

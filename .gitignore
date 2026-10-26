@@ -27,3 +27,8 @@ __pycache__/
 
 # IDE compiler output
 bin/
+
+# Eclipse / jdtls project files
+.classpath
+.project
+.settings/

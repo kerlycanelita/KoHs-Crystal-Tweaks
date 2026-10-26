@@ -104,7 +104,8 @@ public final class PracticeSettings {
 
     /**
      * How the bot fights, on top of what its difficulty lets it do. The smart one keeps its distance,
-     * covers itself with blocks and pearls out to heal; the aggressive one rushes and never backs off.
+     * covers itself with blocks and pearls out to heal; the aggressive one rushes and never backs off;
+     * the peaceful one never attacks at all, a moving target to practise on.
      */
     public enum BotStyle {
         SMART("Inteligente", "Smart",
@@ -112,7 +113,10 @@ public final class PracticeSettings {
                 "Keeps its distance: covers itself with blocks, hides in holes and pearls out to heal."),
         AGGRESSIVE("Agresivo", "Aggressive",
                 "Rush: no se retira nunca. Te persigue, persigue con perlas antes, come sin dar un paso atrás y arriesga más.",
-                "Rush: never backs off. Chases you, pearls in sooner, eats without stepping back and takes more risks.");
+                "Rush: never backs off. Chases you, pearls in sooner, eats without stepping back and takes more risks."),
+        PEACEFUL("Pacífico", "Peaceful",
+                "No ataca: se mueve, esquiva, come y recoloca tótems. Un blanco que se mueve para practicar tus cristales y tus combos.",
+                "Never attacks: it moves, dodges, eats and re-equips totems. A moving target to practise your crystals and combos on.");
 
         private final String spanish;
         private final String english;
@@ -148,7 +152,9 @@ public final class PracticeSettings {
     public enum WorldType {
         FLAT("Plano de netherite", "Netherite flat"),
         HOLES("Hoyos", "Holes"),
-        NATURAL("Natural", "Natural");
+        NATURAL("Natural", "Natural"),
+        /** A whole world as Minecraft generates it, to move around with /rtp. */
+        SURVIVAL("Mundo normal", "Normal world");
 
         private final String spanish;
         private final String english;

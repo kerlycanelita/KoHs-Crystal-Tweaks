@@ -89,7 +89,10 @@ def members_of(jar, internal_name):
 
 
 # Cancelling one of these cannot lose an input: the worst it can do is skip a draw or a sound.
-CANCEL_ALLOWED = ('Renderer', 'Model', 'SoundBufferLibrary', 'SoundEngine')
+# Crystal Practice's own Mixins are named Practice*: they act only while a server is parked behind
+# the practice world, on what that server's code would do to the practice world's screen, sounds,
+# particles and renderer, never on a click or on what any server is sent.
+CANCEL_ALLOWED = ('Renderer', 'Model', 'SoundBufferLibrary', 'SoundEngine', 'Practice')
 
 _descriptor_cache = {}
 
@@ -124,6 +127,9 @@ def parse_mixin_class(class_file):
     out = subprocess.run(['javap', '-v', '-p', class_file], capture_output=True, text=True)
     text = out.stdout
     targets = re.findall(r'Mixin\(\s*value=\[class L([\w/$]+);', text)
+    if not targets:
+        # A target named by string, for a class the Mixin cannot see, such as a private record.
+        targets = [name.replace('.', '/') for name in re.findall(r'Mixin\(\s*targets=\["([\w.$]+)"', text)]
     if not targets:
         targets = re.findall(r'Lorg/spongepowered/asm/mixin/Mixin;[\s\S]{0,200}?L([\w/$]+);', text)
 

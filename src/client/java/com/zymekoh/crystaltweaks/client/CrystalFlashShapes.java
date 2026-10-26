@@ -1,5 +1,6 @@
 package com.zymekoh.crystaltweaks.client;
 
+import com.zymekoh.crystaltweaks.client.CrystalFlashStyle.Settings;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.Minecraft;
@@ -28,7 +29,8 @@ import org.joml.Vector3f;
 public final class CrystalFlashShapes {
     /**
      * Mask rows are drawn top to bottom. {@code #} is lit, {@code +} is a dim facet, {@code *} burns
-     * in the hot colour and {@code .} is a hole the additive pass skips.
+     * in the hot colour, {@code o} is a star in the hot colour and {@code .} is a hole the additive
+     * pass skips.
      */
     private static final String[] SKULL = {
             "....######....",
@@ -145,7 +147,7 @@ public final class CrystalFlashShapes {
         float half = radius * 0.95F;
         // A skin is 64 wide: the face sits at x 8-16, y 8-16, and the hat layer at x 40-48.
         face(buffer, matrix, color, half, gain * 0.7F, 0.125F, 0.125F, 0.25F, 0.25F);
-        face(buffer, matrix, color, half * 1.12F, gain * 0.38F, 0.625F, 0.125F, 0.75F, 0.25F);
+        face(buffer, matrix, color, half * 1.12F, gain * 0.38F * Settings.HAT.factor(), 0.625F, 0.125F, 0.75F, 0.25F);
     }
 
     /**
@@ -155,7 +157,7 @@ public final class CrystalFlashShapes {
     public static void submitHeadVeil(
             CrystalGlowBuffer buffer, Matrix4f matrix, int color, float radius, float gain) {
         float half = radius * 0.95F;
-        quad(buffer, matrix, color, -half, -half, half, half, gain * 0.34F);
+        quad(buffer, matrix, color, -half, -half, half, half, gain * 0.34F * Settings.PALLOR.factor());
     }
 
     private static void face(CrystalGlowBuffer buffer, Matrix4f matrix, int color, float half,
@@ -257,26 +259,63 @@ public final class CrystalFlashShapes {
             float progress
     ) {
         switch (style) {
-            case SKULL -> mask(buffer, matrix, SKULL, color, hotColor, radius * 1.15F, gain);
+            case SKULL -> skull(buffer, matrix, color, hotColor, radius * 1.15F, gain, progress);
             case LIGHTNING -> bolts(buffer, matrix, cameraOrientation, color, hotColor, radius, gain,
                     origin, targets);
-            case HEART -> mask(buffer, matrix, HEART, color, hotColor, radius * 1.1F, gain);
+            case HEART -> {
+                // A beat as it fades: three swells, gone by the end.
+                float swell = (float) Math.sin(progress * Math.PI * 3.0D);
+                float beat = 1F + Settings.BEAT.factor() * 0.25F * swell * swell * (1F - progress);
+                mask(buffer, matrix, HEART, color, hotColor, radius * 1.1F * beat, gain, Settings.HEART_SHINE.factor(), 1F, 1F,
+                        0F, Integer.MAX_VALUE, 0F, 0F);
+            }
             case STAR -> star(buffer, matrix, color, hotColor, radius, gain, progress);
             case SHOCKWAVE -> shockwave(buffer, matrix, color, hotColor, radius, gain, progress);
             case VORTEX -> vortex(buffer, matrix, color, hotColor, radius, gain, progress);
-            case CROWN -> mask(buffer, matrix, CROWN, color, hotColor, radius * 1.1F, gain);
-            case CRESCENT -> mask(buffer, matrix, CRESCENT, color, hotColor, radius * 1.1F, gain);
+            case CROWN -> mask(buffer, matrix, CROWN, color, hotColor, radius * 1.1F, gain, Settings.JEWELS.factor(), 1F, 1F,
+                    0F, Integer.MAX_VALUE, 0F, Settings.RISE.factor() * progress * radius * 0.7F);
+            case CRESCENT -> mask(buffer, matrix, CRESCENT, color, hotColor, radius * 1.1F, gain, 1F, 1F,
+                    Settings.MOON_STARS.factor(), -Settings.TILT.radians(), Integer.MAX_VALUE, 0F, 0F);
             case SNOWFLAKE -> snowflake(buffer, matrix, color, hotColor, radius, gain, progress);
             case FLOWER -> flower(buffer, matrix, color, hotColor, radius, gain, progress);
-            case GEM -> mask(buffer, matrix, GEM, color, hotColor, radius * 1.15F, gain);
+            case GEM -> mask(buffer, matrix, GEM, color, hotColor, radius * 1.15F, gain, Settings.SPARKLE.factor(),
+                    Settings.FACETS.factor(), 1F, 0F, Integer.MAX_VALUE, 0F, 0F);
             case SWORDS -> swords(buffer, matrix, color, hotColor, radius, gain);
             default -> { }
+        }
+    }
+
+    /** The skull: its eyes may burn and its jaw drop as the flash fades. */
+    private static void skull(CrystalGlowBuffer buffer, Matrix4f matrix, int color, int hotColor, float radius, float gain,
+            float progress) {
+        int width = SKULL[0].length();
+        int height = SKULL.length;
+        float cell = radius * 2F / Math.max(width, height);
+        // The jaw is the rows under the nose.
+        mask(buffer, matrix, SKULL, color, hotColor, radius, gain, 1F, 1F, 1F, 0F, 9,
+                Settings.JAW.factor() * progress * cell * 2.5F, 0F);
+        float eyes = Settings.EYES.factor();
+        if (eyes > 0F) {
+            float originX = -cell * width / 2F;
+            float originY = cell * height / 2F;
+            float y = originY - cell * 6.5F;
+            disc(buffer, matrix, hotColor, cell * 1.6F, gain * 0.9F * eyes, originX + cell * 3.5F, y);
+            disc(buffer, matrix, hotColor, cell * 1.6F, gain * 0.9F * eyes, originX + cell * 10.5F, y);
         }
     }
 
     /**
      * Draws a mask as one quad per lit cell, brightest at the middle so the shape still reads as a
      * burst of light rather than as a flat sticker pasted over the world.
+     */
+    /**
+     * @param hot      how hot the hot cells and the middle burn, 1 as made
+     * @param dim      how much the dim facets show, 1 as made
+     * @param star     how bright the stars burn, 1 as made
+     * @param lean     how far the whole mask is turned, in radians
+     * @param jawRow   the first row that drops, or past the last for none
+     * @param jawDrop  how far those rows drop
+     * @param lift     how far the whole mask rises
      */
     private static void mask(
             CrystalGlowBuffer buffer,
@@ -285,43 +324,75 @@ public final class CrystalFlashShapes {
             int color,
             int hotColor,
             float radius,
-            float gain
+            float gain,
+            float hot,
+            float dim,
+            float star,
+            float lean,
+            int jawRow,
+            float jawDrop,
+            float lift
     ) {
         int height = rows.length;
         int width = rows[0].length();
         float cell = radius * 2F / Math.max(width, height);
         float originX = -cell * width / 2F;
-        float originY = cell * height / 2F;
+        float originY = cell * height / 2F + lift;
+        float cos = (float) Math.cos(lean);
+        float sin = (float) Math.sin(lean);
         for (int row = 0; row < height; row++) {
             String line = rows[row];
+            float drop = row >= jawRow ? jawDrop : 0F;
             for (int column = 0; column < width && column < line.length(); column++) {
                 char kind = line.charAt(column);
                 if (kind == '.') {
                     continue;
                 }
                 float x0 = originX + cell * column;
-                float y0 = originY - cell * (row + 1);
+                float y0 = originY - cell * (row + 1) - drop;
                 // Cells near the middle burn hotter, which keeps the silhouette from looking flat.
                 float dx = (column + 0.5F) / width - 0.5F;
                 float dy = (row + 0.5F) / height - 0.5F;
                 float centre = Math.max(0F, 1F - (float) Math.sqrt(dx * dx + dy * dy) * 1.7F);
                 if (kind == '+') {
-                    quad(buffer, matrix, color, x0, y0, x0 + cell, y0 + cell, gain * 0.32F);
+                    cell(buffer, matrix, color, x0, y0, x0 + cell, y0 + cell, gain * 0.32F * dim, cos, sin);
                     continue;
                 }
                 if (kind == '*') {
-                    quad(buffer, matrix, hotColor, x0, y0, x0 + cell, y0 + cell, gain);
+                    cell(buffer, matrix, hotColor, x0, y0, x0 + cell, y0 + cell, gain * Math.min(1.5F, hot), cos, sin);
                     continue;
                 }
-                quad(buffer, matrix, color, x0, y0, x0 + cell, y0 + cell, gain * (0.55F + centre * 0.45F));
+                if (kind == 'o') {
+                    cell(buffer, matrix, hotColor, x0, y0, x0 + cell, y0 + cell, gain * star, cos, sin);
+                    continue;
+                }
+                cell(buffer, matrix, color, x0, y0, x0 + cell, y0 + cell, gain * (0.55F + centre * 0.45F), cos, sin);
                 if (centre > 0.62F) {
-                    quad(buffer, matrix, hotColor,
+                    cell(buffer, matrix, hotColor,
                             x0 + cell * 0.18F, y0 + cell * 0.18F,
                             x0 + cell * 0.82F, y0 + cell * 0.82F,
-                            gain * (centre - 0.62F) * 1.4F);
+                            gain * (centre - 0.62F) * 1.4F * hot, cos, sin);
                 }
             }
         }
+    }
+
+    /** A cell of a mask, turned about the mask's middle when it leans. */
+    private static void cell(CrystalGlowBuffer buffer, Matrix4f matrix, int color, float x0, float y0, float x1, float y1,
+            float gain, float cos, float sin) {
+        if (gain <= 0F) {
+            return;
+        }
+        if (sin == 0F) {
+            quad(buffer, matrix, color, x0, y0, x1, y1, gain);
+            return;
+        }
+        float ax = x0 * cos - y0 * sin, ay = x0 * sin + y0 * cos;
+        float bx = x1 * cos - y0 * sin, by = x1 * sin + y0 * cos;
+        float cx = x1 * cos - y1 * sin, cy = x1 * sin + y1 * cos;
+        float dx = x0 * cos - y1 * sin, dy = x0 * sin + y1 * cos;
+        triangle(buffer, matrix, color, ax, ay, gain, bx, by, gain, cx, cy, gain);
+        triangle(buffer, matrix, color, ax, ay, gain, cx, cy, gain, dx, dy, gain);
     }
 
     /** A crescent moon cut from one disc by another, one star in its hollow and one beyond it. */
@@ -337,7 +408,7 @@ public final class CrystalFlashShapes {
                 boolean bite = cx * cx + cy * cy <= 0.72F * 0.72F;
                 boolean star = (Math.abs(x - 0.45F) + Math.abs(y - 0.10F) < 0.10F)
                         || (Math.abs(x - 0.80F) + Math.abs(y - 0.62F) < 0.07F);
-                line.append(moon && !bite ? (x < -0.6F ? '*' : '#') : star ? '*' : '.');
+                line.append(moon && !bite ? (x < -0.6F ? '*' : '#') : star ? 'o' : '.');
             }
             rows[row] = line.toString();
         }
@@ -376,8 +447,9 @@ public final class CrystalFlashShapes {
         }
         if (directions.isEmpty()) {
             // No one in sight, or the preview: a ring of bolts so the style is never invisible.
-            for (int i = 0; i < 6; i++) {
-                double angle = Math.PI * 2 * i / 6;
+            int ring = Settings.BOLTS.value();
+            for (int i = 0; i < ring; i++) {
+                double angle = Math.PI * 2 * i / ring;
                 directions.add(new float[] {
                         (float) Math.cos(angle), (float) Math.sin(angle), radius * 1.4F});
             }
@@ -396,14 +468,15 @@ public final class CrystalFlashShapes {
     /** A five-pointed star turning slowly as it fades, with a hot star inside it. */
     private static void star(CrystalGlowBuffer buffer, Matrix4f matrix, int color, int hotColor,
             float radius, float gain, float progress) {
-        float turn = (float) (-Math.PI / 2.0D) + progress * 0.9F;
-        starPolygon(buffer, matrix, color, radius * 1.05F, 0.42F, turn, gain, gain * 0.35F);
-        starPolygon(buffer, matrix, hotColor, radius * 0.5F, 0.42F, turn, gain * 0.85F, gain * 0.2F);
+        float turn = (float) (-Math.PI / 2.0D) + progress * 0.9F * Settings.STAR_SPIN.factor();
+        int tips = Settings.POINTS.value();
+        starPolygon(buffer, matrix, color, tips, radius * 1.05F, 0.42F, turn, gain, gain * 0.35F);
+        starPolygon(buffer, matrix, hotColor, tips, radius * 0.5F, 0.42F, turn, gain * 0.85F, gain * 0.2F);
     }
 
-    private static void starPolygon(CrystalGlowBuffer buffer, Matrix4f matrix, int color, float outer,
+    private static void starPolygon(CrystalGlowBuffer buffer, Matrix4f matrix, int color, int tips, float outer,
             float innerRatio, float turn, float centreGain, float edgeGain) {
-        int points = 10;
+        int points = tips * 2;
         float[] xs = new float[points];
         float[] ys = new float[points];
         for (int i = 0; i < points; i++) {
@@ -418,10 +491,12 @@ public final class CrystalFlashShapes {
     /** A ring that runs outward as the flash fades, a second one lagging behind it. */
     private static void shockwave(CrystalGlowBuffer buffer, Matrix4f matrix, int color, int hotColor,
             float radius, float gain, float progress) {
-        float outer = radius * (0.35F + 0.95F * progress);
-        ring(buffer, matrix, color, outer, radius * (0.24F - 0.1F * progress), gain);
-        float inner = radius * (0.18F + 0.7F * progress);
-        ring(buffer, matrix, hotColor, inner, radius * 0.08F, gain * 0.7F);
+        float reach = Settings.REACH.factor();
+        float thick = Settings.THICKNESS.factor();
+        float outer = radius * (0.35F + 0.95F * reach * progress);
+        ring(buffer, matrix, color, outer, radius * (0.24F - 0.1F * progress) * thick, gain);
+        float inner = radius * (0.18F + 0.7F * reach * progress);
+        ring(buffer, matrix, hotColor, inner, radius * 0.08F * thick, gain * 0.7F);
         disc(buffer, matrix, hotColor, radius * 0.3F, gain * (1F - progress));
     }
 
@@ -429,12 +504,15 @@ public final class CrystalFlashShapes {
     private static void vortex(CrystalGlowBuffer buffer, Matrix4f matrix, int color, int hotColor,
             float radius, float gain, float progress) {
         int points = 16;
-        for (int arm = 0; arm < 3; arm++) {
+        int arms = Settings.ARMS.value();
+        double twist = Math.PI * 2.6D * Settings.TWIST.factor();
+        double spin = 2.4D * Settings.VORTEX_SPIN.factor();
+        for (int arm = 0; arm < arms; arm++) {
             float[] xs = new float[points];
             float[] ys = new float[points];
             for (int i = 0; i < points; i++) {
                 float t = i / (float) (points - 1);
-                double angle = arm * Math.PI * 2 / 3 + t * Math.PI * 2.6D + progress * 2.4D;
+                double angle = arm * Math.PI * 2 / arms + t * twist + progress * spin;
                 float r = radius * (0.12F + 0.95F * t);
                 xs[i] = (float) Math.cos(angle) * r;
                 ys[i] = (float) Math.sin(angle) * r;
@@ -448,16 +526,18 @@ public final class CrystalFlashShapes {
     /** Six arms with two pairs of branches each, turning slightly as the flash fades. */
     private static void snowflake(CrystalGlowBuffer buffer, Matrix4f matrix, int color, int hotColor,
             float radius, float gain, float progress) {
-        float turn = progress * 0.35F;
+        float turn = progress * 0.35F * Settings.FLAKE_SPIN.factor();
+        int branches = Settings.BRANCHES.value();
         for (int arm = 0; arm < 6; arm++) {
             double angle = turn + Math.PI * 2 * arm / 6;
             float dx = (float) Math.cos(angle), dy = (float) Math.sin(angle);
             float length = radius * 1.05F;
             line(buffer, matrix, color, dx * radius * 0.1F, dy * radius * 0.1F,
                     dx * length, dy * length, radius * 0.055F, gain, gain * 0.45F);
-            for (int branch = 0; branch < 2; branch++) {
-                float along = radius * (branch == 0 ? 0.45F : 0.72F);
-                float reach = radius * (branch == 0 ? 0.3F : 0.2F);
+            for (int branch = 0; branch < branches; branch++) {
+                // Spread along the arm, each pair shorter than the one before it.
+                float along = radius * (branches == 1 ? 0.55F : 0.45F + 0.27F * branch / (branches - 1));
+                float reach = radius * (0.3F - 0.1F * branch);
                 float bx = dx * along, by = dy * along;
                 for (int side = -1; side <= 1; side += 2) {
                     double branchAngle = angle + side * Math.toRadians(52);
@@ -475,15 +555,18 @@ public final class CrystalFlashShapes {
     /** Six petals around a hot heart, with a smaller ring of petals between them. */
     private static void flower(CrystalGlowBuffer buffer, Matrix4f matrix, int color, int hotColor,
             float radius, float gain, float progress) {
-        float turn = progress * 0.5F;
-        for (int petal = 0; petal < 6; petal++) {
-            double angle = turn + Math.PI * 2 * petal / 6;
-            ellipse(buffer, matrix, color, angle, radius * 0.5F, radius * 0.46F, radius * 0.2F,
+        float turn = progress * 0.5F * Settings.FLOWER_SPIN.factor();
+        int petals = Settings.PETALS.value();
+        // More petals, narrower ones, so they never pile up into a disc.
+        float narrow = Math.min(1F, 6F / petals);
+        for (int petal = 0; petal < petals; petal++) {
+            double angle = turn + Math.PI * 2 * petal / petals;
+            ellipse(buffer, matrix, color, angle, radius * 0.5F, radius * 0.46F, radius * 0.2F * narrow,
                     gain * 0.9F, gain * 0.25F);
         }
-        for (int petal = 0; petal < 6; petal++) {
-            double angle = turn + Math.PI / 6 + Math.PI * 2 * petal / 6;
-            ellipse(buffer, matrix, hotColor, angle, radius * 0.32F, radius * 0.3F, radius * 0.12F,
+        for (int petal = 0; petal < petals; petal++) {
+            double angle = turn + Math.PI / petals + Math.PI * 2 * petal / petals;
+            ellipse(buffer, matrix, hotColor, angle, radius * 0.32F, radius * 0.3F, radius * 0.12F * narrow,
                     gain * 0.6F, gain * 0.15F);
         }
         disc(buffer, matrix, hotColor, radius * 0.17F, gain);
@@ -492,8 +575,9 @@ public final class CrystalFlashShapes {
     /** Two swords crossed at the middle of their blades, hilts down. */
     private static void swords(CrystalGlowBuffer buffer, Matrix4f matrix, int color, int hotColor,
             float radius, float gain) {
+        float edge = gain * Settings.EDGE.factor();
         for (int side = -1; side <= 1; side += 2) {
-            double angle = side * Math.toRadians(40);
+            double angle = side * Settings.CROSS.radians();
             float cos = (float) Math.cos(angle), sin = (float) Math.sin(angle);
             float pivot = radius * 0.3F;
             // Blade, then its bright edge, then the guard, grip and pommel.
@@ -502,13 +586,13 @@ public final class CrystalFlashShapes {
             swordTip(buffer, matrix, color, cos, sin, pivot, radius * 0.92F, radius * 1.08F,
                     radius * 0.07F, gain);
             swordPart(buffer, matrix, hotColor, cos, sin, pivot, 0F, radius * 0.3F, radius * 0.022F,
-                    radius * 0.6F, gain * 0.9F);
+                    radius * 0.6F, edge * 0.9F);
             swordPart(buffer, matrix, hotColor, cos, sin, pivot, 0F, -radius * 0.3F, radius * 0.26F,
-                    radius * 0.05F, gain);
+                    radius * 0.05F, edge);
             swordPart(buffer, matrix, color, cos, sin, pivot, 0F, -radius * 0.46F, radius * 0.04F,
                     radius * 0.14F, gain * 0.8F);
             swordPart(buffer, matrix, hotColor, cos, sin, pivot, 0F, -radius * 0.64F, radius * 0.07F,
-                    radius * 0.06F, gain);
+                    radius * 0.06F, edge);
         }
     }
 
@@ -569,7 +653,7 @@ public final class CrystalFlashShapes {
             float travel = length * point / segments;
             float sway = (point == 0 || point == segments)
                     ? 0F
-                    : (noise(seed + point) - 0.5F) * length * 0.22F;
+                    : (noise(seed + point) - 0.5F) * length * 0.22F * Settings.ZIGZAG.factor();
             xs[point] = dirX * travel + normalX * sway;
             ys[point] = dirY * travel + normalY * sway;
         }

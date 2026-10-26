@@ -9,6 +9,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.flat.FlatLayerInfo;
 import net.minecraft.world.phys.Vec3;
 
@@ -18,7 +19,11 @@ import net.minecraft.world.phys.Vec3;
  * <p>Three kinds of ground. The netherite flat, where crystals only go on obsidian someone places.
  * The hole arena: an obsidian floor, so a crystal fits anywhere, dotted with one-block holes floored
  * with bedrock and a few raised steps, the terrain of hole fights. And a natural meadow in the chosen
- * biome: almost flat, a few trees, a few plants and no caves at all.</p>
+ * biome: almost flat, a few trees, a few plants and no caves at all. A normal world has no arena
+ * of its own: the round is wherever the player is, on the ground Minecraft generated.</p>
+ *
+ * <p>The arena stands around a centre that /rtp moves; every coordinate this class is given or
+ * returns is a world coordinate.</p>
  *
  * <p>Everything is rebuilt from {@link PracticeTerrain}, a pure function of the seed, so craters
  * from the last round are filled back exactly. Only blocks that differ are written, without
@@ -37,6 +42,9 @@ public final class PracticeArena {
     private final int base;
     private final PracticeTerrain terrain;
     private final Palette palette;
+    private final BlockPos.MutableBlockPos scratch = new BlockPos.MutableBlockPos();
+    private int centerX;
+    private int centerZ;
 
     PracticeArena(ServerLevel level, PracticeSettings.WorldType type, PracticeSettings.Biome biome, int base, long seed) {
         this.level = level;
@@ -47,32 +55,71 @@ public final class PracticeArena {
         this.palette = Palette.of(biome);
     }
 
-    /** Height of the ground's top block at a column, as the arena builds it. */
+    int centerX() {
+        return this.centerX;
+    }
+
+    int centerZ() {
+        return this.centerZ;
+    }
+
+    /** Moves the arena: the next rebuild puts it here, and the round's spawn comes with it. */
+    void moveTo(int x, int z) {
+        this.centerX = x;
+        this.centerZ = z;
+    }
+
+    boolean normalWorld() {
+        return this.type == PracticeSettings.WorldType.SURVIVAL;
+    }
+
+    /** Height of the ground's top block at a column, as the arena builds it or Minecraft generated it. */
     int groundY(int x, int z) {
-        if (this.type == PracticeSettings.WorldType.NATURAL) {
-            return this.base + this.terrain.heightOffset(x, z);
+        if (normalWorld()) {
+            // Loads, and if need be generates, the chunk first: an unloaded one has no height yet.
+            return this.level.getChunk(x >> 4, z >> 4).getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x & 15, z & 15);
         }
-        if (this.type == PracticeSettings.WorldType.HOLES && this.terrain.ledge(x, z)) {
+        int localX = x - this.centerX;
+        int localZ = z - this.centerZ;
+        if (this.type == PracticeSettings.WorldType.NATURAL) {
+            return this.base + this.terrain.heightOffset(localX, localZ);
+        }
+        if (this.type == PracticeSettings.WorldType.HOLES && this.terrain.ledge(localX, localZ)) {
             return this.base + 1;
         }
         return this.base;
     }
 
     Vec3 spawn() {
-        return new Vec3(0.5D, groundY(0, 0) + 1.0D, 0.5D);
+        return new Vec3(this.centerX + 0.5D, groundY(this.centerX, this.centerZ) + 1.0D, this.centerZ + 0.5D);
     }
 
     /** True for a column the bot can stand on: in the arena, not in a hole, with room to stand. */
     boolean standable(int x, int z) {
-        if (Math.abs(x) > RADIUS - 3 || Math.abs(z) > RADIUS - 3) {
+        int localX = x - this.centerX;
+        int localZ = z - this.centerZ;
+        if (Math.abs(localX) > RADIUS - 3 || Math.abs(localZ) > RADIUS - 3) {
             return false;
         }
-        if (this.type == PracticeSettings.WorldType.HOLES && this.terrain.hole(x, z)) {
+        if (this.type == PracticeSettings.WorldType.HOLES && this.terrain.hole(localX, localZ)) {
             return false;
         }
-        BlockPos feet = new BlockPos(x, groundY(x, z) + 1, z);
-        return this.level.getBlockState(feet).getCollisionShape(this.level, feet).isEmpty()
-                && this.level.getBlockState(feet.above()).getCollisionShape(this.level, feet.above()).isEmpty();
+        return safeColumn(this.level, x, groundY(x, z), z);
+    }
+
+    /** Solid, dry ground at {@code groundY} with two blocks of air over it. */
+    static boolean safeColumn(ServerLevel level, int x, int groundY, int z) {
+        BlockPos ground = new BlockPos(x, groundY, z);
+        BlockState floor = level.getBlockState(ground);
+        if (!floor.getFluidState().isEmpty() || floor.getCollisionShape(level, ground).isEmpty()) {
+            return false;
+        }
+        BlockPos feet = ground.above();
+        BlockState body = level.getBlockState(feet);
+        BlockState head = level.getBlockState(feet.above());
+        return body.getFluidState().isEmpty() && head.getFluidState().isEmpty()
+                && body.getCollisionShape(level, feet).isEmpty()
+                && head.getCollisionShape(level, feet.above()).isEmpty();
     }
 
     void rebuild() {
@@ -80,6 +127,9 @@ public final class PracticeArena {
             case FLAT -> rebuildFlat(Blocks.NETHERITE_BLOCK.defaultBlockState());
             case HOLES -> rebuildHoles();
             case NATURAL -> rebuildNatural();
+            // A normal world is played as Minecraft made it: nothing to put back.
+            case SURVIVAL -> {
+            }
         }
     }
 
@@ -119,7 +169,7 @@ public final class PracticeArena {
         BlockPos.MutableBlockPos position = new BlockPos.MutableBlockPos();
         for (int x = -RADIUS; x <= RADIUS; x++) {
             for (int z = -RADIUS; z <= RADIUS; z++) {
-                int top = groundY(x, z);
+                int top = groundY(this.centerX + x, this.centerZ + z);
                 BlockState surface = this.palette.patch != null && this.terrain.patch(x, z, 0.22D)
                         ? this.palette.patch
                         : this.palette.top;
@@ -151,7 +201,7 @@ public final class PracticeArena {
         for (int[] tree : trees) {
             int x = tree[0];
             int z = tree[1];
-            growTree(new BlockPos(x, groundY(x, z) + 1, z), tree[2]);
+            growTree(new BlockPos(x, groundY(this.centerX + x, this.centerZ + z) + 1, z), tree[2]);
         }
     }
 
@@ -162,10 +212,17 @@ public final class PracticeArena {
         }
     }
 
+    /** The block at a position relative to the arena's centre. */
+    private BlockState at(BlockPos position) {
+        return this.level.getBlockState(this.scratch.set(position.getX() + this.centerX, position.getY(), position.getZ() + this.centerZ));
+    }
+
+    /** Sets a block at a position relative to the arena's centre. */
     private void set(BlockPos position, BlockState state) {
-        if (this.level.getBlockState(position) != state) {
+        BlockPos at = this.scratch.set(position.getX() + this.centerX, position.getY(), position.getZ() + this.centerZ);
+        if (this.level.getBlockState(at) != state) {
             // Clients are told; neighbours are not, so nothing cascades while the arena is rebuilt.
-            this.level.setBlock(position, state, 2);
+            this.level.setBlock(at, state, 2);
         }
     }
 
@@ -213,7 +270,7 @@ public final class PracticeArena {
                         continue;
                     }
                     BlockPos leaf = root.offset(dx, top + dy, dz);
-                    if (this.level.getBlockState(leaf).isAir()) {
+                    if (at(leaf).isAir()) {
                         set(leaf, leaves);
                     }
                 }
@@ -237,7 +294,7 @@ public final class PracticeArena {
                         continue;
                     }
                     BlockPos leaf = root.offset(dx, y, dz);
-                    if (this.level.getBlockState(leaf).isAir()) {
+                    if (at(leaf).isAir()) {
                         set(leaf, leaves);
                     }
                 }
@@ -270,10 +327,10 @@ public final class PracticeArena {
                     continue;
                 }
                 BlockPos leaf = top.offset(dx, 0, dz);
-                if (this.level.getBlockState(leaf).isAir()) {
+                if (at(leaf).isAir()) {
                     set(leaf, leaves);
                 }
-                if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1 && this.level.getBlockState(leaf.above()).isAir()) {
+                if (Math.abs(dx) <= 1 && Math.abs(dz) <= 1 && at(leaf.above()).isAir()) {
                     set(leaf.above(), leaves);
                 }
             }
@@ -295,7 +352,7 @@ public final class PracticeArena {
                         continue;
                     }
                     BlockPos leaf = root.offset(dx, height + dy, dz);
-                    if (this.level.getBlockState(leaf).isAir()) {
+                    if (at(leaf).isAir()) {
                         set(leaf, leaves);
                     }
                 }

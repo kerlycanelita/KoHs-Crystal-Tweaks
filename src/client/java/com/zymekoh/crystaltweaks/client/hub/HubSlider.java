@@ -5,7 +5,6 @@ import com.zymekoh.crystaltweaks.client.CrystalUi;
 import java.util.function.DoubleConsumer;
 import java.util.function.DoubleFunction;
 import java.util.function.DoubleUnaryOperator;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractSliderButton;
@@ -101,6 +100,11 @@ public final class HubSlider extends AbstractSliderButton implements Clippable {
         int y = getY();
         int width = getWidth();
         int height = getHeight();
+        if (GrimoireDraw.active && width >= 110) {
+            drawGrimoire(graphics, x, y, width, height, fade);
+            return;
+        }
+        this.trackWidth = 0;
         int accent = this.lit ? skin.litAccent() : skin.accent;
         int fill = this.lit ? skin.litControlFill(this.hover) : CrystalTheme.lerp(skin.controlFill, skin.controlHover, this.hover);
         graphics.fill(x, y, x + width, y + height, CrystalTheme.fade(fill, fade));
@@ -118,11 +122,85 @@ public final class HubSlider extends AbstractSliderButton implements Clippable {
                     CrystalTheme.fade(CrystalTheme.withAlpha(accent, Math.round(150 * this.hover)), fade));
         }
         graphics.fill(handleX, y + 1, handleX + handleWidth, y + height - 1, CrystalTheme.fade(handle, fade));
-        Font font = Minecraft.getInstance().font;
+        Font font = GrimoireDraw.font();
         String text = HubDraw.fit(font, getMessage().getString(), Math.max(1, width - 8));
         int textX = x + (width - font.width(text)) / 2;
         CrystalUi.label(graphics, font, text, textX, y + (height - 8) / 2,
                 CrystalTheme.fade(this.active ? skin.text : skin.disabled, fade), true);
+    }
+
+    /**
+     * The grimoire's look: the name, a dotted leader, a thin track with a round knob and the value
+     * in gothic letters. The pointer moves the knob along the track as drawn, not the whole row.
+     */
+    private void drawGrimoire(GuiGraphicsExtractor graphics, int x, int y, int width, int height, float fade) {
+        Font font = GrimoireDraw.font();
+        splitMessage();
+        String name = this.shownName;
+        String value = this.shownValue;
+        // One column for the values, so the tracks of a page line up.
+        int valueWidth = Math.max(GrimoireDraw.gothicWidth(font, "10.0 s", 1.0F), GrimoireDraw.gothicWidth(font, value, 1.0F)) + 2;
+        this.trackWidth = Mth.clamp(Math.round(width * 0.4F), 40, 120);
+        this.trackX = x + width - valueWidth - 6 - this.trackWidth;
+        int centerY = y + height / 2;
+        graphics.fill(x, y - 2, x + width, y - 1, CrystalTheme.fade(GrimoireDraw.RULE, fade));
+        if (this.hover > 0.02F) {
+            graphics.fill(x, y, x + width, y + height, CrystalTheme.withAlpha(0xB47CF2, Math.round(20 * this.hover * fade)));
+        }
+        int textColor = CrystalTheme.fade(this.active ? CrystalTheme.lerp(GrimoireDraw.TEXT, 0xFFFFFFFF, this.hover) : GrimoireDraw.FAINT, fade);
+        int textY = y + (height - 8) / 2;
+        String clipped = HubDraw.fit(font, name, Math.max(1, this.trackX - x - 10));
+        CrystalUi.label(graphics, font, clipped, x + 2, textY, textColor);
+        GrimoireDraw.dots(graphics, x + 2 + font.width(clipped) + 4, this.trackX - 6, textY + 6, CrystalTheme.fade(GrimoireDraw.DOTS, fade));
+        // The track, the part already filled and the knob.
+        int knobX = this.trackX + (int) Math.round(this.value * this.trackWidth);
+        graphics.fill(this.trackX, centerY, this.trackX + this.trackWidth, centerY + 1, CrystalTheme.fade(GrimoireDraw.TRACK, fade));
+        graphics.fill(this.trackX, centerY - 1, knobX, centerY + 2, CrystalTheme.fade(GrimoireDraw.ACCENT, fade));
+        HubDraw.glowDisc(graphics, knobX, centerY, 6 + Math.round(2 * this.hover), GrimoireDraw.ACCENT, (0.45F + 0.35F * this.hover) * fade);
+        HubDraw.disc(graphics, knobX + 0.5F, centerY + 0.5F, 3.0F, CrystalTheme.fade(this.active ? GrimoireDraw.TITLE : 0xFF6E6076, fade));
+        if (!value.isEmpty()) {
+            int valueX = x + width - 2 - GrimoireDraw.gothicWidth(font, value, 1.0F);
+            GrimoireDraw.gothic(graphics, font, value, valueX, textY, 1.0F,
+                    CrystalTheme.fade(CrystalTheme.lerp(GrimoireDraw.VALUE, 0xFFFFFFFF, this.hover), fade), 0.0F);
+        }
+    }
+
+    /** The message's name and value ("Glow: 55%"), worked out when it changes, not every frame. */
+    private Component shownMessage;
+    private String shownName = "";
+    private String shownValue = "";
+
+    private void splitMessage() {
+        Component message = getMessage();
+        if (message != this.shownMessage) {
+            this.shownMessage = message;
+            String text = message.getString();
+            int split = text.indexOf(": ");
+            this.shownName = split > 0 ? text.substring(0, split) : text;
+            this.shownValue = split > 0 ? text.substring(split + 2) : "";
+        }
+    }
+
+    /** Where the track was last drawn; its width is 0 when the slider is drawn the plain way. */
+    private int trackX;
+    private int trackWidth;
+
+    @Override
+    public void onClick(MouseButtonEvent event, boolean doubleClick) {
+        super.onClick(event, doubleClick);
+        fromTrack(event.x());
+    }
+
+    @Override
+    protected void onDrag(MouseButtonEvent event, double dragX, double dragY) {
+        super.onDrag(event, dragX, dragY);
+        fromTrack(event.x());
+    }
+
+    private void fromTrack(double mouseX) {
+        if (this.trackWidth > 0) {
+            setValue((mouseX - this.trackX) / this.trackWidth);
+        }
     }
 
     private HubLayout.Rect clip = HubLayout.Rect.EMPTY;

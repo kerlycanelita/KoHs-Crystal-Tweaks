@@ -90,7 +90,7 @@ final class KohsPanel {
         this.spanish = spanish;
     }
 
-    /** Also used by the carousel for this tab's icon. */
+    /** Also the KoHs tab's icon. */
     static Identifier mark() {
         return KOHS_MARK;
     }
@@ -133,6 +133,10 @@ final class KohsPanel {
                 : "Every KoHs mod and plugin, its code, art and updates, made by one person for fair PvP.";
     }
 
+    /** What each of the creator's skills is, as the game's own things, alive. */
+    private static final HubButton.Icon[] SKILL_ICONS = {HubIcons.block("beacon", 0.1F), HubIcons.item("paper", 0.4F),
+            HubIcons.item("lead", 0.7F), HubIcons.item("string", 1.0F), HubIcons.item("ender_pearl", 1.3F), HubIcons.item("spyglass", 1.6F)};
+
     private String skill(int index) {
         String[] spanishSkills = {"Servidores avanzados", "Plugins Paper y Spigot", "Puentes mod ↔ plugin", "Mods de Fabric",
                 "BungeeCord y Velocity", "Auditorías de servidores"};
@@ -165,7 +169,8 @@ final class KohsPanel {
         int akaHeight = 12;
         int textWidth = Math.min(body.width() - 16, 440);
         List<FormattedCharSequence> role = CrystalUi.wrap(font, role(), Math.max(60, textWidth));
-        int buttonHeight = compact ? 14 : 16;
+        int line = GrimoireDraw.line(font);
+        int buttonHeight = compact ? 16 : 18;
         String[] labels = buttonLabels();
         int gap = 5;
         int[] widths = new int[4];
@@ -184,7 +189,7 @@ final class KohsPanel {
         int artHeight;
         while (true) {
             int roleLines = Math.min(maxRole, role.size());
-            int text = eyebrow + nameHeight + akaHeight + roleLines * 10 + 5 + buttonsHeight + 6 + finaleHeight;
+            int text = eyebrow + nameHeight + akaHeight + roleLines * line + 5 + buttonsHeight + 6 + finaleHeight;
             artHeight = Math.min(compact ? 100 : 180, body.height() - text - 6 + overlap);
             if (artHeight >= 52 || maxRole <= 1) {
                 break;
@@ -200,7 +205,7 @@ final class KohsPanel {
         }
         int artWidth = Math.round(artHeight * ART_WIDTH / ART_HEIGHT);
         int artSpace = artHeight > 0 ? artHeight + 4 - overlap : 0;
-        int total = artSpace + eyebrow + nameHeight + akaHeight + role.size() * 10 + 5 + buttonsHeight + 6 + finaleHeight;
+        int total = artSpace + eyebrow + nameHeight + akaHeight + role.size() * line + 5 + buttonsHeight + 6 + finaleHeight;
         int y = body.y() + Math.max(0, (body.height() - total) / 2);
         Rect art = artHeight > 0 ? new Rect(body.centerX() - artWidth / 2, y, artWidth, artHeight) : Rect.EMPTY;
         y += artSpace;
@@ -211,7 +216,7 @@ final class KohsPanel {
         int akaY = y;
         y += akaHeight;
         int roleY = y;
-        y += role.size() * 10 + 5;
+        y += role.size() * line + 5;
         Rect[] buttons = new Rect[4];
         if (twoRows) {
             int each = Math.max(40, (Math.min(body.width() - 8, 300) - gap) / 2);
@@ -235,7 +240,7 @@ final class KohsPanel {
         if (artHeight >= 80 && side >= 104) {
             chips = new Rect[6];
             int chipWidth = Math.min(side, 140);
-            int chipHeight = 15;
+            int chipHeight = 17;
             int chipGap = Math.min(10, Math.max(4, (artHeight - chipHeight * 3) / 4));
             int top = art.y() + (artHeight - chipHeight * 3 - chipGap * 2) / 2;
             for (int index = 0; index < 3; index++) {
@@ -446,11 +451,11 @@ final class KohsPanel {
             graphics.enableScissor(x + 1, chip.y() + 1, x + chip.width() - 1, chip.bottom() - 1);
             graphics.fill(scanX, chip.y() + 1, scanX + 2, chip.bottom() - 1, CrystalTheme.withAlpha(0xF5D0FE, Math.round(30 * alpha)));
             graphics.disableScissor();
-            int diamondX = left ? x + chip.width() - 8 : x + 7;
-            HubDraw.diamond(graphics, diamondX, chip.centerY(), 2, CrystalTheme.fade(0xFFFF4FB8, alpha));
+            int iconX = left ? x + chip.width() - 12 : x + 3;
+            SKILL_ICONS[index].draw(graphics, iconX, chip.centerY() - 5, 9, CrystalTheme.fade(0xFFFFFFFF, alpha));
             String label = HubDraw.fit(font, skill(index), chip.width() - 20);
             int textX = left ? x + chip.width() - 14 - font.width(label) : x + 14;
-            CrystalUi.label(graphics, font, label, textX, chip.y() + (chip.height() - 8) / 2,
+            CrystalUi.label(graphics, font, label, textX, Math.round(GrimoireDraw.textY(chip.y(), chip.height(), 1.0F)),
                     CrystalTheme.fade(CrystalTheme.lerp(0xFFC6B5CC, 0xFFE9D5FF, hover), alpha));
         }
     }
@@ -498,7 +503,7 @@ final class KohsPanel {
             FormattedCharSequence line = parts.role().get(index);
             HubDraw.line(graphics, font, line, centerX - font.width(line) / 2, lineY + Math.round((1.0F - in) * 4),
                     CrystalTheme.fade(0xFFC6B5CC, intro * in));
-            lineY += 10;
+            lineY += GrimoireDraw.line(font);
         }
     }
 
@@ -524,12 +529,13 @@ final class KohsPanel {
             }
             HubDraw.glass(graphics, button.x(), button.y(), button.width(), button.height(), top, HubSkin.darken(top, 0.55F),
                     CrystalTheme.lerp(index == 3 ? 0xC0C89040 : 0xC08B50B5, BUTTON_GLOWS[index], hover), alpha);
-            int icon = button.height() - 5;
-            String label = HubDraw.fit(font, labels[index], button.width() - icon - 10);
-            int contentWidth = icon + 4 + font.width(label);
+            int icon = Math.min(11, button.height() - 5);
+            float textScale = GrimoireDraw.textFit(button.height(), 1.0F);
+            String label = HubDraw.fit(font, labels[index], Math.round((button.width() - icon - 10) / textScale));
+            int contentWidth = icon + 4 + Math.round(font.width(label) * textScale);
             int x = button.x() + (button.width() - contentWidth) / 2;
             float iconCenterX = x + icon / 2.0F;
-            float iconCenterY = button.y() + 2.5F + icon / 2.0F;
+            float iconCenterY = button.y() + button.height() / 2.0F;
             switch (index) {
                 case 0 -> HubDraw.texture(graphics, DISCORD_ICON, 64, 64, iconCenterX, iconCenterY, icon, icon, 0.0F,
                         CrystalTheme.fade(CrystalTheme.lerp(0xFFB4BBFF, 0xFFFFFFFF, hover), alpha));
@@ -554,8 +560,8 @@ final class KohsPanel {
                     }
                 }
             }
-            CrystalUi.label(graphics, font, label, x + icon + 4, button.y() + (button.height() - 8) / 2,
-                    CrystalTheme.fade(CrystalTheme.lerp(0xFFF7EDFF, 0xFFFFFFFF, hover), alpha), true);
+            GrimoireDraw.text(graphics, font, label, x + icon + 4, GrimoireDraw.textY(button.y(), button.height(), textScale), textScale,
+                    CrystalTheme.fade(CrystalTheme.lerp(0xFFF7EDFF, 0xFFFFFFFF, hover), alpha));
         }
     }
 

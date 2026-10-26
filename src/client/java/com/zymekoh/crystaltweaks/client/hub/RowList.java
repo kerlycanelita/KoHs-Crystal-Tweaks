@@ -3,8 +3,11 @@ package com.zymekoh.crystaltweaks.client.hub;
 import com.zymekoh.crystaltweaks.client.CrystalTheme;
 import com.zymekoh.crystaltweaks.client.CrystalUi;
 import com.zymekoh.crystaltweaks.client.hub.HubLayout.Rect;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -22,6 +25,10 @@ import net.minecraft.util.FormattedCharSequence;
  * <p>Scrolling is smooth: the wheel moves a target, by as much as the wheel turned, and the drawn
  * offset glides after it. When the rows first appear, each one fades and slides in a little after
  * the one above.</p>
+ *
+ * <p>Rows between {@link #openBranch} and {@link #closeBranch} belong to the switch above them: they
+ * slide out from under it when it turns on and fold back under it when it turns off, and the rows
+ * below glide to make room or close in. Nothing is rebuilt for it.</p>
  */
 public final class RowList {
     /** Draws a row's own decoration into its bounds. */
@@ -36,30 +43,52 @@ public final class RowList {
         final int height;
         final int indent;
         final String heading;
+        /** The live icon before a section title, or null. */
+        HubButton.Icon icon;
         final List<FormattedCharSequence> note;
         final List<Cell> cells = new ArrayList<>();
+        /** When the row shows: null for always, else its branches' switches, all on. */
+        final BooleanSupplier open;
+        /** How far out the row is, 0 folded under its parent to 1 in full, eased. */
+        float shown;
         int y;
 
-        Row(int height, int indent, String heading, List<FormattedCharSequence> note) {
+        Row(int height, int indent, String heading, List<FormattedCharSequence> note, BooleanSupplier open) {
             this.height = height;
             this.indent = indent;
             this.heading = heading;
             this.note = note;
+            this.open = open;
+            this.shown = wanted() ? 1.0F : 0.0F;
+        }
+
+        boolean wanted() {
+            return this.open == null || this.open.getAsBoolean();
+        }
+
+        /** The height it takes this frame. */
+        int takes() {
+            return Math.round(this.height * this.shown);
         }
     }
 
     private static final long ROW_STAGGER_NANOS = 32_000_000L;
+    /** How quickly a branch unfolds or folds: each frame takes 1 - e^(-ms/75) of the way. */
+    private static final float BRANCH_TAU_MILLIS = 75.0F;
     private static final long ROW_FADE_NANOS = 230_000_000L;
     /** How long the drawn offset takes to settle on the target, in milliseconds. */
     private static final float SCROLL_TAU_MILLIS = 95.0F;
 
     private final List<Row> rows = new ArrayList<>();
     private final List<AbstractWidget> widgets = new ArrayList<>();
+    private final Deque<BooleanSupplier> branches = new ArrayDeque<>();
     private final int width;
     private final int gap;
     private Rect viewport = Rect.EMPTY;
     private int contentHeight;
     private int scrollTarget;
+    /** Where {@link #follow} is gliding to while the rows settle, or -1. */
+    private int following = -1;
     private float scroll;
     private long revealAt;
     private int slideDirection = 1;
@@ -78,21 +107,43 @@ public final class RowList {
     // Building
     // ------------------------------------------------------------------------------------------
 
-    /** A section title: a small diamond, the words, and a line to the right edge. */
+    /** A section title: the words and a line to the right edge. */
     public RowList heading(String text) {
-        add(new Row(11, 0, text, null));
+        return heading(text, null);
+    }
+
+    /** A section title led by a live icon from the game: the words, and a line to the right edge. */
+    public RowList heading(String text, HubButton.Icon icon) {
+        Row row = new Row(13, 0, text, null, this.branches.peek());
+        row.icon = icon;
+        add(row);
         return this;
     }
 
     /** Muted text wrapped to the list's width. */
     public RowList note(Font font, String text, int indent) {
         List<FormattedCharSequence> lines = CrystalUi.wrap(font, text, this.width - indent);
-        add(new Row(lines.size() * (font.lineHeight + 1), indent, null, lines));
+        add(new Row(lines.size() * GrimoireDraw.line(font), indent, null, lines, this.branches.peek()));
         return this;
     }
 
     public RowList space(int height) {
-        add(new Row(Math.max(0, height), 0, null, null));
+        add(new Row(Math.max(0, height), 0, null, null, this.branches.peek()));
+        return this;
+    }
+
+    /**
+     * The rows added until {@link #closeBranch} show only while {@code open} says so, inside any
+     * branch already open: a switch's own settings, under it.
+     */
+    public RowList openBranch(BooleanSupplier open) {
+        BooleanSupplier outer = this.branches.peek();
+        this.branches.push(outer == null ? open : () -> outer.getAsBoolean() && open.getAsBoolean());
+        return this;
+    }
+
+    public RowList closeBranch() {
+        this.branches.pop();
         return this;
     }
 
@@ -103,7 +154,7 @@ public final class RowList {
 
     /** A row set in by {@code indent} pixels: one that a switch above it unfolds. */
     public RowList row(int height, int indent) {
-        add(new Row(height, indent, null, null));
+        add(new Row(height, indent, null, null, this.branches.peek()));
         return this;
     }
 
@@ -129,9 +180,23 @@ public final class RowList {
     }
 
     private void add(Row row) {
-        row.y = this.contentHeight + (this.rows.isEmpty() ? 0 : this.gap);
-        this.contentHeight = row.y + row.height;
         this.rows.add(row);
+        stack();
+    }
+
+    /** Stacks the rows by how far out each one is: folded rows take no room, and no gap either. */
+    private void stack() {
+        int y = 0;
+        boolean first = true;
+        for (Row row : this.rows) {
+            int gapAbove = first ? 0 : Math.round(this.gap * row.shown);
+            row.y = y + gapAbove;
+            y = row.y + row.takes();
+            if (row.shown > 0.0F) {
+                first = false;
+            }
+        }
+        this.contentHeight = y;
     }
 
     public List<AbstractWidget> widgets() {
@@ -156,7 +221,7 @@ public final class RowList {
         return this.viewport;
     }
 
-    /** Rows fade in from {@code at}; {@code direction} is the side they slide from, -1 left, 1 right. */
+    /** Rows fade in from {@code at}; {@code direction} 1 slides them in from the left, -1 from the right. */
     public void reveal(long at, int direction) {
         this.revealAt = at;
         this.slideDirection = direction;
@@ -178,6 +243,14 @@ public final class RowList {
         }
     }
 
+    /**
+     * Glides to {@code target} as the rows settle: a branch just unfolded makes the room it needs
+     * frame by frame, so a plain {@link #scrollTo} would stop short of it. The wheel cancels it.
+     */
+    public void follow(int target) {
+        this.following = target;
+    }
+
     /** True once the player has scrolled this list themselves. */
     public boolean scrolledByPlayer() {
         return this.scrolledByPlayer;
@@ -196,6 +269,7 @@ public final class RowList {
             return false;
         }
         int before = this.scrollTarget;
+        this.following = -1;
         // A notched wheel turns by whole steps; a smooth wheel or a touchpad by fractions of one.
         double turned = Math.max(-3.0D, Math.min(3.0D, amount));
         this.scrollTarget -= (int) Math.round(turned * Math.max(8, step));
@@ -223,6 +297,29 @@ public final class RowList {
      *                    while anything covers the list, so its rows can stay drawn under it
      */
     public void place(long now, float frameMillis, float alpha, boolean interactive) {
+        float response = 1.0F - (float) Math.exp(-frameMillis / BRANCH_TAU_MILLIS);
+        boolean moving = false;
+        for (Row row : this.rows) {
+            float target = row.wanted() ? 1.0F : 0.0F;
+            if (row.shown != target) {
+                row.shown += (target - row.shown) * response;
+                if (Math.abs(target - row.shown) < 0.004F) {
+                    row.shown = target;
+                }
+                moving = true;
+            }
+        }
+        if (moving) {
+            stack();
+            clampScroll();
+        }
+        if (this.following >= 0) {
+            this.scrollTarget = this.following;
+            clampScroll();
+            if (!moving) {
+                this.following = -1;
+            }
+        }
         this.scroll = HubMotion.damp(this.scroll, this.scrollTarget, frameMillis, SCROLL_TAU_MILLIS);
         if (Math.abs(this.scroll - this.scrollTarget) < 0.3F) {
             this.scroll = this.scrollTarget;
@@ -232,8 +329,13 @@ public final class RowList {
             Row row = this.rows.get(index);
             float fade = rowFade(now, index);
             int slide = Math.round((1.0F - fade) * 9.0F) * -this.slideDirection;
-            int y = this.viewport.y() + row.y - offset;
-            float edge = edgeFade(y, row.height);
+            int top = this.viewport.y() + row.y - offset;
+            int takes = row.takes();
+            // A row coming out of its branch slides down from under the row above it.
+            int y = top - (row.height - takes);
+            float edge = edgeFade(top, Math.max(1, takes));
+            Rect clip = takes >= row.height ? this.viewport : intersect(this.viewport, new Rect(this.viewport.x() - 2, top,
+                    this.viewport.width() + 4, takes));
             for (Cell cell : row.cells) {
                 if (cell.widget() == null) {
                     continue;
@@ -241,10 +343,10 @@ public final class RowList {
                 AbstractWidget widget = cell.widget();
                 widget.setX(this.viewport.x() + row.indent + cell.x() + slide);
                 widget.setY(y);
-                widget.visible = edge > 0.02F && fade > 0.05F && alpha > 0.05F;
-                widget.setAlpha(Math.max(0.0F, Math.min(1.0F, fade * alpha * edge)));
+                widget.visible = takes > 1 && edge > 0.02F && fade > 0.05F && alpha > 0.05F;
+                widget.setAlpha(Math.max(0.0F, Math.min(1.0F, fade * alpha * edge * Math.min(1.0F, row.shown * 1.4F))));
                 if (widget instanceof Clippable clippable) {
-                    clippable.clipTo(this.viewport);
+                    clippable.clipTo(clip);
                 }
             }
         }
@@ -267,6 +369,14 @@ public final class RowList {
         float soft = HubMotion.clamp01(fromEdge / zone);
         float part = HubMotion.clamp01(shown / (float) height);
         return HubMotion.smoothstep(0.0F, 1.0F, Math.min(soft, 0.35F + 0.65F * part));
+    }
+
+    private static Rect intersect(Rect a, Rect b) {
+        int x = Math.max(a.x(), b.x());
+        int y = Math.max(a.y(), b.y());
+        int right = Math.min(a.right(), b.right());
+        int bottom = Math.min(a.bottom(), b.bottom());
+        return right <= x || bottom <= y ? Rect.EMPTY : new Rect(x, y, right - x, bottom - y);
     }
 
     /** Hides every widget: the list is gone or covered. */
@@ -299,19 +409,41 @@ public final class RowList {
         int trunkTop = -1;
         for (int index = 0; index < this.rows.size(); index++) {
             Row row = this.rows.get(index);
+            int takes = row.takes();
+            if (takes <= 0) {
+                continue;
+            }
             float fade = rowFade(now, index) * alpha;
-            int y = this.viewport.y() + row.y - offset;
-            if (y > this.viewport.bottom() || y + row.height < this.viewport.y()) {
+            int top = this.viewport.y() + row.y - offset;
+            if (top > this.viewport.bottom() || top + takes < this.viewport.y()) {
                 trunkTop = row.indent > 0 ? trunkTop : -1;
                 continue;
             }
-            fade *= edgeFade(y, row.height);
+            fade *= edgeFade(top, takes) * Math.min(1.0F, row.shown * 1.4F);
+            boolean folding = takes < row.height;
+            if (folding) {
+                graphics.enableScissor(this.viewport.x() - 2, Math.max(top, this.viewport.y()), this.viewport.right() + 2,
+                        Math.min(top + takes, this.viewport.bottom()));
+            }
+            // A folding row's content sits higher, under the row above, by what is still folded.
+            int y = top - (row.height - takes);
             int x = this.viewport.x() + row.indent;
             if (row.heading != null) {
                 int textY = y + 2;
-                HubDraw.diamond(graphics, this.viewport.x() + 2, textY + 3, 2, CrystalTheme.fade(accent, fade));
-                CrystalUi.label(graphics, font, row.heading, this.viewport.x() + 8, textY, CrystalTheme.fade(muted, fade));
-                int lineX = this.viewport.x() + 11 + font.width(row.heading);
+                int textX = this.viewport.x();
+                if (row.icon != null) {
+                    row.icon.draw(graphics, textX, textY - 1, 10, CrystalTheme.fade(0xFFFFFFFF, fade));
+                    textX += 13;
+                }
+                int headingWidth;
+                if (GrimoireDraw.active) {
+                    GrimoireDraw.gothic(graphics, font, row.heading, textX, textY, 1.0F, CrystalTheme.fade(GrimoireDraw.VALUE, fade), 0.0F);
+                    headingWidth = GrimoireDraw.gothicWidth(font, row.heading, 1.0F);
+                } else {
+                    CrystalUi.label(graphics, font, row.heading, textX, textY, CrystalTheme.fade(muted, fade));
+                    headingWidth = font.width(row.heading);
+                }
+                int lineX = textX + 3 + headingWidth;
                 if (lineX < this.viewport.right() - 2) {
                     graphics.fill(lineX, textY + 4, this.viewport.right(), textY + 5,
                             CrystalTheme.fade(CrystalTheme.withAlpha(line, 90), fade));
@@ -321,7 +453,7 @@ public final class RowList {
                 int lineY = y;
                 for (FormattedCharSequence text : row.note) {
                     HubDraw.line(graphics, font, text, x, lineY, CrystalTheme.fade(muted, fade));
-                    lineY += font.lineHeight + 1;
+                    lineY += GrimoireDraw.line(font);
                 }
             }
             for (Cell cell : row.cells) {
@@ -329,22 +461,26 @@ public final class RowList {
                     cell.painter().paint(graphics, font, x + cell.x(), y, cell.width(), row.height, fade);
                 }
             }
+            // The row's controls, at the opacity place() gave them, inside the row's own clip.
+            for (Cell cell : row.cells) {
+                if (cell.widget() != null && cell.widget().visible) {
+                    cell.widget().extractRenderState(graphics, mouseX, mouseY, partialTick);
+                }
+            }
+            if (folding) {
+                graphics.disableScissor();
+            }
             if (row.indent > 0 && !row.cells.isEmpty()) {
                 // The branch: a trunk down from the row above and an arm into this one.
                 int trunkX = this.viewport.x() + Math.max(2, row.indent / 2 - 1);
-                int armY = y + row.height / 2;
-                int from = trunkTop >= 0 ? trunkTop : y - this.gap - 2;
-                graphics.fill(trunkX, from, trunkX + 1, armY + 1, CrystalTheme.fade(CrystalTheme.withAlpha(line, 150), fade));
-                graphics.fill(trunkX, armY, x - 2, armY + 1, CrystalTheme.fade(CrystalTheme.withAlpha(line, 150), fade));
+                int armY = Math.min(top + takes - 1, y + row.height / 2);
+                int from = trunkTop >= 0 ? trunkTop : top - this.gap - 2;
+                int branchColor = CrystalTheme.fade(CrystalTheme.withAlpha(line, 150), fade);
+                graphics.fill(trunkX, from, trunkX + 1, armY + 1, branchColor);
+                graphics.fill(trunkX, armY, x - 1, armY + 1, branchColor);
                 trunkTop = armY;
             } else {
                 trunkTop = -1;
-            }
-        }
-        // The controls last, inside the same clip, each at the opacity place() gave it.
-        for (AbstractWidget widget : this.widgets) {
-            if (widget.visible) {
-                widget.extractRenderState(graphics, mouseX, mouseY, partialTick);
             }
         }
         graphics.disableScissor();
@@ -367,11 +503,11 @@ public final class RowList {
         int fade = Math.min(12, Math.max(4, view.height() / 8));
         if (this.scroll > 0.5F) {
             graphics.fillGradient(view.x(), view.y(), view.right(), view.y() + fade,
-                    CrystalTheme.fade(0xB0120618, alpha), 0x00120618);
+                    CrystalTheme.fade(0xD0110C17, alpha), 0x00110C17);
         }
         if (this.scroll < max - 0.5F) {
-            graphics.fillGradient(view.x(), view.bottom() - fade, view.right(), view.bottom(), 0x00120618,
-                    CrystalTheme.fade(0xC0120618, alpha));
+            graphics.fillGradient(view.x(), view.bottom() - fade, view.right(), view.bottom(), 0x00110C17,
+                    CrystalTheme.fade(0xE0110C17, alpha));
         }
     }
 }

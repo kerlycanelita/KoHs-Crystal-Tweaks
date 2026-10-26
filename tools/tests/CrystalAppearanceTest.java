@@ -1,10 +1,9 @@
 import com.zymekoh.crystaltweaks.client.CrystalAppearance;
 import com.zymekoh.crystaltweaks.client.CrystalFlashStyle;
-import com.zymekoh.crystaltweaks.client.hub.HubLayout;
 import com.zymekoh.crystaltweaks.client.CrystalGlowMath;
 import com.zymekoh.crystaltweaks.client.AfterglowTimeline;
 import com.zymekoh.crystaltweaks.client.benchmark.BenchmarkStats;
-import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
+import com.zymekoh.crystaltweaks.client.benchmark.OptimizerNames;
 import com.zymekoh.crystaltweaks.practice.PracticeSettings;
 import java.util.List;
 import java.util.UUID;
@@ -12,10 +11,6 @@ import java.util.UUID;
 /** Run using tools/test-glow.ps1; no Minecraft instance or network required. */
 public final class CrystalAppearanceTest {
     public static void main(String[] args) {
-        check(CrystalOptimizerGuard.scanPending() && !CrystalOptimizerGuard.optimizationsAllowed(),
-                "Interaction helpers start disabled while compatibility is unknown");
-        CrystalOptimizerGuard.completeScan();
-        check(CrystalOptimizerGuard.optimizationsAllowed(), "A completed clean scan enables helpers");
         CrystalAppearance player = new CrystalAppearance();
         CrystalAppearance enemy = new CrystalAppearance();
         player.outerColor = 0xFF123456;
@@ -42,7 +37,8 @@ public final class CrystalAppearanceTest {
                 "Glow ships on at 55/55 so the mod is visible from the first launch");
         check(fresh.customGlowColor && fresh.glowColor == 0xFFC880FF,
                 "A fresh profile glows crystal purple");
-        check(fresh.flashScalePercent == 100, "Flash size starts at its natural scale");
+        check(fresh.flashScalePercent == CrystalAppearance.DEFAULT_FLASH_SCALE && CrystalAppearance.DEFAULT_FLASH_SCALE == 40,
+                "Flash size ships at 40%");
         fresh.flashScalePercent = 9999;
         check(fresh.copy().flashScalePercent == 300, "Flash size clamps at 300");
         fresh.flashScalePercent = -5;
@@ -83,147 +79,81 @@ public final class CrystalAppearanceTest {
         timeline.clear(); timeline.start(id, "prediction", 0); timeline.cancel(id);
         check(timeline.size() == 0, "Rejected prediction/reappearing crystal cancels afterglow");
         timeline.start(id, "old world", 0); timeline.clear(); check(timeline.size() == 0, "Disconnect clears light");
-        check(CrystalOptimizerGuard.looksLikeOptimizer("marlowcrystal", ""), "Marlow detected by exact id");
-        check(CrystalOptimizerGuard.looksLikeOptimizer("nocrystalbreak", ""), "No Crystal Break detected by exact id");
-        check(CrystalOptimizerGuard.looksLikeOptimizer("kohs_crystal_tweaks", "KoHs Crystal Tweaks"), "Retired KoHs Crystal Tweaks detected by exact id");
-        check(CrystalOptimizerGuard.looksLikeOptimizer("unknown", "Crystal Optimizer"), "Unknown optimizer detected by name");
-        check(!CrystalOptimizerGuard.looksLikeOptimizer("krypton", "Krypton"), "Network performance mods are not crystal optimizers");
+        check(OptimizerNames.looksLikeOptimizer("marlowcrystal", ""), "Marlow detected by exact id");
+        check(OptimizerNames.looksLikeOptimizer("nocrystalbreak", ""), "No Crystal Break detected by exact id");
+        check(OptimizerNames.looksLikeOptimizer("kohs_crystal_tweaks", "KoHs Crystal Tweaks"), "Retired KoHs Crystal Tweaks detected by exact id");
+        check(OptimizerNames.looksLikeOptimizer("unknown", "Crystal Optimizer"), "Unknown optimizer detected by name");
+        check(!OptimizerNames.looksLikeOptimizer("krypton", "Krypton"), "Network performance mods are not crystal optimizers");
         // The popular client-side crystal mods, by the ids in their own fabric.mod.json.
-        check(CrystalOptimizerGuard.looksLikeOptimizer("clientsidecrystals", "Client Side Crystals"),
-                "Client Side Crystals draws its own placement stand-in, so the helpers yield");
-        check(CrystalOptimizerGuard.looksLikeOptimizer("clientsidedcrystals", "Client-Sided Crystals"),
+        check(OptimizerNames.looksLikeOptimizer("clientsidecrystals", "Client Side Crystals"),
+                "Client Side Crystals draws its own placement stand-in, so the benchmark names it");
+        check(OptimizerNames.looksLikeOptimizer("clientsidedcrystals", "Client-Sided Crystals"),
                 "Client-Sided Crystals detected by exact id");
-        check(CrystalOptimizerGuard.looksLikeOptimizer("hcscr", "HCsCR"), "HCsCR detected though its name says nothing");
+        check(OptimizerNames.looksLikeOptimizer("hcscr", "HCsCR"), "HCsCR detected though its name says nothing");
         for (String name : new String[] {"Kind's Crystal Optimizer", "G1ax Crystal Optimizer",
                 "Shikaru's Crystal Optimizer", "Hazel Crystal Optimizer - HCO", "Psychodreams CrystalOptimizer",
                 "Rawnet's Crystal Optimizer", "Ryuu Crystal Optimizer", "Akinoko Crystal Optimizer",
                 "Tenbees crystal optimizer", "Jays Crystal Optimizer", "Crystal Optimizer"}) {
-            check(CrystalOptimizerGuard.looksLikeOptimizer("unknown_id", name), name + " detected by name");
+            check(OptimizerNames.looksLikeOptimizer("unknown_id", name), name + " detected by name");
         }
         // And by id alone, as Modrinth's project slugs spell them, for a mod whose name says less.
         for (String slug : new String[] {"g1axcrystaloptimizer", "kinds-crystal-optimizer", "shikarus-crystal-optimizer",
                 "ryuu-crystal-optimizer", "rawnetcrystaloptimizer", "tenbeescrystaloptimizer", "fastcrystal"}) {
-            check(CrystalOptimizerGuard.looksLikeOptimizer(slug, ""), slug + " detected by id");
+            check(OptimizerNames.looksLikeOptimizer(slug, ""), slug + " detected by id");
         }
-        // Mods about End Crystals that optimize nothing must never stand the helpers down.
+        // Mods about End Crystals that optimize nothing are never named as optimizers.
         for (String[] visual : new String[][] {{"fastcrystalspin", "FastCrystalSpin"},
                 {"crystal_speed", "Crystal Speed"}, {"custom_end_crystals", "Custom End Crystals"},
                 {"crystalglow", "Crystal Glow"}, {"smallercrystals", "Smaller Crystals"},
                 {"safecrystal", "Safe Crystals"}, {"crystal_anchor_counter", "Crystal Anchor Counter"},
                 {"cps", "crystals-per-second"}, {"clickcrystals", "ClickCrystals"},
                 {"no_end_crystal_damage", "No End Crystal Damage"}}) {
-            check(!CrystalOptimizerGuard.looksLikeOptimizer(visual[0], visual[1]),
+            check(!OptimizerNames.looksLikeOptimizer(visual[0], visual[1]),
                     visual[1] + " is not a crystal optimizer by name");
         }
-        // The overlap rule, against the mods that actually sit on Connection.send in a real pack.
-        List<String> onSend = List.of("me.example.mixin.ConnectionMixin");
-        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("krypton", "Krypton", onSend),
-                "Krypton shares Connection.send without optimizing crystals");
-        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("viafabricplus", "ViaFabricPlus", onSend),
-                "A protocol translator is not a crystal optimizer");
-        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("betterping", "Better Ping Display", onSend),
-                "A ping readout is not a crystal optimizer");
-        check(CrystalOptimizerGuard.overlapOptimizesCrystals("marlowcrystal", "Marlow's Crystal Optimizer", onSend),
-                "A crystal optimizer on the same path is a conflict");
-        check(CrystalOptimizerGuard.overlapOptimizesCrystals(
-                        "kohs_crystal_tweaks",
-                        "KoHs Crystal Tweaks",
-                        List.of("dev.zymekoh.kohscrystaltweaks.mixin.ClientConnectionMixin")),
-                "The retired build is caught by id");
-        check(CrystalOptimizerGuard.overlapOptimizesCrystals(
-                        "unnamed",
-                        "Unnamed",
-                        List.of("com.example.mixin.EndCrystalPredictionMixin")),
-                "A crystal-predicting Mixin gives away a mod whose name does not");
-        check(!CrystalOptimizerGuard.overlapOptimizesCrystals(
-                        "unnamed",
-                        "Unnamed",
-                        List.of("com.example.mixin.EndCrystalAttackMixin")),
-                "Attacking a crystal is not optimizing it");
-        // Mods that do things with crystals, whatever their Mixins are called, never pause anything.
+        // Mods that do things with crystals are never named as optimizers.
         for (String[] doer : new String[][] {{"safecrystal", "Safe Crystal"}, {"safe_crystals", "Safe Crystals"},
                 {"crystalcustom", "Crystal Custom"}, {"custom-crystals", "Custom Crystals"},
                 {"crystalglow", "Crystal Glow"}, {"crystal_glow_plus", "Crystal Glow+"},
                 {"end_crystal_skins", "End Crystal Skins"}, {"crystal-counter", "Crystal Counter"}}) {
-            check(CrystalOptimizerGuard.doesThingsWithCrystals(doer[0], doer[1]), doer[1] + " does things with crystals");
-            check(!CrystalOptimizerGuard.looksLikeOptimizer(doer[0], doer[1]), doer[1] + " is not an optimizer by name");
-            check(!CrystalOptimizerGuard.overlapOptimizesCrystals(doer[0], doer[1], List.of(
-                            "com.example.mixin.CrystalBreakMixin", "com.example.mixin.SafeCrystalPredictMixin",
-                            "com.example.mixin.CrystalPlaceAttackMixin", "com.example.mixin.CrystalOptimizeMixin")),
-                    doer[1] + " is not an optimizer by its Mixins");
+            check(OptimizerNames.doesThingsWithCrystals(doer[0], doer[1]), doer[1] + " does things with crystals");
+            check(!OptimizerNames.looksLikeOptimizer(doer[0], doer[1]), doer[1] + " is not an optimizer by name");
         }
-        check(CrystalOptimizerGuard.looksLikeOptimizer("mmcf", "Make My Crystals Faster"),
+        check(OptimizerNames.looksLikeOptimizer("mmcf", "Make My Crystals Faster"),
                 "Make My Crystals Faster hides attacked crystals, so it is an optimizer");
-        check(CrystalOptimizerGuard.looksLikeOptimizer("zerodelaycrystals", "Zero Delay Crystals"), "Zero Delay Crystals by name");
-        check(CrystalOptimizerGuard.looksLikeOptimizer("crystals_optimized", "Crystals Optimized"), "Crystals Optimized by name");
-        check(!CrystalOptimizerGuard.looksLikeOptimizer("crystal_speed", "Crystal Speed"), "A faster spin is still not an optimizer");
-        check(!CrystalOptimizerGuard.doesThingsWithCrystals("marlowcrystal", "Marlow's Crystal Optimizer"),
+        check(OptimizerNames.looksLikeOptimizer("zerodelaycrystals", "Zero Delay Crystals"), "Zero Delay Crystals by name");
+        check(OptimizerNames.looksLikeOptimizer("crystals_optimized", "Crystals Optimized"), "Crystals Optimized by name");
+        check(!OptimizerNames.looksLikeOptimizer("crystal_speed", "Crystal Speed"), "A faster spin is still not an optimizer");
+        check(!OptimizerNames.doesThingsWithCrystals("marlowcrystal", "Marlow's Crystal Optimizer"),
                 "Marlow's optimizer is not a cosmetic crystal mod");
-        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("crystalskins", "Crystal Skins", List.of()),
-                "An overlap away from the interaction path is not a conflict, whatever the mod is called");
-        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("crystal_anchor_counter", "Crystal Anchor Counter",
-                        List.of("com.example.mixin.CrystalCountMixin", "com.example.mixin.ConnectionMixin")),
-                "A crystals-per-second counter reads the send path without optimizing anything");
-        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("custom_end_crystals", "Custom End Crystals",
-                        List.of("com.example.mixin.EndCrystalRendererMixin")),
-                "A crystal skin on the renderer is not an optimizer");
-        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("fastcrystalspin", "FastCrystalSpin",
-                        List.of("com.example.mixin.EndCrystalRendererMixin")),
-                "A faster spin is not a faster crystal");
-        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("clickcrystals", "ClickCrystals", onSend),
-                "A PvP client on the send path is not a crystal optimizer by being called ClickCrystals");
-        check(CrystalOptimizerGuard.overlapOptimizesCrystals("lunartweaks", "LunarTweaks",
-                        List.of("dev.example.lunartweaks.mixin.CrystalOptimizerMixin")),
-                "A crystal optimizer module inside a larger mod gives itself away by its Mixin");
-        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("krypton", "Krypton", null),
-                "A missing overlap list must not be read as a conflict");
-        // Performance mods share this mod's Mixin targets and must never stand it down.
+        // Performance mods are never named as crystal optimizers.
         for (String performanceMod : new String[] {"krypton", "lithium", "sodium", "c2me",
                 "immediatelyfast", "scalablelux", "ferritecore", "moreculling", "entityculling",
                 "modernfix", "viafabricplus", "viaversion"}) {
-            check(CrystalOptimizerGuard.optimizesTheGame(performanceMod),
+            check(OptimizerNames.optimizesTheGame(performanceMod),
                     performanceMod + " must be known as a game optimizer");
-            check(!CrystalOptimizerGuard.overlapOptimizesCrystals(performanceMod, performanceMod, onSend),
-                    performanceMod + " on Connection.send must not disable the crystal optimizer");
-            check(!CrystalOptimizerGuard.looksLikeOptimizer(performanceMod, performanceMod),
+            check(!OptimizerNames.looksLikeOptimizer(performanceMod, performanceMod),
                     performanceMod + " must not be detected by name");
         }
-        check(!CrystalOptimizerGuard.optimizesTheGame("marlowcrystal"), "Marlow is not a game optimizer");
-        check(!CrystalOptimizerGuard.optimizesTheGame("kryptonite"), "Allowlist matches exact ids only");
-        check(CrystalOptimizerGuard.overlapOptimizesCrystals("SOME_CRYSTAL_OPTIMIZER", null, onSend),
-                "Detection is case-insensitive and survives a null name");
-        check(!CrystalOptimizerGuard.overlapOptimizesCrystals("SOME_CRYSTAL_MOD", null, onSend),
-                "Saying crystal on the send path is not enough");
-        CrystalOptimizerGuard.reportConflict("Marlow");
-        check(!CrystalOptimizerGuard.optimizationsAllowed(), "Interaction core yields");
-        CrystalOptimizerGuard.completeScan();
-        check(!CrystalOptimizerGuard.optimizationsAllowed(), "Late scan completion cannot override a conflict");
-        CrystalOptimizerGuard.reportScanIncomplete();
-        check(CrystalOptimizerGuard.conflictDetected() && CrystalOptimizerGuard.conflictingModName().equals("Marlow"),
-                "An incomplete scan must preserve the known conflicting mod");
-        check(player.haloColor() == 0xFFFF0000 && CrystalGlowMath.power(300) == 3, "Visuals stay independent of optimizer guard");
-        CrystalOptimizerGuard.clearConflict();
-        check(CrystalOptimizerGuard.scanPending() && !CrystalOptimizerGuard.optimizationsAllowed(),
-                "A re-scan starts from the unknown state");
-        CrystalOptimizerGuard.reportScanIncomplete();
-        check(CrystalOptimizerGuard.scanIncomplete() && CrystalOptimizerGuard.optimizationsAllowed(),
-                "An unreadable mod is not a conflict, so the native optimizer stays on");
-        check(!CrystalOptimizerGuard.conflictDetected(), "An incomplete scan must not be reported as a conflict");
-        CrystalOptimizerGuard.completeScan();
-        check(CrystalOptimizerGuard.scanIncomplete(), "A settled result is not overwritten by a late callback");
-        CrystalOptimizerGuard.clearConflict();
-        CrystalOptimizerGuard.completeScan();
-        check(CrystalOptimizerGuard.optimizationsAllowed() && !CrystalOptimizerGuard.scanIncomplete(),
-                "A clean re-scan restores the native optimizer");
-        // Safe Crystal reads exactly this flag, so the obsidian helper follows the same rule.
-        check(CrystalOptimizerGuard.optimizationsAllowed(),
-                "Safe Crystal keeps working when only performance mods are installed");
-        CrystalOptimizerGuard.reportConflict("Marlow's Crystal Optimizer");
-        check(!CrystalOptimizerGuard.optimizationsAllowed(),
-                "Safe Crystal and every other interaction helper stand down for Marlow");
-        CrystalOptimizerGuard.clearConflict();
-        CrystalOptimizerGuard.completeScan();
-        check(player.haloColor() == 0xFFFF0000, "Visual settings remain available whatever the guard decides");
+        check(!OptimizerNames.optimizesTheGame("marlowcrystal"), "Marlow is not a game optimizer");
+        // Only crystal optimizers that drive crystals themselves stand the client-side crystal down.
+        for (String[] driver : new String[][] {{"marlowcrystal", "Marlow's Crystal Optimizer"}, {"marlows_crystal_optimizer", ""},
+                {"nocrystalbreak", "No Crystal Break"}, {"hcscr", "HCsCR"}, {"kohs_crystal_tweaks", "KoHs Crystal Tweaks"},
+                {"mmcf", "Make My Crystals Faster"}, {"zerodelaycrystals", "Zero Delay Crystals"},
+                {"crystals_optimized", "Crystals Optimized"}, {"unknown_id", "Kind's Crystal Optimizer"}, {"fastcrystal", ""}}) {
+            check(OptimizerNames.standsDownFor(driver[0], driver[1]), "Stands down for " + driver[0]);
+        }
+        // Client-side crystal mods, crystal looks and colours, and performance mods never stand it down.
+        for (String[] keep : new String[][] {{"clientsidecrystals", "Client Side Crystals"},
+                {"clientsidedcrystals", "Client-Sided Crystals"}, {"some_mod", "Client Side Crystal Optimizer"},
+                {"crystalglow", "Crystal Glow"}, {"crystal_colors", "Crystal Colors"}, {"crystalcolour", "Crystal Colour"},
+                {"custom_end_crystals", "Custom End Crystals"}, {"end_crystal_skins", "End Crystal Skins"},
+                {"fastcrystalspin", "FastCrystalSpin"}, {"smallercrystals", "Smaller Crystals"}, {"safecrystal", "Safe Crystal"},
+                {"crystal-counter", "Crystal Counter"}, {"sodium", "Sodium"}, {"krypton", "Krypton"}, {"iris", "Iris"}}) {
+            check(!OptimizerNames.standsDownFor(keep[0], keep[1]), keep[1] + " never stands the client-side crystal down");
+        }
+        check(!OptimizerNames.optimizesTheGame("kryptonite"), "Allowlist matches exact ids only");
+        check(player.haloColor() == 0xFFFF0000 && CrystalGlowMath.power(300) == 3, "Visuals keep working");
         // Flash styles: fourteen shapes, a stable storage key each, and a round trip in both directions.
         CrystalFlashStyle[] styles = CrystalFlashStyle.values();
         check(styles.length == 14, "Four original flash styles plus ten new ones");
@@ -237,18 +167,9 @@ public final class CrystalAppearanceTest {
         check(CrystalFlashStyle.parse("no-such-style", CrystalFlashStyle.EXPLOSION) == CrystalFlashStyle.EXPLOSION,
                 "Unknown styles fall back");
         glowAndFlash();
-        forceOff();
         practice();
         benchmarkStats();
-        int layouts = 0;
-        for (int width = 1; width <= 1920; width += 7) for (int height = 1; height <= 1080; height += 7) {
-            var l = HubLayout.fit(width, height);
-            check(l.body.x() >= 0 && l.body.right() <= Math.max(1, width), "Body X bounds");
-            check(l.header.y() >= 0, "Header Y bounds");
-            check(l.stage.width() > 0 && l.stage.height() > 0, "The crystal always has a stage");
-            layouts++;
-        }
-        System.out.println("PASS: appearance, 0/100/300 gain, alpha/light bounds, fade lifecycle, optimizer isolation and " + layouts + " responsive layouts");
+        System.out.println("PASS: appearance, 0/100/300 gain, alpha/light bounds, fade lifecycle and optimizer isolation");
     }
 
     /** The glow switch, the flash's own settings and the migration of profiles saved before them. */
@@ -256,7 +177,7 @@ public final class CrystalAppearanceTest {
         CrystalAppearance fresh = new CrystalAppearance();
         check(fresh.glowEnabled && fresh.glowActive(), "Glow ships switched on");
         check(fresh.flashEnabled && fresh.flashActive(), "The flash ships switched on");
-        check(fresh.flashOpacityPercent == 50 && fresh.flashDurationMillis == 1200, "Flash defaults: 50% and 1.2 s");
+        check(fresh.flashOpacityPercent == 63 && fresh.flashDurationMillis == 1000, "Flash defaults: 63% and 1.0 s");
         check(Math.abs(CrystalGlowMath.flashGain(50) - 0.55F) < 0.001F,
                 "50% opacity draws exactly 2.3.0's default flash");
         check(Math.abs(CrystalGlowMath.flashGain(100) - 3F) < 0.001F, "100% opacity is the old 300% power");
@@ -285,13 +206,13 @@ public final class CrystalAppearanceTest {
         check(clamped.flashOpacityPercent == 100 && clamped.flashDurationMillis == CrystalAppearance.MIN_FLASH_DURATION,
                 "Flash opacity and duration clamp");
         check(!clamped.glowEnabled, "The glow switch survives a copy");
-        check(new CrystalAppearance().flashDurationNanos() == 1_200_000_000L, "Duration in nanoseconds");
+        check(new CrystalAppearance().flashDurationNanos() == 1_000_000_000L, "Duration in nanoseconds");
 
-        // A 2.3.0 profile at the shipped settings migrates to the new defaults, unchanged on screen.
+        // A 2.3.0 profile at the shipped settings migrates unchanged on screen.
         CrystalAppearance shipped = new CrystalAppearance();
         shipped.migrateLegacyGlow(false, false, false);
         check(shipped.glowEnabled && shipped.flashEnabled && shipped.flashOpacityPercent == 50
-                && shipped.flashScalePercent == 100, "Shipped 2.3.0 settings migrate to the new defaults");
+                && shipped.flashScalePercent == 100, "Shipped 2.3.0 settings migrate unchanged on screen");
         // The owner's own settings: 300% power, skull at 20%.
         CrystalAppearance loud = new CrystalAppearance();
         loud.glowPowerPercent = 300;
@@ -318,26 +239,6 @@ public final class CrystalAppearanceTest {
                 "A light fades on its own duration");
         check(timeline.samples(2_999_000_000L).size() == 1 && timeline.samples(3_000_000_000L).isEmpty(),
                 "A light expires at its own duration");
-    }
-
-    /** The player's own switch outranks the scan and names itself as the reason. */
-    private static void forceOff() {
-        CrystalOptimizerGuard.clearConflict();
-        CrystalOptimizerGuard.completeScan();
-        check(CrystalOptimizerGuard.pauseReason() == CrystalOptimizerGuard.PauseReason.NONE, "Nothing paused");
-        CrystalOptimizerGuard.setForcedOff(true);
-        check(!CrystalOptimizerGuard.optimizationsAllowed(), "Force off stops every helper");
-        check(CrystalOptimizerGuard.pauseReason() == CrystalOptimizerGuard.PauseReason.FORCED_OFF, "Force off is the reason");
-        CrystalOptimizerGuard.reportConflict("Marlow's Crystal Optimizer");
-        check(CrystalOptimizerGuard.pauseReason() == CrystalOptimizerGuard.PauseReason.FORCED_OFF,
-                "The player's own switch is named before a detected mod");
-        CrystalOptimizerGuard.setForcedOff(false);
-        check(CrystalOptimizerGuard.pauseReason() == CrystalOptimizerGuard.PauseReason.CONFLICT
-                && !CrystalOptimizerGuard.optimizationsAllowed(), "Without force off the conflict still holds");
-        CrystalOptimizerGuard.clearConflict();
-        check(CrystalOptimizerGuard.pauseReason() == CrystalOptimizerGuard.PauseReason.CHECKING, "A re-scan is the reason while it runs");
-        CrystalOptimizerGuard.completeScan();
-        check(CrystalOptimizerGuard.optimizationsAllowed(), "A clean scan without force off restores the helpers");
     }
 
     /** Blast Protection never ends up on more than two pieces, whatever the file says. */

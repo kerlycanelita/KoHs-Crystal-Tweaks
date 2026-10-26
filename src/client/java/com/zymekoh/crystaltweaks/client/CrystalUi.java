@@ -1,5 +1,8 @@
 package com.zymekoh.crystaltweaks.client;
 
+import com.zymekoh.crystaltweaks.client.hub.GrimoireDraw;
+import com.zymekoh.crystaltweaks.client.hub.GrimoireIcons;
+import com.zymekoh.crystaltweaks.client.hub.HubDraw;
 import java.util.List;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -178,35 +181,6 @@ public final class CrystalUi {
         graphics.disableScissor();
     }
 
-    /**
-     * A card behind a group of controls. With a legend, the title is set into the top edge the way
-     * a fieldset's is, so it costs no row of its own.
-     */
-    public static void card(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
-            String legend, float hover, float alpha) {
-        if (alpha <= 0.01F || width <= 0 || height <= 0) {
-            return;
-        }
-        panel(graphics, x, y, width, height,
-                CrystalTheme.fade(CrystalTheme.lerp(CrystalTheme.CARD, CrystalTheme.CARD_HOVER, hover), alpha),
-                CrystalTheme.fade(CrystalTheme.lerp(0x1A12061E, 0x281A0A2E, hover), alpha));
-        int border = CrystalTheme.fade(
-                CrystalTheme.lerp(CrystalTheme.CARD_BORDER, CrystalTheme.CARD_BORDER_HOVER, hover), alpha);
-        if (legend == null || legend.isEmpty()) {
-            roundedOutline(graphics, x, y, width, height, border);
-            return;
-        }
-        int textWidth = font.width(legend);
-        int textX = x + 9;
-        // The top edge stops short of the title and resumes after it, so the title sits in a real
-        // gap instead of on a line painted over the card.
-        int gapStart = textX - 3;
-        int gapEnd = Math.min(x + width - 4, textX + textWidth + 3);
-        roundedOutline(graphics, x, y, width, height, border, gapStart, gapEnd);
-        label(graphics, font, legend, textX, y - 4,
-                CrystalTheme.fade(CrystalTheme.lerp(CrystalTheme.LEGEND, CrystalTheme.ACCENT_BRIGHT, hover), alpha));
-    }
-
     /** The Crystal Tweaks mark: a small faceted crystal that breathes and turns its highlight. */
     public static void crystalIcon(GuiGraphicsExtractor graphics, int centerX, int centerY, int size, double seconds, float alpha) {
         int half = Math.max(2, size / 2);
@@ -355,23 +329,6 @@ public final class CrystalUi {
         }
     }
 
-    /**
-     * The line that ties the rows a switch unfolds to the switch, so they read as its branch: a
-     * trunk from under the switch and a short arm into each row.
-     */
-    public static void branch(GuiGraphicsExtractor graphics, int trunkX, int top, int[] armYs, int armRight, int color) {
-        if (armYs.length == 0) {
-            return;
-        }
-        int bottom = armYs[armYs.length - 1];
-        if (bottom > top) {
-            graphics.fill(trunkX, top, trunkX + 1, bottom + 1, color);
-        }
-        for (int armY : armYs) {
-            graphics.fill(trunkX, armY, Math.max(trunkX + 1, armRight), armY + 1, color);
-        }
-    }
-
     /** A tooltip box of our own, for areas that are not widgets and so cannot carry a vanilla one. */
     public static void tooltip(GuiGraphicsExtractor graphics, Font font, List<FormattedCharSequence> lines,
             int mouseX, int mouseY, int screenWidth, int screenHeight) {
@@ -382,7 +339,7 @@ public final class CrystalUi {
         for (FormattedCharSequence line : lines) {
             width = Math.max(width, font.width(line));
         }
-        int height = lines.size() * (font.lineHeight + 1) - 1;
+        int height = lines.size() * GrimoireDraw.line(font) - 1;
         int x = Math.min(mouseX + 10, screenWidth - width - 8);
         int y = Math.min(mouseY + 10, screenHeight - height - 8);
         x = Math.max(4, x);
@@ -395,7 +352,7 @@ public final class CrystalUi {
         int lineY = y;
         for (FormattedCharSequence line : lines) {
             graphics.text(font, line, x, lineY, CrystalTheme.TEXT, false);
-            lineY += font.lineHeight + 1;
+            lineY += GrimoireDraw.line(font);
         }
     }
 
@@ -417,10 +374,10 @@ public final class CrystalUi {
             int size = index % 6 == 0 ? 3 : index % 3 == 0 ? 2 : 1;
             int alpha = 84 + index % 6 * 12;
             int green = 82 + index % 4 * 18;
-            int glow = alpha / 4 << 24 | 164 << 16 | 58 << 8 | 231;
             int color = alpha << 24 | 210 << 16 | green << 8 | 255;
-            graphics.fill(x - 1, y - 1, x + size + 1, y + size + 1, glow);
-            graphics.fill(x, y, x + size, y + size, color);
+            // One soft speck each, its glow in the texture: one element where two fills were.
+            HubDraw.texture(graphics, GrimoireIcons.mote(), GrimoireIcons.MOTE_SIZE, GrimoireIcons.MOTE_SIZE, x + size / 2.0F, y + size / 2.0F,
+                    size + 2.5F, size + 2.5F, 0.0F, color);
         }
     }
 

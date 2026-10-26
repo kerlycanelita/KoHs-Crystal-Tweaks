@@ -132,6 +132,10 @@ final class PracticeBot {
     /** Ticks before looking for a new combo again after finding nothing worth doing. */
     private int searchCooldown;
     private final boolean aggressive;
+    /** Peaceful: it moves, eats and keeps its totem, and never attacks. */
+    private final boolean peaceful;
+    /** The round's arena, whose centre /rtp moves: the bot stays inside it. */
+    private final PracticeArena arena;
     /** Ticks it stays behind a block it just placed to cover itself. */
     private int holdTicks;
     private int blockOffCooldown;
@@ -144,11 +148,14 @@ final class PracticeBot {
     /** Its last pearl, until it lands: one pearl at a time, as a player waits for theirs. */
     private ThrownEnderpearl pearlInFlight;
 
-    private PracticeBot(ServerLevel level, PracticeSettings settings, Mannequin body, ItemStack sword, KitLayout kit) {
+    private PracticeBot(ServerLevel level, PracticeSettings settings, Mannequin body, ItemStack sword, KitLayout kit,
+            PracticeArena arena) {
         this.level = level;
         this.settings = settings;
         this.difficulty = settings.difficulty;
         this.aggressive = settings.style == PracticeSettings.BotStyle.AGGRESSIVE;
+        this.peaceful = settings.style == PracticeSettings.BotStyle.PEACEFUL;
+        this.arena = arena;
         this.body = body;
         this.sword = sword;
         this.random = level.getRandom();
@@ -159,8 +166,8 @@ final class PracticeBot {
         this.pearls = kit.count(KitItem.ENDER_PEARL);
     }
 
-    static PracticeBot spawn(ServerLevel level, PracticeSettings settings, KitLayout kit, double x, double y, double z,
-            float yaw) {
+    static PracticeBot spawn(ServerLevel level, PracticeSettings settings, KitLayout kit, PracticeArena arena, double x,
+            double y, double z, float yaw) {
         Mannequin body = EntityType.MANNEQUIN.create(level, EntitySpawnReason.COMMAND);
         if (body == null) {
             return null;
@@ -181,7 +188,7 @@ final class PracticeBot {
             body.setItemSlot(EquipmentSlot.OFFHAND, new ItemStack(Items.TOTEM_OF_UNDYING));
         }
         level.addFreshEntity(body);
-        return new PracticeBot(level, settings, body, sword, kit);
+        return new PracticeBot(level, settings, body, sword, kit, arena);
     }
 
     boolean alive() {
@@ -194,6 +201,11 @@ final class PracticeBot {
 
     Vec3 position() {
         return this.body.position();
+    }
+
+    /** The bot's body in the world, for what is counted about it. */
+    Mannequin body() {
+        return this.body;
     }
 
     void discard() {
@@ -282,8 +294,10 @@ final class PracticeBot {
         face(look);
         wanted = wanted.add(avoidCrystals().scale(this.aggressive ? 0.4D : 1.0D));
         double limit = PracticeArena.RADIUS - 4;
-        if (Math.abs(self.x) > limit || Math.abs(self.z) > limit) {
-            wanted = new Vec3(-self.x, 0.0D, -self.z).normalize();
+        double centerX = this.arena.centerX() + 0.5D;
+        double centerZ = this.arena.centerZ() + 0.5D;
+        if (Math.abs(self.x - centerX) > limit || Math.abs(self.z - centerZ) > limit) {
+            wanted = new Vec3(centerX - self.x, 0.0D, centerZ - self.z).normalize();
         }
         if (wanted.lengthSqr() > 1.0D) {
             wanted = wanted.normalize();
@@ -449,6 +463,11 @@ final class PracticeBot {
             return;
         }
         if (eat(target)) {
+            this.combo = null;
+            return;
+        }
+        if (this.peaceful) {
+            // Nothing from here on is anything but an attack.
             this.combo = null;
             return;
         }
@@ -1455,7 +1474,10 @@ final class PracticeBot {
             Vec3 direction = new Vec3(away.x * Math.cos(radians) - away.z * Math.sin(radians), 0.0D,
                     away.x * Math.sin(radians) + away.z * Math.cos(radians));
             Vec3 destination = this.body.position().add(direction.scale(12.0D));
-            destination = new Vec3(Mth.clamp(destination.x, -limit, limit), destination.y, Mth.clamp(destination.z, -limit, limit));
+            double centerX = this.arena.centerX() + 0.5D;
+            double centerZ = this.arena.centerZ() + 0.5D;
+            destination = new Vec3(Mth.clamp(destination.x, centerX - limit, centerX + limit), destination.y,
+                    Mth.clamp(destination.z, centerZ - limit, centerZ + limit));
             if (throwPearl(destination, 5.0D, target.position())) {
                 return true;
             }
@@ -1602,7 +1624,8 @@ final class PracticeBot {
             BlockState floor = this.level.getBlockState(below);
             if (!floor.getCollisionShape(this.level, below).isEmpty()) {
                 if (solid(cursor) || solid(cursor.above()) || hurts(this.level.getBlockState(cursor)) || hurts(floor)
-                        || Math.abs(landing.x) > limit || Math.abs(landing.z) > limit) {
+                        || Math.abs(landing.x - this.arena.centerX() - 0.5D) > limit
+                        || Math.abs(landing.z - this.arena.centerZ() - 0.5D) > limit) {
                     return null;
                 }
                 return new Vec3(landing.x, cursor.getY(), landing.z);

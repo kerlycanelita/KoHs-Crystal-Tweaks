@@ -6,11 +6,12 @@ public final class CrystalAppearance {
     public static final int MIN_FLASH_SCALE = 10;
     /** Faintest flash the slider offers; below this it is invisible, which is what the switch is for. */
     public static final int MIN_FLASH_OPACITY = 10;
-    /** The opacity that draws the flash exactly as 2.3.0 did at the shipped glow power. */
-    public static final int DEFAULT_FLASH_OPACITY = 50;
+    /** The flash as it ships: the owner's own choice, a crown at 40%, 63% opacity, for a second. */
+    public static final int DEFAULT_FLASH_SCALE = 40;
+    public static final int DEFAULT_FLASH_OPACITY = 63;
     public static final int MIN_FLASH_DURATION = 300;
     public static final int MAX_FLASH_DURATION = 3000;
-    public static final int DEFAULT_FLASH_DURATION = 1200;
+    public static final int DEFAULT_FLASH_DURATION = 1000;
     public static final int DEFAULT_MOTION_BLUR = 50;
     public static final int MIN_SIZE = 30;
     public static final int MAX_SIZE = 200;
@@ -35,7 +36,7 @@ public final class CrystalAppearance {
     /** The flash a destroyed crystal leaves. Independent of the glow switch. */
     public boolean flashEnabled = true;
     /** Size of the death flash, 10-300, for every style. */
-    public int flashScalePercent = 100;
+    public int flashScalePercent = DEFAULT_FLASH_SCALE;
     /** How strong the death flash is, 10-100; see {@link CrystalGlowMath#flashGain}. */
     public int flashOpacityPercent = DEFAULT_FLASH_OPACITY;
     /** How long the death flash takes to fade, in milliseconds. */
@@ -46,6 +47,8 @@ public final class CrystalAppearance {
     public boolean converterEnabled;
     /** What it draws, as "item:<id>" or "entity:<id>"; empty while nothing is chosen. */
     public String converterTarget = "";
+    /** Whether the glow style's own moving light round the crystal is drawn; icons leave it out. Never saved. */
+    public transient boolean styleMotion = true;
 
     public CrystalAppearance copy() {
         CrystalAppearance copy = new CrystalAppearance();
@@ -69,6 +72,7 @@ public final class CrystalAppearance {
         copy.motionBlurPercent = clamp(motionBlurPercent, 100);
         copy.converterEnabled = converterEnabled;
         copy.converterTarget = converterTarget == null ? "" : converterTarget;
+        copy.styleMotion = styleMotion;
         return copy;
     }
 

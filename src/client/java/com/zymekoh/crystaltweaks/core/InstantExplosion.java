@@ -32,6 +32,8 @@ public final class InstantExplosion {
 
     /** How close the server's explosion must be to the crystal we predicted, squared: 1.5 blocks. */
     private static final double SAME_SPOT_SQUARED = 2.25D;
+    /** An end crystal explodes with power 6; any other explosion nearby is never taken for ours. */
+    private static final float CRYSTAL_RADIUS = 6.0F;
     private static final int MAX_TRACKED = 16;
 
     /** Client thread only. */
@@ -42,7 +44,7 @@ public final class InstantExplosion {
 
     /** At the predicted break: the game's explosion sound and burst, where the crystal stands. */
     public static void play(EndCrystal crystal, long now) {
-        if (!CrystalOptimizerGuard.optimizationsAllowed()) {
+        if (!CrystalCore.explosions()) {
             return;
         }
         ClientLevel level = Minecraft.getInstance().level;
@@ -69,7 +71,10 @@ public final class InstantExplosion {
      * The server's explosion has arrived: true when it is one this client already played, in which
      * case its sound and burst are skipped. Each prediction answers for one explosion only.
      */
-    public static boolean alreadyPlayed(double x, double y, double z) {
+    public static boolean alreadyPlayed(double x, double y, double z, float radius) {
+        if (PLAYED.isEmpty() || Math.abs(radius - CRYSTAL_RADIUS) > 0.01F) {
+            return false;
+        }
         long now = System.nanoTime();
         prune(now);
         for (Iterator<Played> iterator = PLAYED.iterator(); iterator.hasNext(); ) {

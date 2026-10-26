@@ -1,7 +1,7 @@
 package com.zymekoh.crystaltweaks.client.benchmark;
 
+import com.zymekoh.crystaltweaks.client.CrystalVisualConfig;
 import com.zymekoh.crystaltweaks.client.compat.HerziumBridge;
-import com.zymekoh.crystaltweaks.core.CrystalOptimizerGuard;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -72,12 +72,16 @@ final class BenchmarkReport {
                 this.lines.add(Line.good("✔ " + optimizer));
             }
         }
-        String state = switch (CrystalOptimizerGuard.pauseReason()) {
-            case FORCED_OFF -> t("apagado por ti (Forzar apagado)", "turned off by you (Force off)");
-            case CONFLICT -> t("en pausa: cede ante ", "paused: stands down for ") + CrystalOptimizerGuard.conflictingModName();
-            case CHECKING -> t("comprobando compatibilidad…", "checking compatibility…");
-            case NONE -> t("activo (rotura instantánea en pantalla)", "active (instant break on screen)");
-        };
+        String state;
+        List<String> drivers = com.zymekoh.crystaltweaks.core.CrystalCore.otherOptimizers();
+        if (!drivers.isEmpty()) {
+            state = t("cristal del cliente en pausa: cede ante ", "client-side crystal paused: stands down for ") + drivers.get(0);
+        } else if (!CrystalVisualConfig.clientCrystal()) {
+            state = t("cristal del cliente apagado por ti", "client-side crystal turned off by you");
+        } else {
+            state = t("cristal del cliente activo (rotura al instante en pantalla, paquetes de Vanilla)",
+                    "client-side crystal active (instant break on screen, Vanilla packets)");
+        }
         this.lines.add(Line.value("Crystal Tweaks", state));
         if (HerziumBridge.installed()) {
             String order = HerziumBridge.hotbarOrder();
@@ -148,7 +152,7 @@ final class BenchmarkReport {
         if (gone.present() && removal.present()) {
             double saved = removal.median() - gone.median();
             if (saved >= 5) {
-                String who = run.removedEarlyByOtherMod() > run.predictedByCrystalTweaks() ? run.optimizer() : "Crystal Tweaks";
+                String who = run.removedEarlyByOtherMod() >= run.predictedByCrystalTweaks() ? run.optimizer() : "Crystal Tweaks";
                 this.lines.add(Line.good(t(who + " lo hizo desaparecer " + ms(saved) + " antes de la respuesta del servidor.",
                         who + " made it vanish " + ms(saved) + " before the server answered.")));
             } else {

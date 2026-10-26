@@ -1,11 +1,11 @@
 # Client/Server Legitimacy Audit
 
-This audit covers Crystal Tweaks 2.5.0 for Minecraft 1.21.11 and 26.1 through 26.3. It separates
-local-only functionality from behavior a server can observe. 2.4.1 added two core optimizations, the
-instant explosion and the removal reader, both local; the lab evidence at the end checks the claim
-packet by packet on every supported version. The 2.2.7 edition described an older
-design that removed the attacked crystal from the level and refreshed the crosshair; that design is
-gone, and so is the packet change it caused.
+This audit covers Crystal Tweaks 2.7.0 for Minecraft 1.21.11 and 26.1 through 26.3. It separates
+local-only functionality from behavior a server can observe. 2.7.0 removed the core optimizations,
+the instant break, the instant explosion, the removal reader and the ghost crystals, together with
+the rule that turned the helpers off for another crystal optimizer; their sections are gone and the
+lab evidence of 2.4.1 and 2.6.0 stays below as history. It added Crystal Practice over a server,
+which keeps a server connected behind the practice world.
 
 ## Trust model
 
@@ -18,59 +18,11 @@ gone, and so is the packet change it caused.
 Levels used below: **L0** local only, nothing observable; **L1** local prediction of an action the
 player already performed; **L2** changes which packets the client sends.
 
-## Instant crystal break — L1 local prediction
-
-`CrystalAttackOptimizer` sees the genuine Vanilla attack packet at the head of `Connection.send`,
-without creating, changing, delaying, duplicating or cancelling it. If the hit is one the server is
-expected to accept, the crystal is marked hidden and `EndCrystalRendererMixin` skips drawing it.
-
-The entity stays in the client level exactly as Vanilla left it. The crosshair, the interaction
-ranges, the use cooldown and every later packet are the ones an unmodified client would produce. A
-hit the server refuses simply makes the crystal visible again when the hidden window ends.
-
-The window is 250 ms on a quick connection and follows the measured placement round trip on a slow
-one, up to one second. A hit qualifies only when:
-
-- the crystal is inside the player's entity interaction range, using the same test Vanilla applies
-  to an entity under the crosshair;
-- the crystal is not already removed;
-- the player is alive and not spectating;
-- the player's attack damage is above zero.
-
-## Instant explosion — L1 local prediction
-
-When the break prediction above hides a crystal, `InstantExplosion` plays that crystal's explosion
-on this client at once: the game's own explosion sound (or the player's custom sound) and burst, at
-the crystal, with the volume and pitch spread `ClientPacketListener.handleExplosion` uses. When the
-server's explosion packet arrives for the same spot within the prediction window, a Mixin on
-`handleExplosion` skips only that packet's sound and burst, so nothing plays twice. The packet's
-knockback, its block debris and everything else it carries are handled as Vanilla handles them.
-
-It is gated exactly like the break: no prediction, no early explosion. A hit the server refuses
-leaves a sound and a burst that were not real; the crystal then reappears. Nothing is sent, changed
-or delayed.
-
-## Removal reader — L0 local reading
-
-`ClientPacketListener.handleRemoveEntities` runs twice in Vanilla: first on the network thread,
-which only reschedules it, then on the client thread. On the first pass the removal reader marks the
-crystals in the packet, from a set of crystal ids the client thread keeps, as not to be drawn. The
-entity is still removed by the client thread as Vanilla removes it; the reader only stops drawing a
-crystal the server already removed a frame earlier. It reads a packet the client already received
-and sends nothing.
-
-## Ghost crystals — L1 visual prediction, off by default
-
-On 26.1 and later, a player can opt in to a stand-in crystal drawn over a placement until the
-server's crystal arrives. The stand-in is an entity object that is never added to any level: it
-cannot be targeted, hit, collided with or counted, and no packet can mention it. It expires with the
-same window as the break prediction.
-
 ## Placement observer — L0 local only
 
 The observer runs at the tail of `Connection.send` and reads a genuine use-on-block packet after the
-Vanilla send path. It records a bounded local history used for latency measurement and for telling
-the player's own crystals from others'. It never creates, sends, cancels, retries, duplicates or
+Vanilla send path. It records a bounded local history used for telling the player's own crystals from
+others'. It never creates, sends, cancels, retries, duplicates or
 mutates a packet.
 
 ## Don't break obsidian — L2 input filter, switchable
@@ -81,8 +33,8 @@ Called Safe Crystal until 2.3.1. While an End Crystal is held, a left click on o
 a block the player could not otherwise break. The first click still swings, as Vanilla does when an
 attack starts nothing.
 
-It is on by default and can be switched off in the **Crystal Tweaks** tab. It also stands down
-whenever another crystal optimizer is detected.
+It is on by default and can be switched off in the **Crystal Tweaks** tab, and it follows that
+switch whatever else is installed.
 
 ## Crystal ownership colours — L0 local heuristic
 
@@ -152,20 +104,47 @@ A second obsidian placement inside the chosen window returns `FAIL` from `UseBlo
 use packet is sent. Like Don't break obsidian it withholds an action and never adds, delays or
 repeats one.
 
-## Force off, benchmark and Crystal Practice — L0
+## Benchmark — L0
 
-Force off only removes this mod's own helpers. The benchmark reads packets Vanilla already sends and
-receives, after the fact, and never creates or changes one. Crystal Practice runs only in its own
-singleplayer world; its bot and kit live on that integrated server and never on a multiplayer one.
+The benchmark reads packets Vanilla already sends and receives, after the fact, and never creates or
+changes one.
 
-## Conflict Monitor and optimizer detection — L0 local only
+## Crystal Practice — L0 on any server
 
-The monitor and the detector read installed Fabric metadata, Mixin configuration JSON and class
-annotations from the local filesystem. They send nothing, advertise nothing and never modify another
-mod. When another crystal optimizer is found, every optimization and interaction helper above stands
-down; visuals and sounds do not. Only real optimizers count: mods that do things with crystals
-(protections, glows, skins, spins, sizes, sounds, counters) never do, whatever their Mixins are
-called.
+Crystal Practice runs only in its own world; its bot, its kit and its commands (`/rtp`, `/spawn`,
+`/kit`, `/bot`) live on that world's integrated server and never on a multiplayer one.
+
+On a server (26.1 and later) the practice world opens without leaving it. The server's connection,
+world and player are parked behind the practice world, untouched:
+
+- Its packets are handled as they arrive, by Minecraft's own code, on the server's own world.
+- Its world ticks at the server's own rate (as Minecraft's clock does: never more than the time
+  passed, ten ticks a frame at most), in the order Minecraft ticks a world while a menu is open: the
+  connection, the open screen, the entities (the player sends its position and its input), the world,
+  and the end of the tick.
+- The parked player holds no keys and turns no camera: what reaches the server is what a Vanilla
+  client sends for a player standing still in a menu. Nothing done in the practice world, no key,
+  click, chat line or command, reaches the server.
+- What the server's code would do to the practice world on screen is kept for the server: a screen it
+  opens waits for the player's return; its sounds, particles and totem animation are not played.
+
+The Mixins that do this are named `Practice*` and act only while a server is parked; none of them is
+on the path from a click to a packet. `tools/verify-mixins.py` allows them to cancel for that reason.
+
+The server window in the top-left corner shows only what the server already sent to this client:
+its chat, titles, action bar, boss bars and sidebar, and its world as the parked player's own eyes
+see it (26.2 and later). It reveals nothing a player standing there would not see on their own
+screen: no positions through walls, no radar. Titles and the action bar are read by the window
+instead of by Minecraft's HUD handlers, which answer nothing; every other packet is handled as
+before, and nothing the window does sends a packet. The live view's Mixin (`PracticeViewExtractorMixin`)
+only routes the parked world's block changes to the view's own renderer instead of the practice
+world's.
+
+## Conflict Monitor — L0 local only
+
+The monitor reads installed Fabric metadata, Mixin configuration JSON and class annotations from the
+local filesystem. It sends nothing, advertises nothing, never modifies another mod and turns nothing
+off.
 
 ## What this mod does not do
 
@@ -173,11 +152,8 @@ called.
   limit.
 - It does not place, break, target or aim at anything on the player's behalf.
 - It does not send, delay, reorder, duplicate or rewrite any gameplay packet.
-- It does not act on a break before the server confirms it. A crystal the player hit is hidden, not
-  removed: it stays in the client's world and in the crosshair's way until the server removes it,
-  so a click in that instant is sent at the crystal, as Vanilla sends it. Letting the crosshair
-  pass through it would place the next crystal a round trip sooner; that changes which packet the
-  client sends, a server can tell, and it was considered for 2.6.0 and left out.
+- It does not act on a break before the server confirms it. A crystal the player hit stays drawn,
+  in the client's world and in the crosshair's way until the server removes it, as in Vanilla.
 - It does not read server state the Vanilla client is not already given, and it draws nothing that
   reveals an entity the player could not already see.
 
@@ -191,8 +167,7 @@ called.
 | Reach | Never extended. |
 | Attack cooldown, `rightClickDelay`, click rate | Never modified. |
 | Sequence numbers and acknowledgement | Vanilla's own prediction machinery, untouched. |
-| Explosion sound and burst | Local only. Played at the hit; the server's copy of them is skipped, its knockback is not. |
-| Entity removals | Read earlier on the network thread; nothing is sent. |
+| While Crystal Practice is open over the server | A Vanilla client's packets for a player standing still in a menu, at the server's tick rate. |
 | `START_DESTROY_BLOCK` on obsidian with a crystal held | Withheld while Don't break obsidian is on. |
 | An obsidian placement inside the debounce window | Withheld while Obsidian debounce is on. |
 
@@ -202,8 +177,8 @@ Don't break obsidian and Obsidian debounce off.
 
 ## Honest limits of this claim
 
-- Hiding a crystal a moment early is still client-side prediction. Some servers forbid any
-  prediction, visual or not.
+- While practising over a server, the player stands still on it as with a menu open: anyone there
+  can reach it, and a server that kicks idle players will kick it as it would anyone in a menu.
 - The ownership colours can be wrong: a crystal someone else places on your base right after you
   place there can take your colour.
 - Client attestation is a separate matter. A launcher or cooperating client anticheat can see the

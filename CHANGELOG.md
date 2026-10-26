@@ -1,5 +1,122 @@
 # Changelog
 
+## Unreleased (2.7.0)
+
+### Added
+
+- **Crystal Practice without leaving the server.** On a server, Enter practice opens the practice
+  world in the same window and the server stays connected behind it. Your player stays on the
+  server, standing still as with a menu open, and the connection keeps answering at the server's
+  own pace: the same packets a Vanilla client in a menu sends, nothing more. Its chat still reaches
+  you; its sounds, particles and screens wait until you are back. Leave practice puts you back on
+  the server where you were. If the server closes the connection meanwhile, practice goes on and
+  you see why when you leave. Running two worlds at once can cause lag, and the warning says so.
+  From a singleplayer world, that world is still saved and closed first.
+- **The practice panel.** Escape in a practice world pauses it, as the pause menu does, and brings
+  up the practice window on the right with the mouse free: the bot (on or off, style, difficulty,
+  brought next to you), the world (another ground opens in place of this one), the gear (handed out
+  again at once), Options, and the way out.
+- **Peaceful bot.** A third style next to Smart and Aggressive: it moves, dodges, eats and keeps
+  its totem, and never attacks.
+- **Normal world.** A fourth ground: a whole world as Minecraft generates it, terrain, caves,
+  water and structures, to fight wherever you land.
+- **The server window.** While you practise over a server, a window in the top-left corner shows
+  it: its name and latency, its world live from your player's eyes (15 pictures a second), and under
+  it the server's chat, titles, action bar, boss bars and sidebar. When something happens there,
+  such as a teleport into your match, a title, a menu, a hit or your name in the chat, the window
+  flashes and a chime sounds, so you can wait in a PvP queue while you practise. Titles and the
+  action bar stay in the window instead of covering the practice world. The live view needs
+  Minecraft 26.2 or later and stays off with Sodium or Iris, which replace how the world is drawn;
+  the rest of the window works everywhere. World tab: Server window, Live world and Alert chime.
+- **Practice commands**, in the practice world only: `/rtp` takes the round somewhere random in the
+  world, `/spawn` brings it back, `/kit` hands the kit out again, and `/bot on|off|here|smart|`
+  `aggressive|peaceful|easy|normal|hard|extreme` changes the bot.
+- **Client crystal**, a section of its own, off until you turn it on. Instant break hides a crystal from your screen the moment
+  you hit it; it stays in your world, so your next click, your reach and every packet are Vanilla's,
+  and it shows again if the server refuses the hit (Refused hit cue plays a low note then).
+  Instant explosion sounds and flashes on the hit instead of a round trip later. Ghost crystals (off
+  by default) draw a stand-in on the obsidian until the server's crystal arrives; it cannot be hit
+  and no packet names it. Paced placement (off by default) holds a click on the crystal you just
+  broke until the server removes it, then places: the same Vanilla packet, never ahead of the server,
+  but it changes when your click goes out, so check your server's rules. The client crystal stands
+  down while another crystal optimizer such as Marlow's is installed; client-side crystal mods and
+  colour mods do not stop it.
+- **In the fight**, under Helpers: Why didn't it place? says under the crosshair why a crystal did not
+  appear where you clicked; the Latency meter shows beside the hotbar how long the server took to
+  place and to remove your last crystals; the Death recap lists, on the death screen or in chat, the
+  blasts of your last 8 seconds and whose crystals they were. They only read what you already see,
+  and every helper starts off, Don't break obsidian included.
+- **Five glow styles**: Heartbeat, Aurora, Orbit, Flames and Sigil, beside Light and Layers. Each
+  style has settings of its own, kept apart from every other style's and unfolding under its card
+  when you choose it: Light's core halo and breath, Layers' aura reach and light, Heartbeat's
+  rhythm, throb and rings, Aurora's speed and height, Orbit's orbits, speed and trail, Flames'
+  height, speed and tongues, and Sigil's spin, size and points.
+- **Every flash shape has settings of its own**, unfolding under its card when you choose it, and
+  letting go of a slider shows the flash again: the burst's rays and their length, the skull's
+  burning eyes and dropping jaw, your head's pallor and outer layer, the lightning's bolts and
+  zigzag, the heart's beat and shine, the star's points and spin, the shockwave's reach and
+  thickness, the vortex's arms, spin and twist, the crown's jewels and rise, the moon's tilt and
+  stars, the snowflake's branches and spin, the flower's petals and spin, the gem's sparkle and
+  facets, and the swords' cross and edge.
+- **Practice training**, on the Bot tab: drills with a goal and a clock (20 crystals, 5 of the bot's
+  totems, or 60 seconds alive), a report in chat after each round, a round map that marks every blast
+  that did damage, and the damage map, which lights each obsidian in reach by what its blast would do.
+  The damage map exists only in practice.
+- **Server timing**, on the World tab: practise with a server's delay (0 to 300 ms, or the ping of
+  the server you left behind), go back when that server starts your match, and copy your server
+  inventory into a kit.
+
+### Changed
+
+- **The settings, redone as a grimoire.** Three pages of one dark book: the sections on the left,
+  each with its icon and its name in gothic letters; your crystal in the middle, with the glow it
+  wears under it and, at its foot, which click explodes it and which places it; and the open section
+  on the right, its title, a line on what it is and its rows, each a name, a dotted leader and its
+  value. What the option under the pointer does shows under the crystal. A choice with many options,
+  such as the glow's styles or the flash's shapes, opens as a leaf laid over the whole page, and so
+  do the notices. Changing section turns the page in.
+- **The crystal at its real size, before a castle wall.** It floats over an obsidian floor in front
+  of a curtain wall with its merlons against a violet night sky, lit by its own glow. A block of the
+  wall is a block of the crystal, so a bigger crystal looks bigger against the stones; the view only
+  draws back, the blocks shrinking with it, when the crystal or its light would not fit, so nothing
+  is cut off any more. The wall's stone is a texture of the mod's own.
+- **The settings always at GUI scale 3.** Whatever your GUI scale is, the settings and Crystal
+  Practice open at 3, the scale they were made at, and your own comes back as they close. A window
+  too small for 3 steps down to the largest scale that still leaves them room.
+- **Nothing in the book follows resource packs but the crystal.** The lettering (UnifrakturMaguntia
+  and Texturina), the icons (the game's own sprites, redrawn in the book's colours) and the wall ship
+  inside the mod. Glows, rings, the colour picker and the dust are each a single texture, so the
+  settings stay light on every frame. Narrower windows fold the sections into a strip of icons, then
+  leave the crystal out; the layout is checked across 51,000 window sizes, down to 240x140.
+- **The Crystal Practice window, redone.** Three tabs, Gear, Bot and World, in the settings' book:
+  the same lettering and redrawn icons, with the kit and the ground previewed as the game draws them. The bot's difficulty and style unfold under its switch, the
+  biomes under Natural. When the window is wide enough, a preview sits beside the options: your
+  kit as it will be handed out, everything the bot will do (each technique explained on hover), or
+  a cut through the ground. Changing tab sends an End Crystal flying to the new tab. The same
+  window is the pause panel inside a practice world, on the right with the world in view.
+- **The warning shows once per session.** After "I understand, continue", Crystal Practice opens
+  straight to its window until the game restarts.
+
+### Fixed
+
+- **Back on the server, blocks were invisible** on Minecraft 26.2 and later: entities, particles
+  and the HUD came back but no blocks did. The renderer learns which chunks are loaded only as they
+  arrive, so it is now told again about every chunk the server's world already had.
+- **Choosing the hole arena from the flat one** in the practice panel did nothing until another
+  world was opened: both share one world, and the new ground now comes in with the next round.
+
+### Removed
+
+- **The old core crystal optimizations** of 2.6 (instant break and explosion on screen, ghost
+  crystals), removed because of problems and slowness and written again from scratch as the Client
+  crystal section.
+- **The old optimizer rule.** Another crystal optimizer no longer turns off Obsidian debounce or
+  Don't break obsidian, which follow your own switches whatever else is installed; only the client
+  crystal stands down for it. Force off, Re-check compatibility, the status chip and the "works with
+  any optimizer" window went with it.
+- **The explanation on the way into the settings**: what the client crystal does is told in its own
+  section.
+
 ## 2.6.1
 
 ### Changed

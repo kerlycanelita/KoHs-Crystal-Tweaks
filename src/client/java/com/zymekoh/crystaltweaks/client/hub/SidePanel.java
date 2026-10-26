@@ -7,7 +7,8 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
- * One of the two side panels: Colors on the left, Glow on the right.
+ * The panel of one of the two wings beside the crystal, showing the section its rail has open:
+ * Colours on the left and Glow on the right to start with.
  *
  * <p>It unfolds from the crystal: a line of light runs out from the stage to the panel's inner edge,
  * the glass opens outward behind a bright front that throws sparks, the title comes up, and the
@@ -31,6 +32,7 @@ public final class SidePanel {
     private Rect viewport = Rect.EMPTY;
     private Rect title = Rect.EMPTY;
     private String label = "";
+    private HubButton.Icon icon;
     private RowList list;
     private long unfoldAt = Long.MIN_VALUE;
     private boolean shown;
@@ -38,22 +40,42 @@ public final class SidePanel {
     /** The reset button as drawn: as wide as its words, laid out with the title. */
     private Rect resetButton = Rect.EMPTY;
     private long armedAt = Long.MIN_VALUE;
+    /** A page of the grimoire rather than a glass panel: no glass, a large gothic title and a line on what the section is. */
+    private boolean page;
+    private String description = "";
+    private String wrappedFor;
+    private String descriptionLine = "";
 
     public SidePanel(Side side) {
         this.side = side;
+    }
+
+    public SidePanel asPage() {
+        this.page = true;
+        return this;
+    }
+
+    /** What the section is, under its title on a page. */
+    public void setDescription(String description) {
+        this.description = description == null ? "" : description;
     }
 
     public Side side() {
         return this.side;
     }
 
-    public void setGeometry(Rect panel, HubLayout layout) {
+    public void setGeometry(Rect panel, Rect viewport, Rect title) {
         this.rect = panel;
-        this.viewport = layout.panelViewport(panel);
-        this.title = layout.panelTitle(panel);
+        this.viewport = viewport;
+        this.title = title;
         if (this.list != null) {
             this.list.setViewport(this.viewport);
         }
+    }
+
+    /** The live icon left of the title: the open section's. */
+    public void setIcon(HubButton.Icon icon) {
+        this.icon = icon;
     }
 
     public Rect rect() {
@@ -202,6 +224,22 @@ public final class SidePanel {
         }
         int revealed = Math.max(1, Math.round(this.rect.width() * open));
         int revealX = left ? this.rect.right() - revealed : this.rect.x();
+        if (this.page) {
+            // The page turns in from the spine: a bright edge sweeping across it.
+            if (open < 1.0F) {
+                drawFront(graphics, now, left ? revealX : revealX + revealed - 1, skin);
+            }
+            float titleIn = HubMotion.easeOutCubic(HubMotion.progress(now, this.unfoldAt, TITLE_DELAY_NANOS, 240_000_000L));
+            if (titleIn > 0.02F) {
+                drawPageTitle(graphics, font, titleIn, mouseX, mouseY, frameMillis, skin);
+            }
+            if (this.list != null) {
+                boolean ready = fullyOpen(now);
+                this.list.render(graphics, font, now, open, GrimoireDraw.ACCENT, GrimoireDraw.MUTED, GrimoireDraw.BORDER,
+                        ready ? mouseX : -10_000, ready ? mouseY : -10_000, 0.0F);
+            }
+            return;
+        }
         // The glow around the panel: stronger while the glow is being changed.
         float influence = skin.influence;
         if (open > 0.6F && influence > 0.04F) {
@@ -236,13 +274,37 @@ public final class SidePanel {
     }
 
     /**
-     * The turning mouse wheel that says the rows scroll, over the panel's controls. Shown until the
-     * player has scrolled a panel once; only where the rows really continue past the bottom.
+     * The turning mouse wheel that says the rows scroll. Shown until the player has scrolled a panel
+     * once, and only where the rows really continue past the bottom; on a page it sits in {@code
+     * area}, beside the page's buttons, never over a row.
      */
-    public void renderScrollHint(GuiGraphicsExtractor graphics, Font font, long now) {
+    public void renderScrollHint(GuiGraphicsExtractor graphics, Font font, long now, Rect area) {
         if (fullyOpen(now) && this.list != null && this.list.overflows() && !this.list.scrolledByPlayer()) {
-            drawScrollHint(graphics, font, now / 1_000_000_000.0D, HubSkin.current());
+            if (this.page) {
+                drawPageScrollHint(graphics, font, now / 1_000_000_000.0D, area);
+            } else {
+                drawScrollHint(graphics, font, now / 1_000_000_000.0D, HubSkin.current());
+            }
         }
+    }
+
+    /** A small arrow bouncing down and the word, in the page's foot. */
+    private void drawPageScrollHint(GuiGraphicsExtractor graphics, Font font, double seconds, Rect area) {
+        String text = CrystalUi.spanish() ? "Desliza para ver más" : "Scroll for more";
+        if (font.width(text) + 12 > area.width()) {
+            text = CrystalUi.spanish() ? "Desliza" : "Scroll";
+            if (font.width(text) + 12 > area.width()) {
+                return;
+            }
+        }
+        float pulse = HubMotion.breathe(seconds, 1.6D);
+        int color = CrystalTheme.lerp(GrimoireDraw.FAINT, GrimoireDraw.ACCENT, pulse);
+        int x = area.x() + (area.width() - font.width(text) - 9) / 2;
+        int arrowY = area.y() + (area.height() - 4) / 2 + Math.round((float) Math.sin(seconds * 5.0D) * 1.5F);
+        graphics.fill(x, arrowY, x + 5, arrowY + 1, color);
+        graphics.fill(x + 1, arrowY + 1, x + 4, arrowY + 2, color);
+        graphics.fill(x + 2, arrowY + 2, x + 3, arrowY + 3, color);
+        CrystalUi.label(graphics, font, text, x + 9, area.y() + (area.height() - 8) / 2, color);
     }
 
     private void drawBeam(GuiGraphicsExtractor graphics, long now, int originX, int originY, int innerEdge, HubSkin skin) {
@@ -277,6 +339,9 @@ public final class SidePanel {
             HubSkin skin) {
         long now = System.nanoTime();
         Rect icon = iconRect();
+        if (this.icon != null) {
+            this.icon.draw(graphics, icon.x(), icon.y(), icon.width(), CrystalTheme.fade(0xFFFFFFFF, alpha));
+        }
         int textX = icon.right() + 5;
         int textY = this.title.y() + (this.title.height() - 8) / 2 + 1;
         // The reset button first: as wide as its words where the title leaves room, the arrow alone where not.
@@ -317,6 +382,59 @@ public final class SidePanel {
                 HubSkin.darken(top, 0.6F), border, alpha);
         CrystalUi.label(graphics, font, text, this.resetButton.x() + 4, this.resetButton.y() + (this.resetButton.height() - 8) / 2 + 1,
                 CrystalTheme.fade(textColor, alpha));
+    }
+
+    /** A page's head: the section's name in large gothic letters, what it is under it, and the reset plate at the right. */
+    private void drawPageTitle(GuiGraphicsExtractor graphics, Font font, float alpha, int mouseX, int mouseY, float frameMillis,
+            HubSkin skin) {
+        long now = System.nanoTime();
+        boolean spanish = CrystalUi.spanish();
+        boolean armed = armed(now);
+        boolean described = !this.description.isEmpty() && this.title.height() >= 34;
+        int titleBand = described ? this.title.height() - 13 : this.title.height() - 2;
+        // The reset plate first, so the title knows its room. Words only: the book's letters have no
+        // arrow, and the title gives way rather than the word.
+        String text = armed ? (spanish ? "¿Seguro?" : "Sure?") : (spanish ? "Restablecer" : "Reset");
+        int buttonHeight = 15;
+        float textScale = GrimoireDraw.textFit(buttonHeight, 1.0F);
+        float scale = Math.max(1.0F, Math.min(2.4F, (titleBand - 2) / 10.0F));
+        int titleWidth = GrimoireDraw.gothicWidth(font, this.label, scale);
+        int buttonWidth = Math.round(font.width(text) * textScale) + 12;
+        int buttonY = this.title.y() + Math.max(0, (titleBand - buttonHeight) / 2);
+        this.resetButton = new Rect(this.title.right() - buttonWidth, buttonY, buttonWidth, buttonHeight);
+        int titleRoom = this.resetButton.x() - this.title.x() - 6;
+        if (titleWidth > titleRoom) {
+            scale = Math.max(0.8F, scale * titleRoom / (float) Math.max(1, titleWidth));
+        }
+        GrimoireDraw.gothic(graphics, font, this.label, this.title.x(), this.title.y() + Math.max(0.0F, (titleBand - 10.0F * scale) / 2.0F),
+                scale, CrystalTheme.fade(GrimoireDraw.TITLE, alpha), 0.0F);
+        if (described) {
+            if (!this.description.equals(this.wrappedFor)) {
+                this.wrappedFor = this.description;
+                this.descriptionLine = HubDraw.fit(font, this.description, this.title.width());
+            }
+            CrystalUi.label(graphics, font, this.descriptionLine, this.title.x(), this.title.bottom() - 12,
+                    CrystalTheme.fade(GrimoireDraw.MUTED, alpha));
+        }
+        boolean hovered = this.resetButton.contains(mouseX, mouseY);
+        this.resetHover = HubMotion.damp(this.resetHover, hovered ? 1.0F : 0.0F, frameMillis, 60.0F);
+        int fill;
+        int border;
+        int textColor;
+        if (armed) {
+            float pulse = HubMotion.breathe(now / 1_000_000_000.0D, 0.8D);
+            fill = CrystalTheme.lerp(GrimoireDraw.CRIMSON_FILL, 0xFF3A1020, pulse);
+            border = CrystalTheme.lerp(0xFFB8384F, 0xFFFF7A8C, pulse * 0.6F);
+            textColor = 0xFFFFE4E8;
+        } else {
+            fill = CrystalTheme.lerp(0xFF140E1B, 0xFF1F1629, this.resetHover);
+            border = CrystalTheme.lerp(GrimoireDraw.BORDER, 0xFF7A48C0, this.resetHover);
+            textColor = CrystalTheme.lerp(GrimoireDraw.MUTED, 0xFFFFFFFF, this.resetHover);
+        }
+        GrimoireDraw.plate(graphics, this.resetButton.x(), this.resetButton.y(), this.resetButton.width(), this.resetButton.height(), fill,
+                border, alpha);
+        GrimoireDraw.text(graphics, font, text, this.resetButton.x() + 6, GrimoireDraw.textY(this.resetButton.y(), buttonHeight, textScale),
+                textScale, CrystalTheme.fade(textColor, alpha));
     }
 
     private void drawScrollHint(GuiGraphicsExtractor graphics, Font font, double seconds, HubSkin skin) {

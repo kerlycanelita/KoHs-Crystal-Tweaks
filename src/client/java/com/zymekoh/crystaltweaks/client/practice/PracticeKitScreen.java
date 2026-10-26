@@ -4,7 +4,12 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.zymekoh.crystaltweaks.client.CrystalTheme;
 import com.zymekoh.crystaltweaks.client.CrystalUi;
 import com.zymekoh.crystaltweaks.client.CrystalVisualConfig;
-import com.zymekoh.crystaltweaks.client.PurpleCloseButton;
+import com.zymekoh.crystaltweaks.client.FixedGuiScale;
+import com.zymekoh.crystaltweaks.client.hub.GrimoireDraw;
+import com.zymekoh.crystaltweaks.client.hub.GrimoireFonts;
+import com.zymekoh.crystaltweaks.client.hub.GrimoireIcons;
+import com.zymekoh.crystaltweaks.client.hub.HubLayout.Rect;
+import com.zymekoh.crystaltweaks.client.hub.HubButton;
 import com.zymekoh.crystaltweaks.practice.KitItem;
 import com.zymekoh.crystaltweaks.practice.KitLayout;
 import com.zymekoh.crystaltweaks.practice.KitPreset;
@@ -12,6 +17,7 @@ import com.zymekoh.crystaltweaks.practice.PracticeSettings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
@@ -59,10 +65,11 @@ public final class PracticeKitScreen extends Screen {
     private int roomY;
     private int armorX;
     private int offhandX;
-    private PurpleCloseButton leaveButton;
+    private HubButton leaveButton;
 
     public PracticeKitScreen(Screen parent, KitPreset preset) {
-        super(Component.literal("Crystal Practice Kit"));
+        // The book's own letters, which no resource pack changes.
+        super(Minecraft.getInstance(), GrimoireFonts.font(), Component.literal("Crystal Practice Kit"));
         this.parent = parent;
         this.spanish = CrystalUi.spanish();
         this.preset = preset;
@@ -73,6 +80,7 @@ public final class PracticeKitScreen extends Screen {
 
     @Override
     protected void init() {
+        FixedGuiScale.apply(this, this.minecraft);
         if (this.openedAt == 0L) {
             this.openedAt = System.nanoTime();
         }
@@ -82,6 +90,8 @@ public final class PracticeKitScreen extends Screen {
         this.panelHeight = Math.min(this.height - margin * 2, 250);
         this.panelX = (this.width - this.panelWidth) / 2;
         this.panelY = (this.height - this.panelHeight) / 2;
+        this.cover = new Rect(this.panelX, this.panelY, this.panelWidth, this.panelHeight);
+        this.page = new Rect(this.panelX + 3, this.panelY + 3, this.panelWidth - 6, this.panelHeight - 6);
         this.gridX = this.panelX + (this.panelWidth - 9 * S) / 2;
         this.armorX = this.gridX - S - 8;
         this.offhandX = this.gridX + 9 * S + 14;
@@ -94,24 +104,25 @@ public final class PracticeKitScreen extends Screen {
         // The totem counter sits on the kit's own title row, at the grid's right edge.
         int counterY = this.gridY - 14;
         int counterX = this.gridX + 9 * S - 14 * 2 - 58;
-        addRenderableWidget(new PurpleCloseButton(counterX, counterY, 14, 12, Component.literal("-"), ignored -> totems(false)))
+        addRenderableWidget(new HubButton(counterX, counterY, 14, 12, Component.literal("–"), ignored -> totems(false)))
                 .setTooltip(Tooltip.create(Component.literal(this.spanish ? "Menos tótems" : "Fewer totems")));
-        addRenderableWidget(new PurpleCloseButton(counterX + 14 + 58, counterY, 14, 12, Component.literal("+"),
+        addRenderableWidget(new HubButton(counterX + 14 + 58, counterY, 14, 12, Component.literal("+"),
                 ignored -> totems(true)))
                 .setTooltip(Tooltip.create(Component.literal(this.spanish ? "Más tótems" : "More totems")));
 
         int footerY = this.panelY + this.panelHeight - 24;
         int buttonWidth = Math.max(60, Math.min(96, (this.panelWidth - 32) / 3));
         int buttonsX = this.panelX + (this.panelWidth - buttonWidth * 3 - 12) / 2;
-        addRenderableWidget(new PurpleCloseButton(buttonsX, footerY, buttonWidth, 18,
+        addRenderableWidget(new HubButton(buttonsX, footerY, buttonWidth, 18,
                 Component.literal(this.spanish ? "Restablecer" : "Reset"), ignored -> reset()))
                 .setTooltip(Tooltip.create(Component.literal(this.spanish
                         ? "Vuelve al kit " + this.preset.label(true) + " tal como viene. Guarda para quedártelo."
                         : "Back to the " + this.preset.label(false) + " kit as it ships. Save to keep it.")));
-        PurpleCloseButton save = addRenderableWidget(new PurpleCloseButton(buttonsX + buttonWidth + 6, footerY, buttonWidth, 18,
-                Component.literal(this.spanish ? "Guardar" : "Save"), ignored -> save()).icon(PurpleCloseButton.Icon.CHECK));
+        HubButton save = addRenderableWidget(new HubButton(buttonsX + buttonWidth + 6, footerY, buttonWidth, 18,
+                Component.literal(this.spanish ? "Guardar" : "Save"), ignored -> save()).icon(PracticeIcons.item("writable_book", 0.0F))
+                .style(HubButton.Style.PRIMARY));
         save.setSelected(true);
-        this.leaveButton = addRenderableWidget(new PurpleCloseButton(buttonsX + (buttonWidth + 6) * 2, footerY, buttonWidth, 18,
+        this.leaveButton = addRenderableWidget(new HubButton(buttonsX + (buttonWidth + 6) * 2, footerY, buttonWidth, 18,
                 Component.literal(leaveLabel()), ignored -> leave()));
     }
 
@@ -346,20 +357,35 @@ public final class PracticeKitScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        GrimoireDraw.active = true;
+        try {
+            drawScreen(graphics, mouseX, mouseY, partialTick);
+        } finally {
+            GrimoireDraw.active = false;
+        }
+    }
+
+    /** The crystal before the title, in the book's art. */
+    private static final HubButton.Icon CRYSTAL_ICON = GrimoireIcons.icon(GrimoireIcons.Sprite.END_CRYSTAL, 0.2F);
+    /** The cover and its page, placed with the rest in {@link #init}. */
+    private Rect cover = Rect.EMPTY;
+    private Rect page = Rect.EMPTY;
+
+    private void drawScreen(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         long now = System.nanoTime();
         double seconds = now / 1_000_000_000.0D;
         float enter = CrystalTheme.easeOutCubic(Mth.clamp((now - this.openedAt) / 300_000_000.0F, 0.0F, 1.0F));
         CrystalUi.floatingParticles(graphics, this.width, this.height, seconds);
-        CrystalUi.panel(graphics, this.panelX, this.panelY, this.panelWidth, this.panelHeight,
-                CrystalTheme.fade(0xEE1B0928, 0.4F + 0.6F * enter), CrystalTheme.fade(0xEE0A0310, 0.4F + 0.6F * enter));
-        CrystalUi.roundedOutline(graphics, this.panelX, this.panelY, this.panelWidth, this.panelHeight,
-                CrystalTheme.fade(CrystalTheme.PANEL_BORDER, enter));
-        CrystalUi.crystalIcon(graphics, this.panelX + 14, this.panelY + 10, 9, seconds, enter);
+        // A page of the grimoire on its cover.
+        GrimoireDraw.cover(graphics, this.cover, 0.4F + 0.6F * enter);
+        GrimoireDraw.page(graphics, this.page, GrimoireDraw.PAGE, 0.4F + 0.6F * enter);
+        CRYSTAL_ICON.draw(graphics, this.panelX + 8, this.panelY + 5, 12, CrystalTheme.fade(0xFFFFFFFF, enter));
         String title = (this.spanish ? "Ordenar inventario · " : "Arrange inventory · ") + this.preset.label(this.spanish);
-        CrystalUi.label(graphics, this.font, this.font.plainSubstrByWidth(title, this.panelWidth - 40), this.panelX + 24,
-                this.panelY + 6, CrystalTheme.fade(CrystalTheme.TITLE, enter));
-        graphics.fill(this.panelX + 6, this.panelY + 18, this.panelX + this.panelWidth - 6, this.panelY + 19,
-                CrystalTheme.fade(CrystalTheme.HEADER_LINE, enter));
+        float scale = GrimoireDraw.fitScale(this.font, title, this.panelWidth - 40, 1.3F);
+        GrimoireDraw.gothic(graphics, this.font, title, this.panelX + 24, this.panelY + 5, scale, CrystalTheme.fade(GrimoireDraw.TITLE, enter),
+                0.3F);
+        graphics.fill(this.panelX + 6, this.panelY + 19, this.panelX + this.panelWidth - 6, this.panelY + 20,
+                CrystalTheme.fade(GrimoireDraw.RULE_TITLE, enter));
 
         // The line under the title carries the hint, or for a moment what just happened.
         String hint = this.spanish
@@ -383,8 +409,8 @@ public final class PracticeKitScreen extends Screen {
         CrystalUi.centered(graphics, this.font, counter, counterX + 29, this.gridY - 12,
                 CrystalTheme.fade(CrystalTheme.ACCENT_BRIGHT, enter));
 
-        CrystalUi.label(graphics, this.font, this.spanish ? "Sala de kits" : "Kit room", this.roomX, this.roomY - 11,
-                CrystalTheme.fade(CrystalTheme.LEGEND, enter));
+        GrimoireDraw.gothic(graphics, this.font, this.spanish ? "Sala de kits" : "Kit room", this.roomX, this.roomY - 12, 1.0F,
+                CrystalTheme.fade(GrimoireDraw.VALUE, enter), 0.0F);
         int hoveredRoom = roomAt(mouseX, mouseY);
         for (int index = 0; index < ROOM.length; index++) {
             int x = this.roomX + index * S;
@@ -393,8 +419,8 @@ public final class PracticeKitScreen extends Screen {
                     ROOM[index].enchanted(), seconds);
         }
 
-        CrystalUi.label(graphics, this.font, this.spanish ? "Tu kit" : "Your kit", this.gridX, this.gridY - 11,
-                CrystalTheme.fade(CrystalTheme.LEGEND, enter));
+        GrimoireDraw.gothic(graphics, this.font, this.spanish ? "Tu kit" : "Your kit", this.gridX, this.gridY - 12, 1.0F,
+                CrystalTheme.fade(GrimoireDraw.VALUE, enter), 0.0F);
         int hovered = slotAt(mouseX, mouseY);
         for (int slot = 0; slot < KitLayout.INVENTORY; slot++) {
             drawSlot(graphics, slot, hovered, seconds);
@@ -477,6 +503,11 @@ public final class PracticeKitScreen extends Screen {
             lines.addAll(CrystalUi.wrap(this.font, line, 200));
         }
         CrystalUi.tooltip(graphics, this.font, lines, mouseX, mouseY, this.width, this.height);
+    }
+
+    @Override
+    public void removed() {
+        FixedGuiScale.restore(this.minecraft);
     }
 
     @Override

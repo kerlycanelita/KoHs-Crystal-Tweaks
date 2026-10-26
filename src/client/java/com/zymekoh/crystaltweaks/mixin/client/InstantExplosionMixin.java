@@ -2,6 +2,8 @@ package com.zymekoh.crystaltweaks.mixin.client;
 
 import com.llamalad7.mixinextras.injector.WrapWithCondition;
 import com.zymekoh.crystaltweaks.client.benchmark.CrystalBenchmark;
+import com.zymekoh.crystaltweaks.client.fight.DeathRecap;
+import com.zymekoh.crystaltweaks.client.practice.PracticeHost;
 import com.zymekoh.crystaltweaks.core.InstantExplosion;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -18,8 +20,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Skips the sound and the burst of a server explosion this client already played at the hit (see
- * {@link InstantExplosion}). The knockback, the block debris and everything else in the packet run
- * as Vanilla runs them; the packet itself is never changed.
+ * {@link InstantExplosion}), and notes every blast near you for the death recap. The knockback, the
+ * block debris and everything else in the packet run as Vanilla runs them; the packet itself is never
+ * changed.
  */
 @Mixin(ClientPacketListener.class)
 public abstract class InstantExplosionMixin {
@@ -28,12 +31,16 @@ public abstract class InstantExplosionMixin {
 
     @Inject(method = "handleExplosion", at = @At("HEAD"))
     private void crystalTweaks$matchPlayedExplosion(ClientboundExplodePacket packet, CallbackInfo callback) {
-        // The handler runs twice, first on the network thread, which only reschedules it.
-        if (!Minecraft.getInstance().isSameThread()) {
+        // The handler runs twice, first on the network thread, which only reschedules it. The server
+        // parked behind Crystal Practice explodes its own crystals, never the ones played here.
+        if (!Minecraft.getInstance().isSameThread() || PracticeHost.serverSide()) {
             this.crystalTweaks$echo = false;
             return;
         }
-        this.crystalTweaks$echo = InstantExplosion.alreadyPlayed(packet.center().x, packet.center().y, packet.center().z);
+        this.crystalTweaks$echo = InstantExplosion.alreadyPlayed(packet.center().x, packet.center().y, packet.center().z,
+                packet.radius());
+        DeathRecap.explosion(Minecraft.getInstance().player, packet.center().x, packet.center().y, packet.center().z, packet.radius(),
+                System.nanoTime());
         if (!this.crystalTweaks$echo) {
             // Heard now, as Vanilla plays it: what the benchmark compares the instant explosion against.
             CrystalBenchmark.onExplosionHeard(packet.center().x, packet.center().y, packet.center().z);

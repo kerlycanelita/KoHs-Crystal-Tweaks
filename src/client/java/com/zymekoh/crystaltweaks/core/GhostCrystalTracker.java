@@ -21,7 +21,7 @@ public final class GhostCrystalTracker {
     }
 
     public static void add(BlockPos base, long nowNanos) {
-        if (!CrystalOptimizerGuard.optimizationsAllowed()) return;
+        if (!CrystalCore.ghosts()) return;
         if (PENDING.size() >= MAX_PENDING) {
             cleanup(nowNanos);
             if (PENDING.size() >= MAX_PENDING) {
@@ -37,11 +37,11 @@ public final class GhostCrystalTracker {
     }
 
     public static boolean isEmpty() {
-        return !CrystalOptimizerGuard.optimizationsAllowed() || PENDING.isEmpty();
+        return PENDING.isEmpty() || !CrystalCore.ghosts();
     }
 
     public static void forEachPending(Consumer<BlockPos> action) {
-        if (!CrystalOptimizerGuard.optimizationsAllowed() || PENDING.isEmpty()) {
+        if (PENDING.isEmpty() || !CrystalCore.ghosts()) {
             return;
         }
         long now = System.nanoTime();

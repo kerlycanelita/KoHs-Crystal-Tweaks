@@ -4,17 +4,22 @@ import com.zymekoh.crystaltweaks.client.CrystalAppearance;
 import com.zymekoh.crystaltweaks.client.CrystalTheme;
 import com.zymekoh.crystaltweaks.client.CrystalUi;
 import com.zymekoh.crystaltweaks.client.CrystalVisualConfig;
-import com.zymekoh.crystaltweaks.client.PurpleCloseButton;
+import com.zymekoh.crystaltweaks.client.FixedGuiScale;
+import com.zymekoh.crystaltweaks.client.hub.GrimoireDraw;
+import com.zymekoh.crystaltweaks.client.hub.GrimoireFonts;
+import com.zymekoh.crystaltweaks.client.hub.GrimoireIcons;
+import com.zymekoh.crystaltweaks.client.hub.HubButton;
 import com.zymekoh.crystaltweaks.client.hub.HubDraw;
 import com.zymekoh.crystaltweaks.client.hub.HubMotion;
 import com.zymekoh.crystaltweaks.client.hub.MiniCrystal;
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
@@ -39,7 +44,8 @@ public final class PracticeWarningScreen extends Screen {
     private static final long CHARGE_NANOS = 420_000_000L;
     private static final long BURST_NANOS = 480_000_000L;
     private static final long RIFT_NANOS = 640_000_000L;
-    private static final Identifier OBSIDIAN = HubDraw.vanilla("textures/block/obsidian.png");
+    /** The pillars' obsidian, in the book's art, which no resource pack changes. */
+    private static final GrimoireIcons.Art OBSIDIAN = GrimoireIcons.art("block/obsidian", GrimoireIcons.Kind.BLOCK);
 
     /**
      * One obsidian pillar and the crystal on it. {@code block} is a cube's vertical edge on screen:
@@ -68,17 +74,27 @@ public final class PracticeWarningScreen extends Screen {
     private int panelHeight;
     private int textTop;
     private List<FormattedCharSequence> body = List.of();
-    private PurpleCloseButton backButton;
-    private PurpleCloseButton continueButton;
+    private HubButton backButton;
+    private HubButton continueButton;
+
+    /** Once read and accepted, the warning stays out of the way until the game restarts. */
+    private static boolean accepted;
+
+    /** The way into Crystal Practice from the hub: this warning the first time in a session, the setup after. */
+    public static Screen open(Screen parent) {
+        return accepted ? new PracticeSetupScreen(parent) : new PracticeWarningScreen(parent);
+    }
 
     public PracticeWarningScreen(Screen parent) {
-        super(Component.literal("Crystal Practice"));
+        // The book's own letters, which no resource pack changes.
+        super(Minecraft.getInstance(), GrimoireFonts.font(), Component.literal("Crystal Practice"));
         this.parent = parent;
         this.spanish = CrystalUi.spanish();
     }
 
     @Override
     protected void init() {
+        FixedGuiScale.apply(this, this.minecraft);
         if (this.openedAt == 0L) {
             this.openedAt = System.nanoTime();
         }
@@ -104,11 +120,10 @@ public final class PracticeWarningScreen extends Screen {
         int buttonWidth = Math.max(60, Math.min(160, (this.panelWidth - 30) / 2));
         int buttonY = this.panelY + this.panelHeight - 26;
         int buttonsX = this.panelX + (this.panelWidth - buttonWidth * 2 - 6) / 2;
-        this.backButton = addRenderableWidget(new PurpleCloseButton(buttonsX, buttonY, buttonWidth, 18,
+        this.backButton = addRenderableWidget(new HubButton(buttonsX, buttonY, buttonWidth, 18,
                 Component.literal(this.spanish ? "Volver" : "Back"), ignored -> onClose()));
-        this.continueButton = addRenderableWidget(new PurpleCloseButton(buttonsX + buttonWidth + 6, buttonY, buttonWidth, 18,
-                continueLabel(), ignored -> ascend()).icon(PurpleCloseButton.Icon.WARNING)
-                .accent(PurpleCloseButton.Accent.EXPERIMENTAL));
+        this.continueButton = addRenderableWidget(new HubButton(buttonsX + buttonWidth + 6, buttonY, buttonWidth, 18,
+                continueLabel(), ignored -> ascend()).icon(PracticeIcons.item("end_crystal", 0.0F)).style(HubButton.Style.DANGER));
         this.continueButton.active = readLongEnough();
         if (ascending()) {
             this.backButton.visible = false;
@@ -140,13 +155,15 @@ public final class PracticeWarningScreen extends Screen {
         if (this.spanish) {
             return List.of(
                     "Crystal Practice está en fase de pruebas. Pueden aparecer errores o caídas de FPS, sobre todo con el bot.",
-                    "Al entrar saldrás del mundo o servidor actual y se abrirá un mundo de práctica aparte, en un jugador. Tu mundo se guarda antes de salir.",
-                    "El bot y el equipo solo existen en ese mundo: no hacen nada en ningún servidor.");
+                    "En un servidor no sales de él: la práctica se abre en esta misma ventana y el servidor sigue conectado detrás. Correr dos mundos a la vez puede causar lag.",
+                    "Tu jugador se queda en el servidor, quieto como con un menú abierto: allí cualquiera puede alcanzarlo.",
+                    "Desde un mundo de un jugador, ese mundo se guarda y se cierra antes. El bot y el equipo solo existen en la práctica.");
         }
         return List.of(
                 "Crystal Practice is still being tested. Errors or FPS drops can happen, especially with the bot.",
-                "Entering leaves the world or server you are in and opens a separate practice world in singleplayer. Your world is saved before you leave.",
-                "The bot and the gear exist only in that world: they do nothing on any server.");
+                "On a server you do not leave it: practice opens in this same window and the server stays connected behind it. Running two worlds at once can cause lag.",
+                "Your player stays on the server, standing still as with a menu open: anyone there can reach it.",
+                "From a singleplayer world, that world is saved and closed first. The bot and the gear exist only in practice.");
     }
 
     private boolean readLongEnough() {
@@ -169,6 +186,7 @@ public final class PracticeWarningScreen extends Screen {
             return;
         }
         this.ascendAt = System.nanoTime();
+        accepted = true;
         this.backButton.visible = false;
         this.continueButton.visible = false;
         this.minecraft.getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.BEACON_ACTIVATE, 1.4F, 0.6F));
@@ -194,6 +212,15 @@ public final class PracticeWarningScreen extends Screen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        GrimoireDraw.active = true;
+        try {
+            drawScreen(graphics, mouseX, mouseY, partialTick);
+        } finally {
+            GrimoireDraw.active = false;
+        }
+    }
+
+    private void drawScreen(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         long now = System.nanoTime();
         double seconds = now / 1_000_000_000.0D;
         float enter = CrystalTheme.easeOutCubic(Mth.clamp((now - this.openedAt) / (float) ENTER_NANOS, 0.0F, 1.0F));
@@ -289,7 +316,7 @@ public final class PracticeWarningScreen extends Screen {
                 for (int level = 0; level < pillar.blocks(); level++) {
                     float levelRise = HubMotion.easeOutBack(HubMotion.clamp01((since - pillar.delay() - level * 0.08F) / 0.45F));
                     float y = pillar.centerOf(level) + (1.0F - levelRise) * pillar.block() * 6.0F;
-                    HubDraw.isoBlock(graphics, OBSIDIAN, OBSIDIAN, pillar.x(), y, pillar.block(), -1, HubMotion.clamp01(levelRise));
+                    GrimoireIcons.drawCube(graphics, OBSIDIAN, OBSIDIAN, pillar.x(), y, pillar.block(), HubMotion.clamp01(levelRise), 0xFFFFFFFF);
                     if (level == pillar.blocks() - 1) {
                         // The top face catches the crystal's light.
                         CrystalUi.ellipse(graphics, Math.round(pillar.x()), Math.round(y - pillar.block() * 0.5F),
@@ -445,7 +472,8 @@ public final class PracticeWarningScreen extends Screen {
         for (int layer = 0; layer < tones.length; layer++) {
             int rx = Math.max(1, Math.round(halfWidth * sizes[layer]));
             int ry = Math.max(1, Math.round(halfHeight * (0.55F + 0.45F * sizes[layer])));
-            CrystalUi.ellipse(graphics, centerX, centerY, rx, ry, CrystalTheme.fade(tones[layer], Math.min(1.0F, t * 3.0F)));
+            HubDraw.texture(graphics, GrimoireIcons.disc(), GrimoireIcons.DISC_SIZE, GrimoireIcons.DISC_SIZE, centerX, centerY, rx * 2.0F, ry * 2.0F,
+                    0.0F, CrystalTheme.fade(tones[layer], Math.min(1.0F, t * 3.0F)));
         }
         CrystalUi.ellipseRim(graphics, centerX, centerY, halfWidth, halfHeight, CrystalTheme.withAlpha(0xFFFFFF, Math.round(200 * Math.min(1.0F, t * 3.0F))));
         for (int ring = 0; ring < 3; ring++) {
@@ -474,24 +502,16 @@ public final class PracticeWarningScreen extends Screen {
             int size = index % 7 == 0 ? 2 : 1;
             int alpha = 90 + index % 5 * 30;
             int color = index % 4 == 0 ? 0xFFD27A : 0xFF3B4E;
-            graphics.fill(x - 1, y - 1, x + size + 1, y + size + 1, CrystalTheme.withAlpha(color, alpha / 4));
-            graphics.fill(x, y, x + size, y + size, CrystalTheme.withAlpha(color, alpha));
+            HubDraw.texture(graphics, GrimoireIcons.mote(), GrimoireIcons.MOTE_SIZE, GrimoireIcons.MOTE_SIZE, x + size / 2.0F, y + size / 2.0F,
+                    size + 2.5F, size + 2.5F, 0.0F, CrystalTheme.withAlpha(color, alpha));
         }
     }
 
     /** Hazard tape, red and black stripes sliding sideways. */
     private static void tape(GuiGraphicsExtractor graphics, int x, int y, int width, long now, float alpha) {
-        graphics.fill(x, y, x + width, y + 5, CrystalTheme.fade(0xE0120104, alpha));
-        int offset = (int) ((now / 30_000_000L) % 10L);
-        for (int stripe = -10; stripe < width + 10; stripe += 10) {
-            for (int row = 0; row < 5; row++) {
-                int left = Math.max(x, x + stripe + offset + row);
-                int right = Math.min(x + width, x + stripe + offset + row + 5);
-                if (left < right) {
-                    graphics.fill(left, y + row, right, y + row + 1, CrystalTheme.fade(0xF0FF2A40, alpha));
-                }
-            }
-        }
+        int offset = (int) ((now / 30_000_000L) % GrimoireIcons.HAZARD_WIDTH);
+        graphics.blit(RenderPipelines.GUI_TEXTURED, GrimoireIcons.hazard(), x, y, GrimoireIcons.HAZARD_WIDTH - offset, 0.0F, width,
+                GrimoireIcons.HAZARD_HEIGHT, GrimoireIcons.HAZARD_WIDTH, GrimoireIcons.HAZARD_HEIGHT, CrystalTheme.fade(0xFFFFFFFF, alpha));
     }
 
     /** A bright band sweeping down the panel, like an alarm light. */
@@ -555,19 +575,16 @@ public final class PracticeWarningScreen extends Screen {
 
     /** The title twice as large, with a red and a cyan ghost that jump apart now and then. */
     private void glitchTitle(GuiGraphicsExtractor graphics, int centerX, int y, double seconds, float alpha) {
-        String title = this.spanish ? "⚠ FASE DE PRUEBAS ⚠" : "⚠ EXPERIMENTAL ⚠";
-        float scale = Math.max(1.0F, Math.min(2.0F, (this.panelWidth - 24) / (float) this.font.width(title)));
-        int width = Math.round(this.font.width(title) * scale);
+        String title = this.spanish ? "Fase de pruebas" : "Experimental";
+        float scale = Math.max(1.0F, Math.min(2.2F, (this.panelWidth - 24) / (float) Math.max(1, GrimoireDraw.gothicWidth(this.font, title, 1.0F))));
+        int width = GrimoireDraw.gothicWidth(this.font, title, scale);
         boolean glitch = (seconds % 1.7D) < 0.18D;
         int jitter = glitch ? (int) Math.round(Math.sin(seconds * 97.0D) * 3.0D) : 0;
-        int left = centerX - width / 2;
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(left, y);
-        graphics.pose().scale(scale, scale);
-        graphics.text(this.font, title, -1 + jitter, 0, CrystalTheme.fade(0xB0FF2A40, alpha), false);
-        graphics.text(this.font, title, 1 - jitter, 0, CrystalTheme.fade(0x9060F0FF, alpha), false);
-        graphics.text(this.font, title, 0, 0, CrystalTheme.fade(0xFFFFF1F3, alpha), false);
-        graphics.pose().popMatrix();
+        float left = centerX - width / 2.0F;
+        float top = y - 4.0F * (scale - 1.0F);
+        GrimoireDraw.gothic(graphics, this.font, title, left - 1 + jitter, top, scale, CrystalTheme.fade(0xB0FF2A40, alpha), 0.0F);
+        GrimoireDraw.gothic(graphics, this.font, title, left + 1 - jitter, top, scale, CrystalTheme.fade(0x9060F0FF, alpha), 0.0F);
+        GrimoireDraw.gothic(graphics, this.font, title, left, top, scale, CrystalTheme.fade(0xFFFFF1F3, alpha), 0.0F);
         String subtitle = this.spanish ? "Crystal Practice · puede fallar" : "Crystal Practice · may break";
         CrystalUi.centered(graphics, this.font, subtitle, centerX, y + 20, CrystalTheme.fade(0xFFFF8A96, alpha));
     }
@@ -575,6 +592,11 @@ public final class PracticeWarningScreen extends Screen {
     @Override
     public boolean shouldCloseOnEsc() {
         return !ascending();
+    }
+
+    @Override
+    public void removed() {
+        FixedGuiScale.restore(this.minecraft);
     }
 
     @Override

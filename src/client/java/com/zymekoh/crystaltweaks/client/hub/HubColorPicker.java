@@ -66,14 +66,14 @@ public final class HubColorPicker extends AbstractWidget implements Clippable {
         int squareHeight = Math.max(1, this.height);
         int hueColor = hsvToArgb(this.hue, 1.0F, 1.0F);
         HubDraw.isolate(graphics);
-        // Two pixels per column on a wide square: half the elements for the same picture.
-        int step = squareWidth > 120 ? 2 : 1;
-        for (int column = 0; column < squareWidth; column += step) {
-            float amount = squareWidth <= 1 ? 1.0F : column / (float) (squareWidth - 1);
-            int topColor = CrystalTheme.lerp(0xFFFFFFFF, hueColor, amount);
-            graphics.fillGradient(getX() + column, getY(), getX() + Math.min(squareWidth, column + step),
-                    getY() + squareHeight, CrystalTheme.fade(topColor, fade), CrystalTheme.fade(0xFF000000, fade));
-        }
+        // Two gradients make the whole square: white to the hue across it, turned on its side so the
+        // game's top-to-bottom gradient runs left to right, then clear to black down it.
+        graphics.pose().pushMatrix();
+        graphics.pose().translate(getX(), getY() + squareHeight);
+        graphics.pose().rotate((float) (-Math.PI / 2.0D));
+        graphics.fillGradient(0, 0, squareHeight, squareWidth, CrystalTheme.fade(0xFFFFFFFF, fade), CrystalTheme.fade(hueColor, fade));
+        graphics.pose().popMatrix();
+        graphics.fillGradient(getX(), getY(), getX() + squareWidth, getY() + squareHeight, 0x00000000, CrystalTheme.fade(0xFF000000, fade));
         int outline = CrystalTheme.fade(this.lit ? skin.sideBorder : skin.border, fade);
         CrystalUi.outline(graphics, getX() - 1, getY() - 1, squareWidth + 2, squareHeight + 2, outline);
         int hueX = hueX();

@@ -182,7 +182,9 @@ public final class PracticeKitTest {
             for (PracticeSettings.Difficulty difficulty : PracticeSettings.Difficulty.values()) {
                 List<BotSkill> skills = BotSkill.of(difficulty, style);
                 check(skills.containsAll(previous), difficulty + " " + style + " loses a skill of the easier difficulty");
-                check(skills.size() > previous.size(), difficulty + " " + style + " adds nothing");
+                // A peaceful bot never fights: a harder one only heals and re-totems sooner, with the same skills.
+                check(style == PracticeSettings.BotStyle.PEACEFUL || skills.size() > previous.size(),
+                        difficulty + " " + style + " adds nothing");
                 PracticeSettings settings = new PracticeSettings(PracticeSettings.Armor.NETHERITE, 0, true, difficulty, style,
                         1, KitPreset.STANDARD, PracticeSettings.WorldType.FLAT, PracticeSettings.Biome.PLAINS);
                 for (BotSkill skill : skills) {

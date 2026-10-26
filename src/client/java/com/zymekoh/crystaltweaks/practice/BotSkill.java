@@ -115,6 +115,10 @@ public enum BotSkill {
     }
 
     public boolean fits(PracticeSettings.BotStyle style) {
+        if (style == PracticeSettings.BotStyle.PEACEFUL) {
+            // A peaceful bot keeps what keeps it alive and moving, and nothing that hurts you.
+            return this == MOVEMENT || this == TOTEMS || this == GAPPLES || this == MINE_OUT || this == MENDING;
+        }
         return this.only == null || this.only == style;
     }
 

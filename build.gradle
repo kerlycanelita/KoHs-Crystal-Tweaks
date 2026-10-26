@@ -53,9 +53,6 @@ def usesModernRegistrySplit = project.minecraft_version.toString() in ['26.2', '
 // 26.3 swapped GLFW for SDL and dropped lwjgl-tinyfd with it, renamed the use-item packet's
 // accessors to record components, and removed PoseStack.mulPose(Quaternionf).
 def usesSdlWindowing = project.minecraft_version.toString() in ['26.3']
-// 26.3 also gave EntityRenderer.shouldRender a trailing float, so the Mixin that hides a predicted
-// break has to name the new signature and accept the extra argument.
-def usesPartialTickCulling = project.minecraft_version.toString() in ['26.3']
 apply plugin: usesRemapping ? 'net.fabricmc.fabric-loom-remap' : 'net.fabricmc.fabric-loom'
 
 def legacyGuiTransform = { String line -> line
@@ -71,8 +68,11 @@ def legacyGuiTransform = { String line -> line
 		.replace('graphics.text(', 'graphics.drawString(')
 		.replace('graphics.entity(', 'graphics.submitEntityRenderState(')
 		.replace('graphics.fakeItem(', 'graphics.renderFakeItem(')
+		.replace('ScreenEvents.afterExtract(', 'ScreenEvents.afterRender(')
 		.replace('player.sendSystemMessage(message);', 'player.displayClientMessage(message, false);')
-		.replace('this.minecraft.gui.extractDeferredSubtitles();', '') }
+		.replace('this.minecraft.gui.extractDeferredSubtitles();', '')
+		// Only 26.1 and 26.2's options screen is told whether it opened from inside a world.
+		.replace('new OptionsScreen(this, this.minecraft.options, true)', 'new OptionsScreen(this, this.minecraft.options)') }
 
 // CameraRenderState moved into a `level` subpackage in 26.1; the 1.x targets still use the old one.
 def cameraStateTransform = { String line -> line
@@ -98,16 +98,44 @@ def sdlEraTransform = { String line -> line
 		.replace('poses.mulPose(camera.orientation)', 'poses.rotate(camera.orientation)')
 		// 26.3 renamed the flag that makes the entity tracker resend a knocked-back entity's motion.
 		.replace('target.hurtMarked = false;', 'target.syncVelocity = false;')
+		// 26.3's signed chat carries its unsigned text as an Optional.
+		.replace('Component content = chat.unsignedContent() != null ? chat.unsignedContent() : Component.literal(chat.body().content());',
+				'Component content = chat.unsignedContent().orElseGet(() -> Component.literal(chat.body().content()));')
 		// 26.3's model submissions lost the crumbling overlay, their last argument.
-		.replace('glowTint, null, 0, null);', 'glowTint, null, 0);') }
+		.replace('glowTint, null, 0, null);', 'glowTint, null, 0);')
+		// Only 26.1 and 26.2's options screen is told whether it opened from inside a world.
+		.replace('new OptionsScreen(this, this.minecraft.options, true)', 'new OptionsScreen(this, this.minecraft.options)')
+		// 26.3 moved the texture filters into its new render API and keeps the vanilla pack's files behind fullResources().
+		.replace('import com.mojang.blaze3d.textures.FilterMode;', 'import com.mojang.renderpearl.api.textures.FilterMode;')
+		.replace('getVanillaPackResources().getResource(', 'getVanillaPackResources().fullResources().getResource(')
+		// 26.3's culling check for an entity also takes the partial tick.
+		.replace('+ "Lnet/minecraft/client/renderer/culling/Frustum;DDD)Z",', '+ "Lnet/minecraft/client/renderer/culling/Frustum;DDDF)Z",')
+		.replace('            double cameraZ,', '            double cameraZ, float partialTick,') }
 
-def partialTickCullingTransform = { String line -> line
-		.replace(
-				'+ "Lnet/minecraft/client/renderer/culling/Frustum;DDD)Z",',
-				'+ "Lnet/minecraft/client/renderer/culling/Frustum;DDDF)Z",')
-		.replace(
-				'            double cameraZ,',
-				'            double cameraZ,' + System.lineSeparator() + '            float partialTick,') }
+// 1.21.11's Fabric API draws into the level through WorldRenderEvents, and its attack is an interact
+// packet (see src/legacy's LegacyAttacks).
+def legacyCoreTransform = { String line -> line
+		.replace('net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext', 'net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext')
+		.replace('net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents', 'net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents')
+		.replace('LevelRenderEvents.COLLECT_SUBMITS', 'WorldRenderEvents.AFTER_ENTITIES')
+		.replace('LevelRenderContext context', 'WorldRenderContext context')
+		.replace('context.levelState()', 'context.worldState()')
+		.replace('context.poseStack()', 'context.matrices()')
+		.replace('context.submitNodeCollector()', 'context.commandQueue()')
+		.replace('import net.minecraft.network.protocol.game.ServerboundAttackPacket;', '')
+		.replace('if (!(packet instanceof ServerboundAttackPacket attackPacket)) {', 'if (LegacyAttacks.attacked(packet) < 0) {')
+		.replace('int entityId = attackPacket.entityId();', 'int entityId = LegacyAttacks.attacked(packet);') }
+
+// Crystal Practice's Mixins that 1.21.11 goes without: they park a server behind the practice world.
+def legacyPracticeMixins = ['PracticePacketMixin', 'PracticeScreenMixin', 'PracticeSoundEngineMixin', 'PracticeParticleMixin',
+		'PracticeGameRendererMixin', 'PracticeConnectScreenMixin', 'MinecraftPracticeAccessor', 'BossHealthOverlayAccessor',
+		'ClientCommonPacketListenerAccessor']
+// The live view of the server behind Crystal Practice needs the world extractor 26.2 brought; 26.3
+// renamed the whole rendering API it draws with. Only 26.2 has it (src/modern), the others go without.
+def viewPracticeMixins = ['GameRendererPracticeAccessor', 'PracticeViewExtractorMixin']
+// 26.3 keeps a totem's activation on the player that popped it, so the parked server's never reaches
+// the practice world's screen and this Mixin has nothing to stop there.
+def sdlDroppedMixins = ['PracticeGameRendererMixin']
 
 def modernRegistryTransform = { String line -> line
 		.replace(
@@ -158,7 +186,6 @@ if (usesRemapping || usesModernRegistrySplit) {
 		inputs.property 'usesRemapping', usesRemapping
 		inputs.property 'usesModernRegistrySplit', usesModernRegistrySplit
 		inputs.property 'usesSdlWindowing', usesSdlWindowing
-		inputs.property 'usesPartialTickCulling', usesPartialTickCulling
 
 		from('src/client/java') {
 			if (usesModernRegistrySplit || usesRemapping) {
@@ -167,30 +194,40 @@ if (usesRemapping || usesModernRegistrySplit) {
 				// its older pipeline API.
 				exclude 'com/zymekoh/crystaltweaks/client/CrystalGlowMaterial.java'
 			}
+			if (usesModernRegistrySplit) {
+				// 26.2 moved the screen into the GUI: src/gui has Crystal Practice's own way to it.
+				exclude 'com/zymekoh/crystaltweaks/client/practice/PracticeGlue.java'
+				exclude 'com/zymekoh/crystaltweaks/mixin/client/PracticeScreenMixin.java'
+			}
+			if (usesModernRegistrySplit && !usesSdlWindowing) {
+				// 26.2 draws the live view of the server behind practice: src/modern has it.
+				exclude 'com/zymekoh/crystaltweaks/client/practice/ServerView.java'
+			}
 			if (usesSdlWindowing) {
 				exclude 'com/zymekoh/crystaltweaks/client/SoundFilePicker.java'
+				sdlDroppedMixins.each { name -> exclude "com/zymekoh/crystaltweaks/mixin/client/${name}.java" }
 				filesMatching('**/*.java') {
 					filter { line -> sdlEraTransform(line) }
 				}
 			}
-			if (usesPartialTickCulling) {
-				filesMatching('**/EndCrystalRendererMixin.java') {
-					filter { line -> partialTickCullingTransform(line) }
-				}
-			}
 			if (usesRemapping) {
-				exclude 'com/zymekoh/crystaltweaks/core/CrystalAttackOptimizer.java'
+				// 1.21.11 attacks with an interact packet: src/legacy has the benchmark's own hook.
+				exclude 'com/zymekoh/crystaltweaks/client/benchmark/AttackHook.java'
 				// LevelSettings took a difficulty record and lost its game rules in 26.1.
 				exclude 'com/zymekoh/crystaltweaks/client/practice/PracticeLevelSettings.java'
-				// The ghost crystal renderer needs the level render events added in 26.1. The 1.x
-				// targets drop it, and GhostCrystalSupport then reports it as unavailable so the
-				// configuration screen never offers a toggle that would do nothing.
-				exclude 'com/zymekoh/crystaltweaks/client/GhostCrystalRenderer.java'
-				filesMatching('**/CrystalVisualInitializer.java') {
-					filter { line -> line.replace('        GhostCrystalRenderer.initialize();', '') }
-				}
+				// No packet queue to share between two worlds: practice leaves the server there, and
+				// src/legacy keeps only the practice panel on Escape.
+				exclude 'com/zymekoh/crystaltweaks/client/practice/PracticeHost.java'
+				exclude 'com/zymekoh/crystaltweaks/client/practice/PracticeGlue.java'
+				exclude 'com/zymekoh/crystaltweaks/client/practice/ServerMonitor.java'
+				exclude 'com/zymekoh/crystaltweaks/client/practice/ServerWindow.java'
+				legacyPracticeMixins.each { name -> exclude "com/zymekoh/crystaltweaks/mixin/client/${name}.java" }
+				exclude 'com/zymekoh/crystaltweaks/mixin/client/PracticeMinecraftMixin.java'
 			}
 			if (usesRemapping) {
+				filesMatching(['**/GhostCrystalRenderer.java', '**/core/CrystalAttackOptimizer.java']) {
+					filter { line -> legacyCoreTransform(cameraStateTransform(line)) }
+				}
 				filesMatching(['**/EndCrystalGlowMixin.java', '**/CrystalConverter.java', '**/CrystalGlowRenderer.java', '**/CrystalAfterglow.java', '**/CrystalAfterglowRendererMixin.java', '**/EndCrystalRendererMixin.java']) {
 					filter { line -> cameraStateTransform(line) }
 				}
@@ -202,6 +239,9 @@ if (usesRemapping || usesModernRegistrySplit) {
 					'**/CrystalUi.java',
 					'**/ConflictMonitorScreen.java',
 					'**/CrystalPlacementFeedback.java',
+					'**/FastPlacement.java',
+					// The help in a real fight draws on the HUD and the death screen.
+					'**/client/fight/*.java',
 					// The settings hub: its screen pieces, widgets and overlays.
 					'**/client/hub/*.java',
 					// The benchmark and Crystal Practice draw their own screens and HUD and spawn
@@ -224,6 +264,9 @@ if (usesRemapping || usesModernRegistrySplit) {
 		}
 		if (usesModernRegistrySplit && !usesSdlWindowing) {
 			from('src/modern/java')
+		}
+		if (usesModernRegistrySplit) {
+			from('src/gui/java')
 		}
 		if (usesSdlWindowing) {
 			from('src/sdl/java')
@@ -295,26 +338,36 @@ processResources {
 	}
 }
 
-if (usesRemapping) {
+if (usesRemapping || !usesModernRegistrySplit || usesSdlWindowing) {
 	processClientResources {
 		// Same reason as generateLegacyClientSources: the filter below rewrites the Mixin config
 		// per Minecraft target and Gradle cannot see inside the closure, so the target has to be
 		// declared or the task stays up to date across a version switch and ships the previous
 		// target's Mixin list.
 		inputs.property 'minecraftVersion', project.minecraft_version.toString()
+		inputs.property 'droppedMixins', (legacyPracticeMixins + viewPracticeMixins + sdlDroppedMixins).join(',')
 
 		filesMatching('crystal_tweaks.client.mixins.json') {
 			filter { line ->
+				if (viewPracticeMixins.any { name -> line.contains('"' + name + '",') }) {
+					return null
+				}
+				if (usesSdlWindowing && sdlDroppedMixins.any { name -> line.contains('"' + name + '",') }) {
+					return null
+				}
+				if (!usesRemapping) {
+					return line
+				}
 				if (line.contains('"compatibilityLevel": "JAVA_25"')) {
 					return line.replace('JAVA_25', 'JAVA_21')
 				}
 				if (line.contains('"CrystalAttackPacketMixin",')) {
-					// Nothing calls EntityRenderDispatcherAccessor since the 1.21-1.21.5 preview
-					// adapters were archived. It stays registered so this target keeps building the
-					// exact JAR published as 2.3.0; drop it, and src/legacy's copy, with the next bump.
+					// The benchmark reads 1.21.11's attack out of the interact packet.
 					return line.concat(System.lineSeparator())
-							.concat('    "ServerboundInteractPacketAccessor",').concat(System.lineSeparator())
-							.concat('    "EntityRenderDispatcherAccessor",')
+							.concat('    "ServerboundInteractPacketAccessor",')
+				}
+				if (legacyPracticeMixins.any { name -> line.contains('"' + name + '",') }) {
+					return null
 				}
 				return line
 			}

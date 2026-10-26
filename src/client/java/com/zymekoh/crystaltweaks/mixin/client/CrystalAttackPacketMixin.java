@@ -10,10 +10,14 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+/**
+ * Watches what the client sends, for the benchmark, the ownership colours and the client-side crystal,
+ * which hides a crystal once Vanilla's own attack packet has been handed over. Nothing is changed.
+ */
 @Mixin(Connection.class)
 public abstract class CrystalAttackPacketMixin {
     @Inject(method = "send(Lnet/minecraft/network/protocol/Packet;)V", at = @At("HEAD"))
-    private void crystalTweaks$processCrystalAttack(Packet<?> packet, CallbackInfo callback) {
+    private void crystalTweaks$timeSentPacket(Packet<?> packet, CallbackInfo callback) {
         BenchmarkHooks.sent(packet);
         CrystalAttackOptimizer.handleOutgoingPacket(packet);
     }

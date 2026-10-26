@@ -4,7 +4,6 @@ import com.zymekoh.crystaltweaks.client.CrystalTheme;
 import com.zymekoh.crystaltweaks.client.CrystalUi;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractButton;
@@ -94,6 +93,10 @@ public final class HubButton extends AbstractButton implements Clippable {
         int width = getWidth();
         int height = getHeight();
         float lift = Math.max(this.hover, this.select * 0.85F);
+        if (GrimoireDraw.active) {
+            drawGrimoire(graphics, x, y, width, height, lift, fade, frame, now);
+            return;
+        }
 
         int accent = this.lit ? skin.litAccent() : skin.accent;
         int fillTop;
@@ -113,10 +116,6 @@ public final class HubButton extends AbstractButton implements Clippable {
             fillTop = 0xA0261A2C;
             fillBottom = 0xA0140C18;
         }
-        graphics.fillGradient(x + 1, y, x + width - 1, y + height, CrystalTheme.fade(fillTop, fade), CrystalTheme.fade(fillBottom, fade));
-        graphics.fill(x, y + 1, x + 1, y + height - 1, CrystalTheme.fade(fillTop, fade * 0.8F));
-        graphics.fill(x + width - 1, y + 1, x + width, y + height - 1, CrystalTheme.fade(fillTop, fade * 0.8F));
-
         int border;
         if (this.selected) {
             float shine = HubMotion.breathe(now / 1_000_000_000.0D, 1.6D);
@@ -126,10 +125,14 @@ public final class HubButton extends AbstractButton implements Clippable {
         } else {
             border = CrystalTheme.lerp(HubSkin.tint(skin.borderSoft | 0xFF000000, accent, 0.5F), accent, this.hover);
         }
+        float mark = Math.max(this.select, this.hover);
+        graphics.fillGradient(x + 1, y, x + width - 1, y + height, CrystalTheme.fade(fillTop, fade), CrystalTheme.fade(fillBottom, fade));
+        graphics.fill(x, y + 1, x + 1, y + height - 1, CrystalTheme.fade(fillTop, fade * 0.8F));
+        graphics.fill(x + width - 1, y + 1, x + width, y + height - 1, CrystalTheme.fade(fillTop, fade * 0.8F));
         CrystalUi.outline(graphics, x, y, width, height, CrystalTheme.fade(border, fade * (this.active ? 0.95F : 0.6F)));
         if (this.selected || this.hover > 0.05F) {
             // A short bar of light along the bottom edge, the selected/hovered mark.
-            int barWidth = Math.round((width - 6) * Math.max(this.select, this.hover));
+            int barWidth = Math.round((width - 6) * mark);
             int barX = x + (width - barWidth) / 2;
             graphics.fill(barX, y + height - 2, barX + barWidth, y + height - 1,
                     CrystalTheme.fade(CrystalTheme.withAlpha(skin.accentBright, 200), fade));
@@ -144,11 +147,11 @@ public final class HubButton extends AbstractButton implements Clippable {
                     CrystalTheme.withAlpha(skin.accentBright, Math.round(110.0F * (1.0F - t) * (1.0F - t) * fade)));
         }
 
-        Font font = Minecraft.getInstance().font;
+        Font font = GrimoireDraw.font();
         int textColor = CrystalTheme.fade(this.active || this.selected
                 ? CrystalTheme.lerp(skin.text, 0xFFFFFFFF, lift) : skin.disabled, fade);
         int textY = y + (height - 8) / 2;
-        String label = getMessage().getString();
+        String label = label();
         int iconSize = this.icon == null ? 0 : Math.min(height - 4, 10);
         if (this.switchState != null) {
             drawSwitch(graphics, font, label, x, y, width, height, textY, textColor, iconSize, accent, fade, frame);
@@ -199,6 +202,166 @@ public final class HubButton extends AbstractButton implements Clippable {
         }
         String clipped = HubDraw.fit(font, label, Math.max(1, pillX - textX - 4));
         CrystalUi.label(graphics, font, clipped, textX, textY, textColor);
+    }
+
+    /**
+     * The grimoire's look. A switch on a page is its name, a dotted leader and a plate that says
+     * on or off; a row that names its value ("Style: Aurora") is the name, a leader and the value on
+     * a plate; anything else is a plate with gothic letters.
+     */
+    private void drawGrimoire(GuiGraphicsExtractor graphics, int x, int y, int width, int height, float lift, float fade, float frame,
+            long now) {
+        Font font = GrimoireDraw.font();
+        String label = label();
+        boolean row = this.lit && (this.switchState != null || !this.value.isEmpty()) && width >= 110;
+        if (row) {
+            drawGrimoireRow(graphics, font, label, x, y, width, height, fade, frame);
+        } else {
+            int fill;
+            int border;
+            int text;
+            if (this.style == Style.DANGER) {
+                fill = CrystalTheme.lerp(GrimoireDraw.CRIMSON_FILL, 0xFF2C0E19, lift);
+                border = CrystalTheme.lerp(GrimoireDraw.CRIMSON, 0xFFB8384F, lift);
+                text = CrystalTheme.lerp(GrimoireDraw.CRIMSON_TEXT, 0xFFFFFFFF, this.hover);
+            } else if (this.selected || this.style == Style.PRIMARY) {
+                fill = CrystalTheme.lerp(GrimoireDraw.ACCENT_FILL, 0xFF3A2260, this.hover);
+                border = CrystalTheme.lerp(GrimoireDraw.ACCENT, 0xFFD2A8FF, this.hover);
+                text = GrimoireDraw.TITLE;
+            } else {
+                fill = CrystalTheme.lerp(0xFF140E1B, 0xFF1F1629, lift);
+                border = CrystalTheme.lerp(GrimoireDraw.BORDER, 0xFF7A48C0, lift);
+                text = CrystalTheme.lerp(GrimoireDraw.MUTED, GrimoireDraw.TITLE, lift);
+            }
+            if (!this.active && !this.selected) {
+                fill = 0xFF0F0A13;
+                border = GrimoireDraw.RULE;
+                text = GrimoireDraw.FAINT;
+            }
+            if ((this.selected || this.style == Style.PRIMARY) && this.active) {
+                float shine = 0.55F + 0.45F * HubMotion.breathe(now / 1_000_000_000.0D, 2.0D);
+                HubDraw.halo(graphics, x, y, width, height, GrimoireDraw.ACCENT, 2, (0.18F + 0.22F * this.hover) * shine * fade);
+            }
+            GrimoireDraw.plate(graphics, x, y, width, height, fill, border, fade);
+            int iconSize = this.icon == null ? 0 : Math.min(height - 4, 10);
+            int iconGap = iconSize > 0 && !label.isEmpty() ? 4 : 0;
+            int padding = width < 64 ? 4 : 8;
+            if (iconSize > 0 && !label.isEmpty() && font.width(label) > width - padding - iconSize - iconGap) {
+                // The word matters more than the picture: a narrow button keeps its word.
+                iconSize = 0;
+                iconGap = 0;
+            }
+            int room = Math.max(1, width - padding - iconSize - iconGap);
+            int textColor = CrystalTheme.fade(text, fade);
+            // Gothic letters where they fit; the plain ones where a narrow button needs every pixel. Either
+            // way scaled to keep clear of the button's border and centred on their ink.
+            float gothicScale = GrimoireDraw.gothicFit(height, 1.0F);
+            boolean gothic = !label.isEmpty() && GrimoireDraw.gothicWidth(font, label, gothicScale) <= room;
+            float textScale = GrimoireDraw.textFit(height, 1.0F);
+            String shown = gothic ? label : HubDraw.fit(font, label, Math.round(room / textScale));
+            int textWidth = gothic ? GrimoireDraw.gothicWidth(font, label, gothicScale) : Math.round(font.width(shown) * textScale);
+            int left = x + (width - iconSize - iconGap - textWidth) / 2;
+            if (iconSize > 0) {
+                this.icon.draw(graphics, left, y + (height - iconSize) / 2, iconSize, textColor);
+            }
+            if (gothic) {
+                GrimoireDraw.gothic(graphics, font, label, left + iconSize + iconGap, GrimoireDraw.gothicY(y, height, gothicScale), gothicScale,
+                        textColor, this.selected ? 0.6F : 0.0F);
+            } else {
+                GrimoireDraw.text(graphics, font, shown, left + iconSize + iconGap, GrimoireDraw.textY(y, height, textScale), textScale, textColor);
+            }
+        }
+        long sincePress = now - this.pressedAt;
+        if (this.pressed && sincePress >= 0L && sincePress < PRESS_FLASH_NANOS) {
+            float t = sincePress / (float) PRESS_FLASH_NANOS;
+            graphics.fill(x + 1, y + 1, x + width - 1, y + height - 1,
+                    CrystalTheme.withAlpha(0xB47CF2, Math.round(90.0F * (1.0F - t) * (1.0F - t) * fade)));
+        }
+    }
+
+    /** A row on a page: icon, name, dotted leader, and the value or on/off on a plate at the right. */
+    private void drawGrimoireRow(GuiGraphicsExtractor graphics, Font font, String label, int x, int y, int width, int height,
+            float fade, float frame) {
+        boolean spanish = CrystalUi.spanish();
+        String name;
+        String value;
+        float on;
+        if (this.switchState != null) {
+            boolean state = this.switchState.getAsBoolean();
+            if (this.knob < 0.0F) {
+                this.knob = state ? 1.0F : 0.0F;
+            }
+            this.knob = HubMotion.damp(this.knob, state ? 1.0F : 0.0F, frame, 45.0F);
+            on = this.active ? this.knob : 0.0F;
+            name = label;
+            value = state ? (spanish ? "Encendido" : "On") : (spanish ? "Apagado" : "Off");
+        } else {
+            on = 0.0F;
+            name = this.name;
+            value = this.value;
+        }
+        // The row's rule above it, and a wash under the pointer.
+        graphics.fill(x, y - 2, x + width, y - 1, CrystalTheme.fade(GrimoireDraw.RULE, fade));
+        if (this.hover > 0.02F) {
+            graphics.fill(x, y, x + width, y + height, CrystalTheme.withAlpha(0xB47CF2, Math.round(20 * this.hover * fade)));
+        }
+        int textColor = CrystalTheme.fade(this.active ? CrystalTheme.lerp(GrimoireDraw.TEXT, 0xFFFFFFFF, this.hover) : GrimoireDraw.FAINT, fade);
+        int textY = y + (height - 8) / 2;
+        // The plate takes the row's height; its letters are scaled to keep clear of its border.
+        int plateHeight = height;
+        float valueScale = GrimoireDraw.gothicFit(plateHeight, 1.0F);
+        int plateWidth = this.switchState != null
+                ? Math.max(GrimoireDraw.gothicWidth(font, spanish ? "Encendido" : "On", valueScale),
+                        GrimoireDraw.gothicWidth(font, spanish ? "Apagado" : "Off", valueScale)) + 14
+                : Math.min(width / 2, GrimoireDraw.gothicWidth(font, value, valueScale) + 14);
+        int plateX = x + width - plateWidth - 1;
+        int plateY = y;
+        int fill = CrystalTheme.lerp(0xFF120C18, GrimoireDraw.ACCENT_FILL, on);
+        int border = CrystalTheme.lerp(CrystalTheme.lerp(GrimoireDraw.BORDER, 0xFF7A48C0, this.hover), GrimoireDraw.ACCENT, on);
+        int valueColor = this.active ? CrystalTheme.lerp(this.switchState != null ? GrimoireDraw.FAINT : GrimoireDraw.VALUE,
+                GrimoireDraw.TITLE, Math.max(on, this.hover)) : GrimoireDraw.FAINT;
+        if (on > 0.05F) {
+            HubDraw.halo(graphics, plateX, plateY, plateWidth, plateHeight, GrimoireDraw.ACCENT, 2, 0.2F * on * fade);
+        }
+        GrimoireDraw.plate(graphics, plateX, plateY, plateWidth, plateHeight, fill, border, fade);
+        String shownValue = GrimoireDraw.gothicWidth(font, value, valueScale) <= plateWidth - 10 ? value : null;
+        if (shownValue != null) {
+            GrimoireDraw.gothicCentered(graphics, font, shownValue, plateX + plateWidth / 2.0F, GrimoireDraw.gothicY(plateY, plateHeight, valueScale),
+                    valueScale, CrystalTheme.fade(valueColor, fade), on * 0.5F);
+        } else {
+            float textScale = GrimoireDraw.textFit(plateHeight, 1.0F);
+            String fitted = HubDraw.fit(font, value, Math.round((plateWidth - 10) / textScale));
+            GrimoireDraw.text(graphics, font, fitted, plateX + (plateWidth - font.width(fitted) * textScale) / 2.0F,
+                    GrimoireDraw.textY(plateY, plateHeight, textScale), textScale, CrystalTheme.fade(valueColor, fade));
+        }
+        int textX = x + 2;
+        int iconSize = this.icon == null ? 0 : Math.min(height - 4, 10);
+        if (iconSize > 0) {
+            this.icon.draw(graphics, textX, y + (height - iconSize) / 2, iconSize, textColor);
+            textX += iconSize + 4;
+        }
+        String clipped = HubDraw.fit(font, name, Math.max(1, plateX - textX - 6));
+        CrystalUi.label(graphics, font, clipped, textX, textY, textColor);
+        GrimoireDraw.dots(graphics, textX + font.width(clipped) + 4, plateX - 4, textY + 6,
+                CrystalTheme.fade(GrimoireDraw.DOTS, fade));
+    }
+
+    /** The message as text, and its name and value when it reads "Name: value"; worked out when it changes, not every frame. */
+    private Component shownMessage;
+    private String label = "";
+    private String name = "";
+    private String value = "";
+
+    private String label() {
+        Component message = getMessage();
+        if (message != this.shownMessage) {
+            this.shownMessage = message;
+            this.label = message.getString();
+            int split = this.label.indexOf(": ");
+            this.name = split > 0 ? this.label.substring(0, split) : this.label;
+            this.value = split > 0 ? this.label.substring(split + 2) : "";
+        }
+        return this.label;
     }
 
     @Override

@@ -1,15 +1,22 @@
 package com.zymekoh.crystaltweaks.client.practice;
 
 import com.zymekoh.crystaltweaks.client.CrystalTheme;
+import com.zymekoh.crystaltweaks.client.hub.GrimoireIcons;
+import com.zymekoh.crystaltweaks.client.hub.HubButton;
 import com.zymekoh.crystaltweaks.practice.KitItem;
 import com.zymekoh.crystaltweaks.practice.KitLayout;
 import com.zymekoh.crystaltweaks.practice.PracticeSettings;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 import net.minecraft.resources.Identifier;
 
 /**
- * Items and slots for the practice screens, drawn straight from their texture files.
+ * Items and slots for the practice screens, drawn straight from their texture files. A button's
+ * icon is the book's redrawn sprite, which no resource pack changes; the kit itself is drawn as the
+ * game will show it, with the packs, since it is a preview of the inventory.
  *
  * <p>Item stacks cannot be built on the title screen in 26.x, where item components are only bound
  * once a world loads, so these screens never make one: a sweep of light stands in for the
@@ -17,14 +24,51 @@ import net.minecraft.resources.Identifier;
  */
 final class PracticeIcons {
     static final int SLOT = 18;
+    private static final GrimoireIcons.Art[] COMPASS = new GrimoireIcons.Art[32];
+    /** Texture locations by their path, made once: the kit is drawn every frame. */
+    private static final Map<String, Identifier> LOCATIONS = new HashMap<>();
+
+    static {
+        for (int frame = 0; frame < COMPASS.length; frame++) {
+            COMPASS[frame] = GrimoireIcons.art(String.format(Locale.ROOT, "item/compass_%02d", frame), GrimoireIcons.Kind.ITEM);
+        }
+    }
 
     private PracticeIcons() {
     }
 
+    /** A button icon: the book's redrawn item sprite, bobbing and swaying on its own beat. */
+    static HubButton.Icon item(String name, float phase) {
+        GrimoireIcons.Art art = GrimoireIcons.art("item/" + name, GrimoireIcons.Kind.ITEM);
+        return (graphics, x, y, size, color) -> {
+            double seconds = System.nanoTime() / 1_000_000_000.0D + phase * 3.0D;
+            float bob = (float) Math.sin(seconds * 2.6D) * 0.7F;
+            float sway = (float) Math.sin(seconds * 1.9D) * 0.10F;
+            GrimoireIcons.drawItem(graphics, art, x + size / 2.0F, y + size / 2.0F + bob, size + 2.0F, sway, opaque(color));
+        };
+    }
+
+    /** The compass, its needle turning through its own frames. */
+    static HubButton.Icon compass() {
+        return (graphics, x, y, size, color) -> {
+            int frame = (int) ((System.nanoTime() / 70_000_000L) % 32L);
+            GrimoireIcons.drawItem(graphics, COMPASS[frame], x + size / 2.0F, y + size / 2.0F, size + 2.0F, 0.0F, opaque(color));
+        };
+    }
+
+    /** The location of the texture at {@code textures/<path>.png}. */
+    static Identifier location(String path) {
+        return LOCATIONS.computeIfAbsent(path, key -> Identifier.withDefaultNamespace("textures/" + key + ".png"));
+    }
+
+    /** The button's fade, without its tint: sprites keep their own colours. */
+    private static int opaque(int color) {
+        return (color & 0xFF000000) | 0xFFFFFF;
+    }
+
     /** A 16x16 texture from {@code textures/}, with an optional glint sweep. */
     static void texture(GuiGraphicsExtractor graphics, String texture, int x, int y, boolean glint, double seconds) {
-        Identifier location = Identifier.withDefaultNamespace("textures/" + texture + ".png");
-        graphics.blit(location, x, y, x + 16, y + 16, 0.0F, 1.0F, 0.0F, 1.0F);
+        graphics.blit(location(texture), x, y, x + 16, y + 16, 0.0F, 1.0F, 0.0F, 1.0F);
         if (glint) {
             int sweep = (int) Math.floor((seconds * 14.0D) % 40.0D) - 12;
             for (int row = 0; row < 16; row++) {

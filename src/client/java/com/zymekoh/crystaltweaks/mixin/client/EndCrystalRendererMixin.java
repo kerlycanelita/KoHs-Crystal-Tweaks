@@ -27,8 +27,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 /**
  * Skips drawing a crystal the player just attacked, so the break reads as immediate.
  *
- * <p>This is the only thing the local break prediction does. The entity itself is untouched, which
- * keeps targeting, interaction ranges and the outgoing packet stream identical to Vanilla.</p>
+ * <p>This is the only thing the client-side crystal does to a crystal. The entity itself is
+ * untouched, which keeps targeting, interaction ranges and the outgoing packet stream identical to
+ * Vanilla.</p>
  *
  * <p>It also draws the crystal's light, and what Converter My Crystal puts in the crystal's place:
  * then, and only then, Vanilla's own drawing of the model is skipped. Drawing, nothing else.</p>
@@ -56,6 +57,7 @@ public abstract class EndCrystalRendererMixin {
             ci.cancel();
         }
     }
+
     @Inject(
             method = "shouldRender(Lnet/minecraft/world/entity/boss/enderdragon/EndCrystal;"
                     + "Lnet/minecraft/client/renderer/culling/Frustum;DDD)Z",

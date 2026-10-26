@@ -11,9 +11,10 @@ Welcome to the Crystal Tweaks documentation. This guide covers installation, con
 - [Client or server](#client-or-server)
 - [Colors](#colors)
 - [Glow](#glow)
+- [Flash](#flash)
 - [Converter My Crystal](#converter-my-crystal)
 - [Sound](#sound)
-- [Crystal Tweaks tab](#crystal-tweaks-tab)
+- [Helpers tab](#helpers-tab)
 - [Advanced tab](#advanced-tab)
 - [Crystal Practice](#crystal-practice)
 - [Interactive preview](#interactive-preview)
@@ -41,46 +42,45 @@ With Mod Menu installed:
 2. Select **Crystal Tweaks**.
 3. Press the configuration button.
 
-It opens straight on the menu. The first time you open it in a session, and only if no other
-crystal optimizer is installed, the local optimization is explained first, beside the crystal on a
-wall of stone its glow lights (see [Client or server](#client-or-server)). **Continue** brings the
-menu up; **Don't show again** does the same and turns the explanation off for good.
+It opens straight on the menu.
 
-Your crystal turns in the centre, with every setting on it. **Colours** is the panel on the left
-and **Glow** the panel on the right; while you change the glow, both panels take on its colour. The
-tabs above the crystal scroll sideways with the mouse wheel: **Sound**, **Crystal Tweaks**,
-**Advanced** and **KoHs** (links to Discord, the website, Modrinth and Buy me a coffee). The open
-tab shows its name; the others show their icons, the game's own items, and their names on hover. A
-small End Crystal hops on the open tab: click it again and the drawer folds, giving the crystal the
-middle back. **Crystal Practice** is the button under the crystal, **Enemy crystals** the one in the
-top-left corner. The chip in the top-right corner shows the optimizer's state; hover it for the
-details.
+The settings are one panel of tabs: **Colours**, **Glow**, **Flash**, **Sound**, **Helpers**,
+**Converter**, **Practice**, **Advanced** and **KoHs** (links to Discord, the website, Modrinth and
+Buy me a coffee). Each tab is a list of option cards, each with a line on what it does; a switch
+with settings of its own unfolds them under it, on a branch, and folds them away when it is off.
+Your crystal turns live on the right with every setting on it, and plays a short scene when you
+switch something on. A long choice, such as the flash's shapes, and every colour open in a window
+over the options, so the crystal stays in view; **Done**, Escape or a click beside it closes the
+window. The mouse wheel over the tabs moves from one to the next.
 
-Rows scroll smoothly and fade in and out at the edges of their panel; a row half out of view is
-drawn half and only its visible part takes clicks.
+The first time you open the settings in a game session they come in with a short entrance; a click
+or Escape skips it. **Reset**, at the bottom, resets the open tab: it shows **Click again** first,
+and a second click within three seconds resets it. **Enemy crystals** is the button in the
+top-right corner.
 
-Each panel's **Reset** asks **Sure?** first; a second click within three seconds resets it. In a
-narrow window the side panels become drawers: open one from the handle at its edge, and fold it
-away with Escape or a click beside it.
+Rows scroll smoothly and fade in and out at the edges of the list; a row half out of view is drawn
+half and only its visible part takes clicks. In a narrow window the crystal steps aside and the
+options take the whole width; when even the names do not fit, the tabs show their icons and name
+themselves on hover.
 
 ## Client or server
 
-Crystal Tweaks optimizes the client only. A crystal you break disappears on your screen straight
-away and its explosion, sound and burst, plays at the hit instead of a round trip later; a crystal
-the server removes, anyone's, stops being drawn the moment the removal arrives. What reaches the
-server is exactly what Vanilla would send, so your next crystal is not placed any sooner.
+Crystal Tweaks no longer optimizes crystals. The instant break and explosion on screen, the removal
+reader and the ghost crystals were removed in 2.7.0 because of problems and slowness: a crystal you
+hit disappears and explodes when the server says so, as in Vanilla. **Old KoHs Crystal
+Optimization**, dimmed in the Advanced tab, is where they were.
 
-If you want the improvement to reach the server too, Marlow's Crystal Optimizer is recommended.
-Check your server's rules first. When it is installed, Crystal Tweaks detects it and turns all of
-its own optimizations off so the two never fight; colours, glow, flashes and sounds keep working.
+Any crystal optimizer can be used alongside; check your server's rules first. Nothing in Crystal
+Tweaks turns off for it: Obsidian debounce and Don't break obsidian follow your own switches.
 
 ## Colors
 
-The **Colours** panel, on the left, controls the appearance and movement of rendered End Crystals.
+The **Colours** tab controls the appearance and movement of rendered End Crystals.
 
 ### Crystal colors
 
-Pick a layer, then set its colour with the picker or a hex code:
+Each layer is a card showing its colour; click it to open the colour window, with a picker, a hex
+code and quick colours, beside the live crystal:
 
 - **Outer** changes the external rotating frame.
 - **Inner** changes the secondary rotating frame.
@@ -105,9 +105,9 @@ hitbox. Only the drawing changes: the box you can hit is the server's and stays 
 crystal, the enemy's too, is drawn with your own profile. What follows is how it works when it is
 back.
 
-**Enemy crystals**, in the top-left corner, turns the whole screen into the enemy profile's: the
-same panels in red, for crystals you did not place, with **Profile** and **Advanced** tabs
-(Advanced is still to come). **Your crystals** brings yours back. The server does not say who placed
+**Enemy crystals**, in the top-right corner, turns the settings into the enemy profile's: the same
+panel in red, for crystals you did not place, with **Profile**, **Colours**, **Glow**, **Flash**,
+**Converter** and **Advanced** tabs (Advanced is still to come). **Your crystals** brings yours back. The server does not say who placed
 a crystal, so this is an approximation: a crystal that appears on a base you clicked is yours, and
 when someone else's reached that base first, the server's acknowledgement of your click tells the
 two apart. Every other crystal uses the enemy profile. **Use this profile** turns the enemy look on
@@ -116,8 +116,8 @@ drawn with your own profile.
 
 ## Glow
 
-The **Glow** panel, on the right, owns everything the crystal's light does: power, reflections,
-motion blur, the flash style and its size, and the glow colour.
+The **Glow** tab owns everything the crystal's light does: power, reflections, motion blur and the
+glow colour. The flash has a tab of its own.
 
 - **Glow** switches the glow, its reflections and the crystal's own light. Its options fold away
   while it is off. It does not affect the flash, which has a switch of its own.
@@ -143,9 +143,11 @@ motion blur, the flash style and its size, and the glow colour.
 - **Own colour** gives the glow and the flash a colour of their own. The crystal's layer colours are
   never changed by it.
 
-**Flash style** is the shape a crystal leaves behind when it explodes. Use the arrows or click the
-name to change it; the preview explodes on its own to show the new shape. It takes the glow colour
-and material:
+## Flash
+
+**Shape** is the shape a crystal leaves behind when it explodes. Click it to open the list of
+shapes beside the crystal; choosing one explodes the preview, silently, to show it. It takes the
+glow colour and material:
 
 | Style | Look |
 | --- | --- |
@@ -164,16 +166,16 @@ and material:
 | Gem | A faceted diamond. |
 | Swords | Two swords crossed at the middle of their blades. |
 
-**Flash size** (`10%`-`300%`), **Opacity** (`10%`-`100%`) and **Duration** (`0.3 s`-`3 s`) apply to
-every style. **Flash on explosion** turns the flash off without touching the glow.
+**Size** (`10%`-`300%`, for the shapes that can grow), **Opacity** (`10%`-`100%`) and **Duration**
+(`0.3 s`-`3 s`) apply to every shape. **Flash**, the tab's switch, turns the flash off without
+touching the glow.
 
 Lightning only ever points at players you could see when the crystal exploded: not invisible, not
 spectating, in front of you and not behind a wall. Every bolt has the same length, so none of them
 measures out where a player is. With nobody in sight it draws a ring.
 
 Every style is drawing and nothing else. None of them change the explosion, its damage, its radius or
-its sound. Because they are visual, they keep working while another optimizer has the interaction
-helpers paused.
+its sound.
 
 ## Converter My Crystal
 
@@ -201,7 +203,7 @@ the same box to hit and the same explosion.
 
 ## Sound
 
-The **Sound** tab, above the crystal, controls the local End Crystal explosion sound.
+The **Sound** tab controls the local End Crystal explosion sound.
 
 - Supported formats: WAV, OGG, and MP3.
 - Maximum duration: five seconds.
@@ -209,20 +211,17 @@ The **Sound** tab, above the crystal, controls the local End Crystal explosion s
 - Playback-speed range: `0.5x` to `2.0x`.
 
 On Minecraft 26.3, which ships no native file dialog, drop the file into the mod's sounds folder and
-press **Select file…** again; the status line says where the folder is.
+press **Choose file…** again; the status line says where the folder is.
 
 The selected sound and its volume and speed settings are also used by preview explosions. When no
 custom sound is active, the preview uses the Vanilla explosion sound. Sound replacement is local: it
 changes what you hear without changing the server's explosion.
 
-## Crystal Tweaks tab
+## Helpers tab
 
-The **Crystal Tweaks** tab, above the crystal, holds the crystal helpers. The first time you open
-it, a window explains that any crystal optimizer can be used with Crystal Tweaks, which then turns
-its own optimization off; it shows Crystal Tweaks and the detected optimizer by their own icons.
+The **Helpers** tab (called Crystal Tweaks until 2.7.0) holds the crystal helpers. They work whatever else is
+installed, crystal optimizers included.
 
-- **Ghost crystals** (26.1 and later, off by default) draws a stand-in crystal while the server's
-  real one is in flight. It is only a drawing: it cannot be hit, looked at or collided with.
 - **Don't break obsidian** (on by default; until 2.3.1 "Safe Crystal") keeps you from mining the
   obsidian under your crystals while you hold one. It sends fewer actions than Vanilla, so switch it
   off if your server forbids input filters.
@@ -237,69 +236,80 @@ The **Advanced** tab holds the tools behind the helpers.
 - **Old KoHs Crystal Glow** brings back the glow as it was before it moved into the crystal: a halo
   with rays drawn behind it. Power, Core, reflections, colour and motion blur keep working; Style
   waits dimmed, because the halo has no layers. It applies to your crystals and the enemy's.
-- **Force off optimizations** turns every crystal optimization off, whatever the detection says.
-  A paused helper names the reason on hover.
+- **Old KoHs Crystal Optimization** is dimmed and cannot be turned on: the instant break and
+  explosion on screen and the ghost crystals were removed in 2.7.0 because of problems and slowness.
 - **Optimizer benchmark** measures your own placements and breaks while you play and
   compares runs, for example with and without Marlow's Crystal Optimizer. It only observes. The
   **Normal**/**Dev** switch at the top picks plain explanations or the full statistics.
 - **Conflict Monitor** scans installed mods locally and lists exact Mixin class-and-method overlaps
   with Crystal Tweaks. It reads local files only. A clean result is not a guarantee: dynamic Mixin
   plugins and external bytecode agents are not visible to it.
-- **Re-check compatibility** runs the optimizer detection again without restarting the game.
 - **Herzium integration** is dimmed unless [Herzium](https://modrinth.com/mod/herzium) is installed;
   then it sets Herzium's hotbar order. Herzium does not handle crystals, so the optimizer needs no
   adapting.
 
-The detection stands the optimizations down only for a mod that really optimizes crystals:
-
-- a known one: Marlow's Crystal Optimizer, Client Side Crystals, Client-Sided Crystals, HCsCR,
-  FastCrystal, No Crystal Break, Make My Crystals Faster and Zero Delay Crystals;
-- one whose id or name pairs "crystal" with optimizing or client-side handling, which covers the
-  many "... Crystal Optimizer" mods;
-- one whose Mixin lands on the same send path or crystal renderer *and* is named for optimizing,
-  predicting or handling crystals client-side.
-
-Doing something with crystals is not optimizing them. Safe Crystal style protections, crystal glows,
-skins, textures, colours, spins, sizes, sounds, particles and counters never stand anything down,
-whatever their Mixins are called, and neither do PvP clients such as ClickCrystals. Checked against
-the 173 crystal mods on Modrinth: the 18 optimizers among them are found and nothing else is. A scan
-that cannot read every mod says so instead of disabling anything.
-
-Client Side Crystals counts as an optimizer: it draws a stand-in crystal the moment you place one,
-as the ghost crystals do, and its stand-in would be matched as your placement, leaving your real
-crystal to read as someone else's.
-
-**What a detected optimizer turns off.** Every optimization and interaction helper, with no
-exception: break prediction, instant explosion, removal reader, ghost crystals, placement tracking
-and Don't break obsidian. Don't break obsidian matters most here: it decides what the obsidian click
-does, and the other optimizer wants that same click; with both deciding, the usual result is
-obsidian you cannot break at all. Every visual feature keeps working.
-
-**What never turns anything off.** Performance mods. Krypton, Lithium, Sodium, C2ME, ImmediatelyFast,
-ScalableLux, FerriteCore, MoreCulling, EntityCulling, ModernFix, LazyDFU, DynamicFPS, MemoryLeakFix,
-Noxesium, ViaFabricPlus, ViaVersion, PacketFixer, BadOptimizations, VMP, Nvidium, Sodium Extra, Iris,
-GPU Booster, Ixeris and Particle Core are named in the detector so that no Mixin overlap can be read
-as a rival crystal optimizer.
-
-Three optimizations are the mod's core and have no setting:
-
-- **Instant break** only hides a crystal you hit when the server is expected to accept the hit: the
-  crystal must be inside your interaction range, not already removed, and you must be alive, not
-  spectating, and able to deal damage. The crystal stays in the world; it is only not drawn until
-  the server confirms the break, so your crosshair, your next click and every packet stay Vanilla's.
-- **Instant explosion** plays that crystal's explosion, the game's own sound (or your custom one)
-  and burst, at the hit. When the server's explosion for it arrives, its sound and burst are skipped
-  so nothing plays twice; its knockback and block debris still come from the server.
-- **Removal reader** reads the server's entity removals on the network thread, as they arrive: a
-  crystal the server removed, anyone's, stops being drawn at once instead of on a later frame.
-
-All three change what is drawn and heard on your screen only. None adds, changes or delays a packet.
-
 ## Crystal Practice
 
-**Crystal Practice** is the button under the crystal, behind a red warning: it is experimental, so errors and
-frame drops are possible. It opens a singleplayer world of its own and never touches your other
-worlds or any server. Its window has three tabs; what you choose is saved.
+**Crystal Practice** opens from its tab in the settings, behind a red warning shown once per game session:
+it is experimental, so errors and frame drops are possible. It opens a practice world of its own and
+never touches your other worlds; nothing done in it reaches any server. Its window has three tabs,
+**Gear**, **Bot** and **World**; when it is wide enough, a preview beside the options shows your kit,
+everything the bot will do or a cut through the ground. What you choose is saved.
+
+### Over a server
+
+On a server (Minecraft 26.1 and later), **Enter practice** opens the practice world in the same
+window without leaving the server. The server stays connected behind it: your player stays there,
+standing still as with a menu open, and the game keeps answering the server at its own pace with
+exactly the packets a Vanilla client in a menu sends. Anyone on the server can still reach your
+player, and running two worlds at once can cause lag; the warning says both.
+
+While you practise, the server's chat still shows; its sounds, particles, boss bars and screens wait
+until you are back. If the server opens a menu on you or you die there, you find it when you
+return. If it closes the connection, practice goes on and you see why when you leave. On Minecraft
+1.21.11, and from a singleplayer world, the world you are in is left first, as before.
+
+### The server window
+
+While you practise over a server, a window in the top-left corner shows it, so you can wait in a
+PvP queue and still see the moment your match comes:
+
+- the server's name, its latency, or that the connection is gone;
+- its world, live, from your player's eyes, about 15 pictures a second (Minecraft 26.2 and later);
+- under it, an alert when something happens there (you are teleported, a title shows, it opens a
+  menu, you take damage, someone says your name), its title and action bar, its boss bars, its
+  sidebar and its chat.
+
+An alert makes the window flash and plays a chime; Escape and **Back to** the server take you
+there. The server's titles and action bar show in the window instead of over the practice world,
+where the practice's own kills and deaths are. In the World tab, **Server window** turns the window
+off, and under it **Live world** and **Alert chime** turn off the live view and the chime.
+
+The live view draws a second world at the same time, which costs frames per second. Sodium and Iris
+replace how Minecraft draws the world, and the view does not work with them: with either installed
+it stays off and the rest of the window works as usual.
+
+### The practice panel
+
+**Escape** in a practice world pauses it, as the pause menu does, and brings the practice window up
+on the right with the mouse free and the world still in view. Changes there reach the world at once:
+the bot comes back with its new style or difficulty, **Bring the bot here** puts it next to you,
+**Hand out the kit now** equips you both again, and choosing another ground offers **Go to this
+world**, which opens it in place of this one (still over the server, when there is one). **Back to
+game** resumes, **Options** opens the game's options, and the bottom button takes you back to the
+server, or to the title screen when there is none. Above the buttons, a light says whether the
+server is still connected behind.
+
+### Commands
+
+In the practice world only:
+
+- `/rtp` moves the round somewhere random in the world: a new arena there on the flat grounds, the
+  ground as generated in the normal world.
+- `/spawn` brings the round back to where it started.
+- `/kit` hands the kit out again, to you and to the bot.
+- `/bot on`, `off`, `here`, `smart`, `aggressive`, `peaceful`, `easy`, `normal`, `hard`, `extreme`
+  changes the bot and saves the change, as the panel does.
 
 ### Gear
 
@@ -342,7 +352,8 @@ The bot is a Vanilla mannequin with your own kit. Everything it does goes throug
 player's action reaches: real crystals, real anchors set off by Vanilla's own explosion, sword hits
 with the Knockback sword's knockback, Vanilla totems and golden apples.
 
-Each difficulty adds techniques, and none of them can be switched off. The tab lists them; hover one
+Each difficulty adds techniques (the Peaceful bot keeps its few and only gets quicker), and none of
+them can be switched off. The tab lists them; hover one
 to see how it works, which is also how to do it yourself.
 
 | Difficulty | Reaction | Combo step | Adds |
@@ -361,6 +372,8 @@ It also has a **style**:
 - **Aggressive** rushes. It never backs off, stays within two blocks, goes for the hit and the
   hit-crystal at every chance, pearls in from eight blocks away instead of fourteen, eats where it
   stands, and accepts a slightly losing trade while it holds a totem.
+- **Peaceful** never attacks. It moves and dodges, eats, re-equips its totem, mends its armour and
+  mines its way out: a moving target to practise your crystals and combos on.
 
 Both **mine their way out**: box the bot in, or put a wall it cannot jump in its way, and it breaks
 the block in the way with its pickaxe at Vanilla's speed for that pickaxe and block (about two
@@ -396,11 +409,14 @@ documents doing by hand. Kills and deaths show on the action bar.
 - **Natural**: an almost flat meadow with a few trees, a few plants and no caves, in one of eight
   biomes: plains, desert, taiga, snowy plains, savanna, cherry grove, badlands and the End. Each biome
   is a world of its own, generated in that biome so its sky and colours are the biome's.
+- **Normal world**: a whole world as Minecraft generates it, terrain, caves, water and structures,
+  to fight wherever you land. It has no arena: each round starts where you are, and `/rtp` takes
+  you somewhere random in it.
 
 Every death starts a new round: the arena is rebuilt from scratch, craters and trees included, and
 both sides come back with a full kit. The practice worlds are ordinary saves called
-**Crystal Practice (Crystal Tweaks)** and **Crystal Practice · Biome (Crystal Tweaks)**, which you
-can also open or delete from the world list.
+**Crystal Practice (Crystal Tweaks)**, **Crystal Practice · Biome (Crystal Tweaks)** and **Crystal
+Practice · Normal world (Crystal Tweaks)**, which you can also open or delete from the world list.
 
 ### Sources
 
@@ -470,7 +486,7 @@ Check that the file is WAV, OGG, or MP3, is no longer than five seconds, and rem
 
 ### Controls do not fit on the screen
 
-Scroll inside the side panel; a panel that scrolls shows a wheel hint the first time. In a narrow window, open the panels from the handles at the edges. The screen reflows when you change the window size or the GUI scale, without losing what you had open.
+Scroll the list of options; a scrollbar shows beside it when it does not fit. In a narrow window the crystal preview steps aside to give the options the whole width. The screen reflows when you change the window size or the GUI scale, keeping the open tab.
 
 ### Converter My Crystal still shows a crystal
 
@@ -479,23 +495,12 @@ choice shows once you join a world), or the game cannot draw that entity on its 
 the crystal stays a crystal. A choice saved on one game version that does not exist
 on another is ignored the same way.
 
-### The optimizer does nothing
+### Crystals break as in Vanilla
 
-Open the configuration screen and look at the chip in the top-right corner; hover it for details:
-
-- **Paused** — another mod is already optimizing crystals, and Crystal Tweaks has yielded the
-  interaction path to it on purpose. Remove it and press **Re-check compatibility** in the Advanced tab, or
-  keep it and use its own optimizer.
-- **Checking…** — the compatibility scan is still running. It finishes in the first seconds after
-  the client starts.
-- **Active · partial** — a mod could not be read. The optimizer is running anyway; `latest.log`
-  names the mod.
-- **Client active** — the helpers are running. If the break still feels like Vanilla, confirm the
-  hit qualifies for prediction: inside your interaction range, crystal not already removed, and you
-  alive, not spectating and able to deal damage.
-
-Before 2.2.11 an unreadable JAR anywhere in the pack, or any mod sharing `Connection.send`, was
-enough to keep every helper off for the session. Updating resolves that case.
+Since 2.7.0 Crystal Tweaks does not optimize crystals: the instant break and explosion on screen and
+the ghost crystals were removed because of problems and slowness. A crystal you hit disappears and
+explodes when the server says so. Any crystal optimizer can be used alongside, within your server's
+rules.
 
 ### Crystal behavior is inconsistent
 
@@ -518,9 +523,8 @@ delay is expected and is not a bug.
 
 ### Placing right after breaking goes to the old crystal
 
-That is Vanilla's timing, kept on purpose. A crystal you hit is only hidden: until the server
-confirms the break it is still in the world, and your crosshair still rests on it, exactly as it
-would without the mod. A placement in that instant is sent at the crystal, as Vanilla sends it.
+That is Vanilla's timing. Until the server confirms the break, the crystal you hit is still in the
+world and your crosshair still rests on it, exactly as without the mod. A placement in that instant is sent at the crystal, as Vanilla sends it.
 
 2.2.7 removed the crystal from the world instead and refreshed the crosshair, which let the next
 placement reach the obsidian sooner. That changed which packet the client sent, so later versions

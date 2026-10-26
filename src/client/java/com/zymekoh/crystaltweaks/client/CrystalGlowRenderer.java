@@ -215,11 +215,14 @@ public final class CrystalGlowRenderer {
                 disk(glow, matrix, detail, CrystalGlowMath.hotColor(color),
                         0.25F * detailScale * (1F + 0.35F * Math.max(0F, coreGlow - 1F)), 0.9F * gain * coreGlow);
             }
-            // Stable facet rays, with bright narrow spines and a wider colored skirt.
+            // Stable facet rays, with bright narrow spines and a wider colored skirt. The flash's
+            // own count and length are its settings; the old glow's halo keeps the burst as made.
             double turn = state.ageInTicks * look.rotationSpeedPercent / 100F * 0.002;
-            for (int ray = 0; ray < 16; ray++) {
-                double angle = turn + ray * Math.PI * 2 / 16;
-                float length = radius * (0.64F + (ray * 7 % 5) * 0.09F);
+            int rays = behindModel ? 16 : CrystalFlashStyle.Settings.RAYS.value();
+            float reach = behindModel ? 1F : CrystalFlashStyle.Settings.RAY_LENGTH.factor();
+            for (int ray = 0; ray < rays; ray++) {
+                double angle = turn + ray * Math.PI * 2 / rays;
+                float length = radius * (0.64F + (ray * 7 % 5) * 0.09F) * reach;
                 streak(glow, matrix, color, angle, length, 0.12F * detailScale, gain * 0.22F);
                 streak(glow, matrix, CrystalGlowMath.hotColor(color), angle, length * 0.82F,
                         0.026F * detailScale, gain * 0.32F);

@@ -25,3 +25,11 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+## Fonts
+
+The settings draw with two fonts that ship inside the mod, each under the SIL Open Font License 1.1,
+whose text sits beside them in `crystal_tweaks_fixed/fonts/`:
+
+- UnifrakturMaguntia, copyright 2010 j. 'mach' wust and 2009 Peter Wiegel, Reserved Font Name UnifrakturMaguntia.
+- Texturina, copyright 2020 The Texturina Project Authors (https://github.com/Omnibus-Type/Texturina).

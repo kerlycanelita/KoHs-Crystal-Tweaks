@@ -25,9 +25,9 @@ Crystal Tweaks brings End Crystal visual and sound controls into one animated co
   <img src="docs/images/flash-styles.png" alt="Twelve of the fourteen flash styles a destroyed crystal can leave" width="880">
 </p>
 
-| Settings | Panels lit by the glow | Enemy crystals |
+| Settings | Glow | Flash shapes |
 | --- | --- | --- |
-| ![Colours on the left, glow on the right and the crystal in the centre](docs/images/hub-main.png) | ![Side panels taking on a cyan glow](docs/images/hub-glow-lit.png) | ![The red enemy menu](docs/images/hub-enemy.png) |
+| ![The Colours tab: layer cards on the left, the live crystal on the right](docs/images/hub-2.7-colours.png) | ![The Glow tab with its settings unfolded under the switch](docs/images/hub-2.7-glow.png) | ![The flash shapes in a window beside the crystal](docs/images/hub-2.7-shapes.png) |
 
 | Motion blur | Advanced tab | KoHs |
 | --- | --- | --- |
@@ -56,15 +56,13 @@ Crystal Tweaks brings End Crystal visual and sound controls into one animated co
 - Separate colors, glow, and animation speeds for crystals that were not placed by you (with approximate identification). Under repair for now: its menu is closed and every crystal uses your own profile.
 - Rotation and floating speed controls from `0%` to `300%`.
 - Custom local explosion sounds with volume and playback-speed controls.
-- A settings screen around a live crystal: colours on the left, glow on the right, scrolling tabs above (Sound, Crystal Tweaks, Advanced, Converter, KoHs) with the game's own items as icons, a red menu of its own for enemy crystals, an optimizer status chip, and a preview that explodes with your flash and sound when you click it.
-- Automatic optimizer conflict handling: interaction helpers step aside while visuals, sounds, and the preview stay active.
-- Don't break obsidian (switchable; formerly Safe Crystal), optional ghost crystals (off by default), and a local Conflict Monitor.
-- Only real crystal optimizers pause the optimization: crystal glows, skins, spins, protections and counters never do.
-- Crystal Practice (experimental): a singleplayer world against a bot that plays real crystal PvP techniques by difficulty (hit-crystal, d-tap, safe and double anchors, butterfly and more, listed with how each works), your own kit arranged in a kit editor with presets modelled on MCTiers, MCPVP and PVPHQ, a Knockback I or II sword, your choice of totems, and a netherite flat, a hole arena or a natural meadow in eight biomes.
+- Settings in tabs (Colours, Glow, Flash, Sound, Helpers, Converter, Practice, Advanced, KoHs) with the game's own items as moving icons, option cards that unfold their own settings, a red menu of its own for enemy crystals, and a live crystal beside them that plays each option as you switch it on and explodes with your flash and sound when you click it.
+- Don't break obsidian (switchable; formerly Safe Crystal), Obsidian debounce, and a local Conflict Monitor. They follow your own switches whatever else is installed.
+- Crystal Practice (experimental): a practice world against a bot that plays real crystal PvP techniques by difficulty (hit-crystal, d-tap, safe and double anchors, butterfly and more, listed with how each works), or a peaceful one that never attacks; your own kit arranged in a kit editor with presets modelled on MCTiers, MCPVP and PVPHQ, a Knockback I or II sword, your choice of totems; and a netherite flat, a hole arena, a natural meadow in eight biomes or a whole normal world. On a server (Minecraft 26.1 and later) it opens in the same window without leaving the server, which stays connected behind it; running two worlds at once can cause lag. Escape brings up the practice panel on the right, and `/rtp`, `/spawn`, `/kit` and `/bot` work in the practice world.
 - Spanish localization for Minecraft language codes beginning with `es`; English for every other locale.
 - Optional Mod Menu integration.
 
-Crystal Tweaks optimizes the client only: a crystal you break disappears on your screen straight away and its explosion plays at the hit, and a crystal the server removes stops being drawn the moment the removal arrives; what reaches the server is not sped up. For that, Marlow's Crystal Optimizer is recommended (check your server's rules); with it installed, Crystal Tweaks turns all of its own optimizations off.
+Crystal Tweaks no longer optimizes crystals: the instant break and explosion on screen and the ghost crystals were removed in 2.7.0 because of problems and slowness. Advanced still lists them, dimmed, as Old KoHs Crystal Optimization. Any crystal optimizer can be used alongside (check your server's rules); nothing in Crystal Tweaks turns off for it.
 
 See the [Crystal Tweaks Wiki](docs/WIKI.md) for installation, configuration, preview controls, compatibility notes, and troubleshooting.
 
@@ -99,9 +97,12 @@ Server rules differ. Review the rules of every multiplayer server and obtain sta
 Crystal Tweaks never fabricates, delays, reorders or duplicates a gameplay packet, and never changes
 reach, rotation, attack cooldown or click rate. The server stays authoritative over every crystal.
 
-Its predictive behavior is hiding a crystal you just hit, and playing its explosion, before the
-server confirms the break, which is latency compensation for an action you already performed. It is
-constrained to hits the server is expected to accept, and it never adds, changes or delays a packet.
+It predicts nothing: since 2.7.0 a crystal you hit disappears and explodes when the server says so,
+as in Vanilla.
+
+Crystal Practice on a server keeps that server connected behind the practice world: the player stays
+there standing still, as with a menu open, and the client keeps answering the server with exactly the
+packets a Vanilla client in a menu sends. Nothing it does in the practice world reaches the server.
 
 See [docs/audits/LEGITIMACY_AUDIT.md](docs/audits/LEGITIMACY_AUDIT.md) for the full client/server boundary of every feature,
 including the one place where the mod changes which packets are sent: Don't break obsidian (and the optional obsidian debounce), which you can switch off.

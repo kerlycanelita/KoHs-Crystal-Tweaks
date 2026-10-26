@@ -13,8 +13,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Timestamps for the optimizer benchmark. Reads the packets and returns: nothing is cancelled,
- * changed or delayed, and while no benchmark is running each hook is a single volatile read.
+ * Timestamps for the optimizer benchmark, and the client-side crystal's removal reader. Reads the
+ * packets and returns: nothing is cancelled, changed or delayed, and while no benchmark is running
+ * each hook is a single volatile read.
  *
  * <p>Each handler runs twice in Vanilla, first on the network thread, which reschedules it, then on
  * the game thread. At HEAD both passes are seen, which is how the benchmark tells when an answer
@@ -44,6 +45,6 @@ public abstract class BenchmarkPacketMixin {
 
     @Inject(method = "handleRemoveEntities", at = @At("HEAD"))
     private void crystalTweaks$benchmarkRemoval(ClientboundRemoveEntitiesPacket packet, CallbackInfo callback) {
-        BenchmarkHooks.removal(packet);
+        BenchmarkHooks.removal((ClientPacketListener) (Object) this, packet);
     }
 }

@@ -1,11 +1,14 @@
 package com.zymekoh.crystaltweaks.client.benchmark;
 
 import com.zymekoh.crystaltweaks.client.CrystalOwnership;
+import com.zymekoh.crystaltweaks.client.practice.PracticeHost;
+import com.zymekoh.crystaltweaks.core.CrystalBreakPrediction;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundBlockChangedAckPacket;
@@ -50,9 +53,13 @@ public final class BenchmarkHooks {
 
     /** Every packet this client sends, from the head of {@code Connection.send}. */
     public static void sent(Packet<?> packet) {
-        if (CrystalBenchmark.recording() && packet instanceof ServerboundSetCarriedItemPacket) {
+        if (!CrystalBenchmark.recording()) {
+            return;
+        }
+        if (packet instanceof ServerboundSetCarriedItemPacket) {
             CrystalBenchmark.onCarriedItemSent();
         }
+        AttackHook.sent(packet);
     }
 
     static boolean network() {
@@ -94,10 +101,11 @@ public final class BenchmarkHooks {
         }
     }
 
-    public static void removal(ClientboundRemoveEntitiesPacket packet) {
-        if (network()) {
-            // The removal reader: a crystal the server removed stops being drawn on arrival.
-            com.zymekoh.crystaltweaks.core.CrystalBreakPrediction.serverRemoving(packet.getEntityIds());
+    public static void removal(ClientPacketListener listener, ClientboundRemoveEntitiesPacket packet) {
+        if (network() && !PracticeHost.ownsListener(listener)) {
+            // The removal reader: a crystal the server removed stops being drawn on arrival. Never
+            // the parked server's removals, whose ids belong to another world.
+            CrystalBreakPrediction.serverRemoving(packet.getEntityIds());
         }
         if (CrystalBenchmark.recording()) {
             CrystalBenchmark.onRemoval(packet.getEntityIds(), network());
