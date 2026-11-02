@@ -27,6 +27,9 @@ public final class CrystalVisualConfig {
     private static final int DEFAULT_CORE = 0xFFD08CFF;
     private static final Object LOCK = new Object();
     private static volatile boolean customSoundEnabled;
+    private static volatile boolean obsidianConverterEnabled;
+    private static volatile String obsidianTarget = "";
+    private static volatile boolean obsidianVoice;
     private static volatile String customSoundFileName = "";
     private static volatile float soundVolume = 1.0F;
     private static volatile float soundSpeed = 1.0F;
@@ -145,6 +148,12 @@ public final class CrystalVisualConfig {
                             CrystalAppearance.MIN_SIZE, CrystalAppearance.MAX_SIZE);
                     playerVisuals.converterEnabled = booleanValue(visuals, "converterEnabled", false);
                     playerVisuals.converterTarget = stringValue(visuals, "converterTarget", "");
+                    playerVisuals.converterVoice = booleanValue(visuals, "converterVoice", false);
+
+                    JsonObject obsidian = section(root, "obsidian");
+                    obsidianConverterEnabled = booleanValue(obsidian, "enabled", false);
+                    obsidianTarget = stringValue(obsidian, "target", "");
+                    obsidianVoice = booleanValue(obsidian, "voice", false);
 
                     JsonObject sounds = section(root, "sounds");
                     customSoundEnabled = booleanValue(sounds, "enabled", false);
@@ -292,7 +301,14 @@ public final class CrystalVisualConfig {
                 visuals.addProperty("sizePercent", playerVisuals.sizePercent);
                 visuals.addProperty("converterEnabled", playerVisuals.converterEnabled);
                 visuals.addProperty("converterTarget", playerVisuals.converterTarget);
+                visuals.addProperty("converterVoice", playerVisuals.converterVoice);
                 root.add("visuals", visuals);
+
+                JsonObject obsidian = new JsonObject();
+                obsidian.addProperty("enabled", obsidianConverterEnabled);
+                obsidian.addProperty("target", obsidianTarget);
+                obsidian.addProperty("voice", obsidianVoice);
+                root.add("obsidian", obsidian);
 
                 root.remove("tweaks");
 
@@ -543,6 +559,39 @@ public final class CrystalVisualConfig {
     public static void setSafeCrystal(boolean enabled) {
         load();
         safeCrystal = enabled;
+    }
+
+    /** Converter My Obsidian: obsidian drawn as another solid block. Off until the player turns it on. */
+    public static boolean obsidianConverterEnabled() {
+        load();
+        return obsidianConverterEnabled;
+    }
+
+    public static void setObsidianConverterEnabled(boolean enabled) {
+        load();
+        obsidianConverterEnabled = enabled;
+    }
+
+    /** The block obsidian is drawn as, "item:<id>" as in Converter My Crystal; empty while nothing is chosen. */
+    public static String obsidianTarget() {
+        load();
+        return obsidianTarget;
+    }
+
+    public static void setObsidianTarget(String target) {
+        load();
+        obsidianTarget = target == null ? "" : target;
+    }
+
+    /** Its own voice for obsidian: it sounds as the block it is drawn as. */
+    public static boolean obsidianVoice() {
+        load();
+        return obsidianVoice;
+    }
+
+    public static void setObsidianVoice(boolean enabled) {
+        load();
+        obsidianVoice = enabled;
     }
 
     /** True once the player asked never to see Converter My Crystal's notice again. */

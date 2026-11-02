@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.8.0
+
+### Added
+
+- **Five new glow styles**, each with settings of its own: **Storm** (bolts of light crackle out of
+  the crystal, strike and fade: bolts, strikes, reach), **Wings** (two wings of light beat behind
+  it: span, beat, feathers), **Crown** (a crown of thorns of light turns above it: thorns, spin,
+  height), **Vortex** (a spiral of the void draws the light in: arms, spin, pull) and **Souls**
+  (souls of light rise round it and fade: souls, rise, sway).
+- **Converter My Obsidian**, in Converter under the crystal: your obsidian drawn as another block.
+  Only solid, opaque blocks are offered, so obsidian keeps hiding exactly what it hid and nobody
+  sees through it. Drawing only, on your screen; the settings' floor shows the block you chose.
+- **Its own voice**, for the crystal and for the obsidian. A converted crystal sounds as what it
+  became: its voice as it appears (a pig grunts, a block sounds as it is placed) and, as it
+  explodes, its death or its breaking instead of the blast. Converted obsidian places, breaks and
+  steps with the sounds of its block. While the crystal's voice is on, the Sound section steps
+  aside and says why.
+
+### Changed
+
+- **Easier to read.** Titles, sections and buttons are no longer blackletter: they use Texturina, the
+  settings' text face, in a heavier weight. Figures stay upright everywhere.
+
 ## 2.7.0
 
 ### Added

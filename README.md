@@ -27,7 +27,7 @@ Crystal Tweaks brings End Crystal visual and sound controls into one animated co
 
 | Settings | Glow | Flash shapes |
 | --- | --- | --- |
-| ![The Colours page: the sections on the left, the crystal before its castle wall, the page on the right](docs/images/hub-2.7-colours.png) | ![The Glow page with its settings unfolded under the switch](docs/images/hub-2.7-glow.png) | ![The flash shapes over the page, the Crown's own settings unfolded](docs/images/hub-2.7-shapes.png) |
+| ![The Colours page: the sections on the left, the crystal before its castle wall, the page on the right](docs/images/hub-2.8-colours.png) | ![The Glow page with its settings unfolded under the switch](docs/images/hub-2.8-glow.png) | ![The flash shapes over the page, the Crown's own settings unfolded](docs/images/hub-2.8-shapes.png) |
 
 | Motion blur | Advanced tab | KoHs |
 | --- | --- | --- |
@@ -48,21 +48,22 @@ Crystal Tweaks brings End Crystal visual and sound controls into one animated co
 ## What it changes
 
 - Independent colors for the outer layer, inner layer, and crystal core.
-- Glow in the crystal's three layers: a soft light round every frame and a round one about the core, or the stronger Layers style, with `0%`-`300%` power, a core control, colored reflections, its own color, a motion blur that trails the turning layers with or without the glow, and a smooth afterglow trail. Performance, Balanced and Quality modes decide how much it draws. The old halo stays available as Old KoHs Crystal Glow.
+- Glow in the crystal's three layers in twelve styles, each with settings of its own: Light and Layers, or Heartbeat, Aurora, Orbit, Flames, Sigil, Storm, Wings, Crown, Vortex and Souls with light of their own round the crystal; `0%`-`300%` power, a core control, colored reflections, its own color, a motion blur that trails the turning layers with or without the glow, and a smooth afterglow trail. Performance, Balanced and Quality modes decide how much it draws. The old halo stays available as Old KoHs Crystal Glow.
 - Converter My Crystal (off by default): your crystals, or the enemy's, drawn as any block, item or entity of your game version, picked from a searchable catalogue, still spinning and floating.
+- Converter My Obsidian (off by default): your obsidian drawn as another solid, opaque block, so it keeps hiding what it hid. With Its own voice, a converted crystal sounds as what it became as it appears and as it explodes, and converted obsidian sounds as its block.
 - Crystal size from `30%` to `200%`, drawing only: the hitbox is the server's.
 - Fourteen flash styles for a destroyed crystal, in the glow color and sized from `10%` to `300%`: explosion, skull, your own head as a pale ghost, lightning toward the players you can see, heart, star, shockwave, vortex, crown, crescent, snowflake, flower, gem, and crossed swords.
 - Glow that respects walls instead of using an outline drawn through terrain.
 - Separate colors, glow, and animation speeds for crystals that were not placed by you (with approximate identification). Under repair for now: its menu is closed and every crystal uses your own profile.
 - Rotation and floating speed controls from `0%` to `300%`.
-- Custom local explosion sounds with volume and playback-speed controls.
-- Settings in tabs (Colours, Glow, Flash, Sound, Helpers, Converter, Practice, Advanced, KoHs) with the game's own items as moving icons, option cards that unfold their own settings, a red menu of its own for enemy crystals, and a live crystal beside them that plays each option as you switch it on and explodes with your flash and sound when you click it.
+- Custom local explosion sounds with volume and playback-speed controls; they step aside while a converted crystal speaks with its own voice.
+- Settings as a book of three pages: the sections by name on the left (Colours, Converter, Sound, Glow, Flash, Helpers, Client crystal, Advanced, with Practice and KoHs under them), your crystal at its real size before a castle wall in the middle, and the open section on the right, with the game's own items as moving icons and option cards that unfold their own settings. Click the crystal to explode it with your flash and sound.
 - Don't break obsidian (switchable; formerly Safe Crystal), Obsidian debounce, and a local Conflict Monitor. They follow your own switches whatever else is installed.
 - Crystal Practice (experimental): a practice world against a bot that plays real crystal PvP techniques by difficulty (hit-crystal, d-tap, safe and double anchors, butterfly and more, listed with how each works), or a peaceful one that never attacks; your own kit arranged in a kit editor with presets modelled on MCTiers, MCPVP and PVPHQ, a Knockback I or II sword, your choice of totems; and a netherite flat, a hole arena, a natural meadow in eight biomes or a whole normal world. On a server (Minecraft 26.1 and later) it opens in the same window without leaving the server, which stays connected behind it; running two worlds at once can cause lag. Escape brings up the practice panel on the right, and `/rtp`, `/spawn`, `/kit` and `/bot` work in the practice world.
 - Spanish localization for Minecraft language codes beginning with `es`; English for every other locale.
 - Optional Mod Menu integration.
 
-Crystal Tweaks no longer optimizes crystals: the instant break and explosion on screen and the ghost crystals were removed in 2.7.0 because of problems and slowness. Advanced still lists them, dimmed, as Old KoHs Crystal Optimization. Any crystal optimizer can be used alongside (check your server's rules); nothing in Crystal Tweaks turns off for it.
+The Client crystal section, off until you turn it on, hides a crystal you hit from your screen at once and plays its explosion on the hit; it stays in your world, so every packet is Vanilla's. Ghost crystals and Paced placement are there too, both off by default. The client crystal stands down while another crystal optimizer such as Marlow's is installed.
 
 See the [Crystal Tweaks Wiki](docs/WIKI.md) for installation, configuration, preview controls, compatibility notes, and troubleshooting.
 
@@ -94,11 +95,13 @@ Do not load Crystal Tweaks together with the retired KoHs Crystal Tweaks mod or 
 
 Server rules differ. Review the rules of every multiplayer server and obtain staff approval when required; this project cannot guarantee acceptance by every server or anticheat.
 
-Crystal Tweaks never fabricates, delays, reorders or duplicates a gameplay packet, and never changes
-reach, rotation, attack cooldown or click rate. The server stays authoritative over every crystal.
+Crystal Tweaks never fabricates, reorders or duplicates a gameplay packet, and never changes reach,
+rotation, attack cooldown or click rate. The server stays authoritative over every crystal. The one
+setting that changes when a click goes out is Paced placement, off by default: it holds a click on
+the crystal you just broke until the server removes it, and never places ahead of the server.
 
-It predicts nothing: since 2.7.0 a crystal you hit disappears and explodes when the server says so,
-as in Vanilla.
+With Client crystal off, as it starts, a crystal you hit disappears and explodes when the server says
+so, as in Vanilla; with it on, only your screen changes.
 
 Crystal Practice on a server keeps that server connected behind the practice world: the player stays
 there standing still, as with a menu open, and the client keeps answering the server with exactly the

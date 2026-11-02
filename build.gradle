@@ -69,6 +69,9 @@ def legacyGuiTransform = { String line -> line
 		.replace('graphics.entity(', 'graphics.submitEntityRenderState(')
 		.replace('graphics.fakeItem(', 'graphics.renderFakeItem(')
 		.replace('ScreenEvents.afterExtract(', 'ScreenEvents.afterRender(')
+		// 1.21.11 has no tint sources, and keeps a block's particle sprite in the model shaper.
+		.replace('getTintSources(state).isEmpty()', 'getColor(state, null, null, 0) == -1')
+		.replace('getBlockStateModelSet().getParticleMaterial(state).sprite()', 'getBlockModelShaper().getParticleIcon(state)')
 		.replace('player.sendSystemMessage(message);', 'player.displayClientMessage(message, false);')
 		.replace('this.minecraft.gui.extractDeferredSubtitles();', '')
 		// Only 26.1 and 26.2's options screen is told whether it opened from inside a world.
@@ -148,7 +151,9 @@ def modernRegistryTransform = { String line -> line
 		.replace('this.minecraft.gui.extractDeferredSubtitles();', '')
 		.replace('this.minecraft.setScreen(', 'this.minecraft.gui.setScreen(')
 		.replace('minecraft.setScreen(', 'minecraft.gui.setScreen(')
-		.replace('minecraft.getToastManager()', 'minecraft.gui.toastManager()') }
+		.replace('minecraft.getToastManager()', 'minecraft.gui.toastManager()')
+		// 26.2 builds the chunks' meshes in its level extractor.
+		.replace('minecraft.levelRenderer.allChanged()', 'minecraft.levelExtractor.allChanged()') }
 
 repositories {
 	maven {
@@ -213,6 +218,8 @@ if (usesRemapping || usesModernRegistrySplit) {
 			if (usesRemapping) {
 				// 1.21.11 attacks with an interact packet: src/legacy has the benchmark's own hook.
 				exclude 'com/zymekoh/crystaltweaks/client/benchmark/AttackHook.java'
+				// 1.21.11 looks a block's model up in BlockModelShaper: src/legacy has its own Mixin.
+				exclude 'com/zymekoh/crystaltweaks/mixin/client/ObsidianModelMixin.java'
 				// LevelSettings took a difficulty record and lost its game rules in 26.1.
 				exclude 'com/zymekoh/crystaltweaks/client/practice/PracticeLevelSettings.java'
 				// No packet queue to share between two worlds: practice leaves the server there, and
@@ -238,6 +245,7 @@ if (usesRemapping || usesModernRegistrySplit) {
 					'**/CrystalTweaksScreen.java',
 					'**/CrystalUi.java',
 					'**/ConflictMonitorScreen.java',
+					'**/ObsidianConverter.java',
 					'**/CrystalPlacementFeedback.java',
 					'**/FastPlacement.java',
 					// The help in a real fight draws on the HUD and the death screen.

@@ -56,6 +56,7 @@ import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * The Crystal Tweaks settings: a grimoire of three pages.
@@ -150,6 +151,8 @@ public final class CrystalTweaksScreen extends Screen {
     private final List<HubButton> styleButtons = new ArrayList<>();
     private ConverterGrid converterGrid;
     private HubEditBox converterSearch;
+    private ConverterGrid obsidianGrid;
+    private String obsidianQuery = "";
     private HubButton blocksButton;
     private HubButton entitiesButton;
 
@@ -184,6 +187,8 @@ public final class CrystalTweaksScreen extends Screen {
     protected void init() {
         FixedGuiScale.apply(this, this.minecraft);
         CrystalVisualConfig.load();
+        // The preview's floor shows the obsidian as the player has it, from the title screen too.
+        ObsidianConverter.apply();
         long now = System.nanoTime();
         boolean first = !this.initialized;
         this.initialized = true;
@@ -1085,6 +1090,11 @@ public final class CrystalTweaksScreen extends Screen {
             case ORBIT -> HubIcons.item("ender_eye", 1.0F);
             case FLAMES -> HubIcons.item("blaze_powder", 1.2F);
             case SIGIL -> HubIcons.item("enchanted_book", 1.4F);
+            case STORM -> HubIcons.item("trident", 1.6F);
+            case WINGS -> HubIcons.item("elytra", 1.8F);
+            case CROWN -> HubIcons.item("golden_helmet", 2.0F);
+            case VORTEX -> HubIcons.item("dragon_breath", 2.2F);
+            case SOULS -> HubIcons.item("soul_lantern", 2.4F);
         };
     }
 
@@ -1227,6 +1237,22 @@ public final class CrystalTweaksScreen extends Screen {
     private RowList buildSound(int width) {
         RowList list = newList(width);
         int indent = indent(list);
+        if (visuals().voiced()) {
+            // Its own voice has the say: nothing here would be heard.
+            list.space(2);
+            list.note(this.font, s("Tu cristal habla con su propia voz: suena como aquello en lo que lo convertiste en Converter. Apaga allí «Su propia voz» para elegir aquí su sonido.",
+                    "Your crystal speaks with its own voice: it sounds as what you turned it into in Converter. Turn \"Its own voice\" off there to choose its sound here."), 0);
+            list.space(2);
+            button(list, 0, s("Ir a Converter", "Go to Converter"), HubIcons.converter(1.5F),
+                    () -> openSection(this.sections, this.sections.indexOf("converter")));
+            list.space(1);
+            button(list, 0, s("Escuchar su voz", "Hear its voice"), HubIcons.note(0.9F), () -> {
+                long now = System.nanoTime();
+                this.stage.appear(now);
+                CrystalSoundManager.playPreviewAppear(visuals());
+            });
+            return list;
+        }
         toggle(list, 0, s("Sonido personalizado", "Custom sound"), CrystalVisualConfig::customSoundEnabled, HubIcons.note(0.9F), () -> {
             CrystalVisualConfig.setCustomSoundEnabled(!CrystalVisualConfig.customSoundEnabled());
             commit();
@@ -1520,11 +1546,95 @@ public final class CrystalTweaksScreen extends Screen {
         this.converterGrid.show(this.converterEntities ? ConverterGrid.entities() : ConverterGrid.items(), this.converterQuery);
         list.row(this.font.lineHeight + 2, indent);
         list.paint((graphics, font, x, y, cellWidth, height, alpha) -> drawConverterChoice(graphics, font, x, y, cellWidth, alpha), 0, branch);
+        HubButton voice = toggle(list, indent, s("Su propia voz", "Its own voice"), () -> visuals().converterVoice, HubIcons.note(1.1F), () -> {
+            visuals().converterVoice = !visuals().converterVoice;
+            commit();
+            refreshSection("sound");
+            if (visuals().converterVoice) {
+                CrystalSoundManager.playPreviewAppear(visuals());
+            }
+        });
+        tip(voice, s("Tu cristal suena como aquello en lo que lo convertiste: al aparecer, su voz (un cerdo gruñe, un bloque suena al colocarse) y al explotar, su muerte o su rotura en vez de la explosión. Mientras esté encendida, Sonido le cede el sitio. Un ítem que no es un bloque no tiene voz: suena la explosión de siempre.",
+                "Your crystal sounds as what you turned it into: its voice as it appears (a pig grunts, a block sounds as it is placed) and, as it explodes, its death or its breaking instead of the blast. While it is on, Sound steps aside. An item that is not a block has no voice: the usual blast plays."));
         list.closeBranch();
+        if (!this.enemy) {
+            buildObsidianConverter(list, width, indent);
+        }
         list.space(1);
         list.note(this.font, s("Lo que elijas se dibuja por encima de la textura original de Minecraft y de la de cualquier resource pack. El giro, la flotación y el tamaño siguen en Colores; el brillo, en Brillo.",
                 "What you choose is drawn over Minecraft's own texture and over any resource pack's. Rotation, floating and size stay in Colours; the glow, in Glow."), 0);
         return list;
+    }
+
+    /** Converter My Obsidian: the player's obsidian drawn as another solid block, chosen from the same catalogue. */
+    private void buildObsidianConverter(RowList list, int width, int indent) {
+        HubButton toggle = toggle(list, 0, s("Convertir mi obsidiana", "Convert my obsidian"), CrystalVisualConfig::obsidianConverterEnabled,
+                HubIcons.block("obsidian", 1.3F), () -> {
+                    CrystalVisualConfig.setObsidianConverterEnabled(!CrystalVisualConfig.obsidianConverterEnabled());
+                    commit();
+                    ObsidianConverter.apply();
+                    if (CrystalVisualConfig.obsidianConverterEnabled()) {
+                        playFx(OptionFx.Effect.CONVERT);
+                    }
+                });
+        tip(toggle, s("Dibuja la obsidiana como otro bloque. Solo bloques sólidos y opacos: la obsidiana sigue tapando lo mismo, así que nadie ve a través de ella. Solo cambia el dibujo en tu pantalla.",
+                "Draws obsidian as another block. Only solid, opaque blocks: obsidian keeps hiding the same, so nobody sees through it. Only the drawing on your screen changes."));
+        list.openBranch(CrystalVisualConfig::obsidianConverterEnabled);
+        list.row(this.layout.control, indent);
+        HubEditBox search = list.full(new HubEditBox(this.font, 0, 0, 0, this.layout.control, Component.literal(s("Buscar", "Search"))));
+        search.setHint(Component.literal(s("Buscar un bloque…", "Search a block…")));
+        search.setMaxLength(60);
+        search.setValue(this.obsidianQuery);
+        search.setResponder(value -> {
+            this.obsidianQuery = value;
+            if (this.obsidianGrid != null) {
+                this.obsidianGrid.show(ConverterGrid.solidBlocks(), value);
+            }
+        });
+        list.row(Mth.clamp(this.layout.body.height() / 3, 48, 104), indent);
+        this.obsidianGrid = list.full(new ConverterGrid(this.font, Component.literal(s("Bloques", "Blocks")),
+                s("Entra en un mundo para ver los bloques.", "Join a world to see the blocks."),
+                s("Ningún bloque sólido coincide.", "No solid block matches."),
+                CrystalVisualConfig::obsidianTarget, target -> {
+                    // A second click on the chosen one lets go of it.
+                    CrystalVisualConfig.setObsidianTarget(target.equals(CrystalVisualConfig.obsidianTarget()) ? "" : target);
+                    commit();
+                    ObsidianConverter.apply();
+                }));
+        this.obsidianGrid.show(ConverterGrid.solidBlocks(), this.obsidianQuery);
+        list.row(this.font.lineHeight + 2, indent);
+        list.paint((graphics, font, x, y, cellWidth, height, alpha) -> drawObsidianChoice(graphics, font, x, y, cellWidth, alpha), 0,
+                width - indent);
+        HubButton voice = toggle(list, indent, s("Su propia voz", "Its own voice"), CrystalVisualConfig::obsidianVoice, HubIcons.note(1.5F), () -> {
+            CrystalVisualConfig.setObsidianVoice(!CrystalVisualConfig.obsidianVoice());
+            commit();
+            ObsidianConverter.apply();
+            BlockState chosen = ObsidianConverter.chosen();
+            if (CrystalVisualConfig.obsidianVoice() && chosen != null) {
+                play(chosen.getSoundType().getPlaceSound(), 1.0F, 0.8F);
+            }
+        });
+        tip(voice, s("Tu obsidiana suena como el bloque que eliges: al colocarla, al romperla y al pisarla.",
+                "Your obsidian sounds as the block you choose: as you place it, break it and walk on it."));
+        list.closeBranch();
+    }
+
+    private void drawObsidianChoice(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, float alpha) {
+        HubSkin skin = HubSkin.current();
+        String target = CrystalVisualConfig.obsidianTarget();
+        String text;
+        int color = skin.muted;
+        if (target.isEmpty()) {
+            text = s("Nada elegido: la obsidiana se ve como siempre.", "Nothing chosen: obsidian looks as usual.");
+        } else if (ObsidianConverter.chosen() == null) {
+            text = ConverterGrid.nameOf(target) + s(": no es un bloque sólido; la obsidiana se queda como está.",
+                    ": not a solid block; obsidian stays as it is.");
+            color = 0xFFFFC48A;
+        } else {
+            text = s("Elegido: ", "Chosen: ") + ConverterGrid.nameOf(target);
+            color = skin.text;
+        }
+        CrystalUi.label(graphics, font, HubDraw.fit(font, text, width), x, y + 1, CrystalTheme.fade(color, alpha));
     }
 
     private void showConverterKind(boolean entities) {
@@ -1536,10 +1646,11 @@ public final class CrystalTweaksScreen extends Screen {
         }
     }
 
-    /** The other wing dims what a converted crystal does not draw. */
+    /** The other wing dims what a converted crystal does not draw, and Sound steps aside for its own voice. */
     private void converterChanged() {
         refreshSection("colours");
         refreshSection("glow");
+        refreshSection("sound");
     }
 
     private void drawConverterChoice(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, float alpha) {
@@ -2376,9 +2487,11 @@ public final class CrystalTweaksScreen extends Screen {
             openSection(this.sections, this.sections.selected() + (amount < 0.0D ? 1 : -1));
             return true;
         }
-        if (this.converterGrid != null && this.converterGrid.visible
-                && this.converterGrid.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) {
-            return true;
+        // The catalogues scroll themselves under the wheel, before the page does.
+        for (ConverterGrid grid : new ConverterGrid[] {this.converterGrid, this.obsidianGrid}) {
+            if (grid != null && grid.visible && grid.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount)) {
+                return true;
+            }
         }
         if (this.page.mouseScrolled(mouseX, mouseY, verticalAmount, step)) {
             if (!CrystalVisualConfig.scrollHintDone() && this.page.scrolledByPlayer()) {

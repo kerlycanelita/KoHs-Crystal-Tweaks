@@ -2,7 +2,9 @@ package com.zymekoh.crystaltweaks.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.zymekoh.crystaltweaks.CrystalTweaksClient;
+import com.zymekoh.crystaltweaks.mixin.client.CreatureSoundsInvoker;
 import com.zymekoh.crystaltweaks.mixin.client.EntityTypeFactoryAccessor;
+import com.zymekoh.crystaltweaks.mixin.client.MobSoundsInvoker;
 import java.util.HashMap;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
@@ -17,13 +19,18 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ReloadableResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.SoundType;
 import org.joml.Matrix4f;
 
 /**
@@ -41,16 +48,18 @@ public final class CrystalConverter {
     private static final int STAND_IN_ID = -0x4B6F48;
 
     /**
-     * What a choice draws, worked out once.
+     * What a choice draws, worked out once, and its voice.
      *
      * @param tumbles whether it turns on its corner as the crystal's frames do: blocks do, the rest
      *                stand upright
+     * @param appear  what it says as it appears: a block's placing, a mob's idle call; null if nothing
+     * @param vanish  what it says as it goes: a block's breaking, a creature's death; null if nothing
      */
     private record Shown(ItemStackRenderState item, boolean tumbles, EntityRenderState entity, float entityScale,
-            float entityHeight) {
+            float entityHeight, SoundEvent appear, SoundEvent vanish) {
     }
 
-    private static final Shown NOTHING = new Shown(null, false, null, 0.0F, 0.0F);
+    private static final Shown NOTHING = new Shown(null, false, null, 0.0F, 0.0F, null, null);
     private static final Map<String, Shown> SHOWN = new HashMap<>();
     private static Level shownIn;
     private static boolean listening;
@@ -81,6 +90,18 @@ public final class CrystalConverter {
     /** Whether a choice can be drawn right now: an entity needs a world to exist in. */
     public static boolean drawable(String target) {
         return shown(target) != null;
+    }
+
+    /** What a crystal of this look says as it appears, when it speaks with its own voice; null otherwise. */
+    public static SoundEvent appearSound(CrystalAppearance look) {
+        Shown shown = look.voiced() ? shown(look.converterTarget) : null;
+        return shown == null ? null : shown.appear;
+    }
+
+    /** What a crystal of this look says as it explodes, when it speaks with its own voice; null otherwise. */
+    public static SoundEvent vanishSound(CrystalAppearance look) {
+        Shown shown = look.voiced() ? shown(look.converterTarget) : null;
+        return shown == null ? null : shown.vanish;
     }
 
     /**
@@ -168,7 +189,10 @@ public final class CrystalConverter {
             ItemStackRenderState state = new ItemStackRenderState();
             minecraft.getItemModelResolver().updateForTopItem(state, new ItemStack(item), ItemDisplayContext.NONE,
                     minecraft.level, null, 0);
-            return state.isEmpty() ? NOTHING : new Shown(state, state.usesBlockLight(), null, 0.0F, 0.0F);
+            // A block sounds as it is placed and broken; any other item has no voice of its own.
+            SoundType sounds = item instanceof BlockItem block ? block.getBlock().defaultBlockState().getSoundType() : null;
+            return state.isEmpty() ? NOTHING : new Shown(state, state.usesBlockLight(), null, 0.0F, 0.0F,
+                    sounds == null ? null : sounds.getPlaceSound(), sounds == null ? null : sounds.getBreakSound());
         }
         if (target.startsWith(ENTITY) && minecraft.level != null) {
             Identifier id = Identifier.tryParse(target.substring(ENTITY.length()));
@@ -186,7 +210,24 @@ public final class CrystalConverter {
             EntityRenderState state = minecraft.getEntityRenderDispatcher().extractEntity(entity, 1.0F);
             state.nameTag = null;
             float span = Math.max(0.25F, Math.max(entity.getBbWidth(), entity.getBbHeight()));
-            return new Shown(null, false, state, ENTITY_SPAN / span, entity.getBbHeight());
+            SoundEvent appear = null;
+            SoundEvent vanish = null;
+            try {
+                // A mob's idle call as it appears, a creature's hurt cry if it has none; its death as it goes.
+                if (entity instanceof Mob mob) {
+                    appear = ((MobSoundsInvoker) mob).crystalTweaks$ambientSound();
+                }
+                if (entity instanceof LivingEntity living) {
+                    CreatureSoundsInvoker creature = (CreatureSoundsInvoker) living;
+                    if (appear == null) {
+                        appear = creature.crystalTweaks$hurtSound(minecraft.level.damageSources().generic());
+                    }
+                    vanish = creature.crystalTweaks$deathSound();
+                }
+            } catch (RuntimeException silent) {
+                // A creature that cannot tell outside the world it was made for keeps quiet.
+            }
+            return new Shown(null, false, state, ENTITY_SPAN / span, entity.getBbHeight(), appear, vanish);
         }
         return NOTHING;
     }

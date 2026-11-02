@@ -36,6 +36,7 @@ public final class CrystalVisualInitializer implements ClientModInitializer {
         ClientEntityEvents.ENTITY_LOAD.register((entity, level) -> {
             if (!PracticeHost.serverSide()) {
                 CrystalBreakPrediction.track(entity);
+                CrystalSoundManager.onEntityLoaded(entity);
             }
         });
         ClientEntityEvents.ENTITY_UNLOAD.register((entity, level) -> {
@@ -61,6 +62,8 @@ public final class CrystalVisualInitializer implements ClientModInitializer {
             FastPlacement.tick(now);
         });
         ClientPlayConnectionEvents.JOIN.register((listener, sender, client) -> {
+            // Worked out here, when the game's blocks and colours are all in place.
+            ObsidianConverter.apply();
             CrystalAfterglow.reset();
             CrystalSoundManager.resetTracking();
             CrystalBreakPrediction.reset();

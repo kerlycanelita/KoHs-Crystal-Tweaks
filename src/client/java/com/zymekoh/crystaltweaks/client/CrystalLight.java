@@ -436,10 +436,12 @@ public final class CrystalLight {
 
     /**
      * The newer styles' own light round the crystal, added to the scene in the glow's colours: a
-     * heartbeat's rings, an aurora's curtains, sparks in orbit, flames, a sigil on the ground. All of
-     * it moves with the crystal's clock, so a still crystal holds its light still too.
+     * heartbeat's rings, an aurora's curtains, sparks in orbit, flames, a sigil on the ground, bolts,
+     * wings, a crown of thorns, a vortex, rising souls. All of it moves with the crystal's clock, so a
+     * still crystal holds its light still too.
      *
-     * <p>Rings, sparks and flames face the camera; the curtains and the sigil stand in the world and
+     * <p>Rings, sparks, flames, bolts, wings, the vortex and the souls face the camera; the curtains,
+     * the sigil and the crown stand in the world and
      * go out both ways round. A face-on piece in a level is wound to face the camera and sent once,
      * as the halo is; a preview's pose may be mirrored, and there both windings go out.</p>
      */
@@ -465,6 +467,11 @@ public final class CrystalLight {
                 case ORBIT -> orbit(buffer, base, world, centre, size, colour, deep, gain);
                 case FLAMES -> flames(buffer, base, world, centre, size, colour, deep, gain);
                 case SIGIL -> sigil(buffer, base, size, colour, hot, gain);
+                case STORM -> storm(buffer, base, world, centre, size, colour, hot, gain);
+                case WINGS -> wings(buffer, base, world, centre, size, colour, deep, gain);
+                case CROWN -> crown(buffer, base, world, centre, size, colour, hot, gain);
+                case VORTEX -> vortex(buffer, base, world, centre, size, colour, deep, hot, gain);
+                case SOULS -> souls(buffer, base, world, centre, size, colour, deep, hot, gain);
                 default -> {
                 }
             }
@@ -572,13 +579,8 @@ public final class CrystalLight {
         /** Tongues of flame rising behind the crystal, flickering, hot at the root. */
         private void flames(VertexConsumer buffer, Matrix4f base, boolean world, float centre, float size, int colour,
                 int deep, float gain) {
-            // Behind the model, away from the camera, so the frames do not cut the flames into pieces:
-            // straight back along the ground, or a camera looking down would sink them into it.
-            float awayX = this.up.y * this.right.z - this.up.z * this.right.y;
-            float awayZ = this.up.x * this.right.y - this.up.y * this.right.x;
-            float flat = (float) Math.sqrt(awayX * awayX + awayZ * awayZ);
-            float back = flat < 1.0E-3F ? 0.0F : 0.9F * size / flat;
-            facing(base, awayX * back, centre, awayZ * back);
+            // Behind the model, away from the camera, so the frames do not cut the flames into pieces.
+            facingBehind(base, centre, 0.9F * size);
             float height = centre;
             int tongues = Settings.TONGUES.value();
             float half = Math.max(1.0F, (tongues - 1) / 2.0F);
@@ -643,6 +645,280 @@ public final class CrystalLight {
             }
         }
 
+        /** Bolts of light out of the crystal: each strikes on a beat of its own, forks once, flickers and dies. */
+        private void storm(VertexConsumer buffer, Matrix4f base, boolean world, float centre, float size, int colour, int hot,
+                float gain) {
+            int bolts = Settings.BOLTS.value();
+            float rate = Settings.STRIKES.factor();
+            float reach = Settings.BOLT_REACH.factor();
+            facing(base, 0.0F, centre, 0.0F);
+            for (int bolt = 0; bolt < bolts; bolt++) {
+                // About every 18 ticks at 100%, each bolt out of step with the others.
+                float clock = this.age * rate / 18.0F + bolt * 0.618034F;
+                int strike = (int) Math.floor(clock);
+                float phase = clock - strike;
+                if (phase > 0.6F) {
+                    continue;
+                }
+                float fade = 1.0F - phase / 0.6F;
+                float flicker = 0.75F + 0.25F * Math.abs((float) Math.sin(phase * 40.0F));
+                float light = Math.min(1.0F, gain * 2.2F) * fade * (0.4F + 0.6F * fade) * flicker;
+                int seed = bolt * 7919 + strike;
+                float angle = noise(seed, 1) * (float) (Math.PI * 2.0D);
+                float length = size * reach * (0.8F + 0.6F * noise(seed, 2));
+                float from = size * 0.42F;
+                if (phase < 0.1F) {
+                    // The crystal lights up as it strikes.
+                    disc(buffer, world, centre, size * 0.5F, colour, light * 0.35F);
+                }
+                jag(buffer, world, centre, (float) Math.cos(angle) * from, (float) Math.sin(angle) * from, angle, length, size,
+                        seed, 7, colour, hot, light, size * 0.08F, true);
+            }
+        }
+
+        /**
+         * A jagged bolt of light from (s0, t0) along {@code angle}: a hot core in a wider glow, off to
+         * either side at every joint but straight at its tip, and once, halfway, a shorter fork.
+         */
+        private void jag(VertexConsumer buffer, boolean world, float height, float s0, float t0, float angle, float length,
+                float size, int seed, int steps, int colour, int hot, float light, float width, boolean fork) {
+            float cos = (float) Math.cos(angle);
+            float sin = (float) Math.sin(angle);
+            RIBBON_S[0] = s0;
+            RIBBON_T[0] = t0;
+            RIBBON_W[0] = width;
+            RIBBON_L[0] = light;
+            for (int step = 1; step <= steps; step++) {
+                float f = step / (float) steps;
+                float along = length * f;
+                float side = step == steps ? 0.0F : (noise(seed, step + 10) - 0.5F) * size * 0.28F;
+                RIBBON_S[step] = s0 + cos * along - sin * side;
+                RIBBON_T[step] = t0 + sin * along + cos * side;
+                // Thinning and going out toward its tip: it ends in nothing, never in a cut.
+                RIBBON_W[step] = width * (1.0F - 0.8F * f);
+                RIBBON_L[step] = light * (1.0F - ease(f));
+            }
+            // Where the fork leaves, kept before a fork's own points take the scratch.
+            int middle = steps / 2;
+            float forkS = RIBBON_S[middle];
+            float forkT = RIBBON_T[middle];
+            float forkLight = RIBBON_L[middle];
+            ribbon(buffer, world, height, colour, steps + 1, 3.0F, 0.7F);
+            ribbon(buffer, world, height, hot, steps + 1, 1.0F, 1.0F);
+            if (fork) {
+                float turn = noise(seed, 3) < 0.5F ? 0.65F : -0.65F;
+                jag(buffer, world, height, forkS, forkT, angle + turn, length * 0.45F, size, seed * 31 + 7, 4, colour, hot,
+                        forkLight * 0.8F, width * 0.7F, false);
+            }
+        }
+
+        /**
+         * Two wings of light behind the crystal, beating together: a bright leading edge arching from
+         * each shoulder out to its tip, feathers hanging from it, the longest at the tip.
+         */
+        private void wings(VertexConsumer buffer, Matrix4f base, boolean world, float centre, float size, int colour, int deep,
+                float gain) {
+            float span = size * Settings.SPAN.factor();
+            int feathers = Settings.FEATHERS.value();
+            float lift = 0.25F * (float) Math.sin(this.age * 0.09F * Settings.WING_BEAT.factor());
+            float cos = (float) Math.cos(lift);
+            float sin = (float) Math.sin(lift);
+            float bright = Math.min(1.0F, gain * 1.9F);
+            float shoulderS = 0.22F * size;
+            float shoulderT = 0.45F * size;
+            facingBehind(base, centre, 0.8F * size);
+            for (int side = -1; side <= 1; side += 2) {
+                // The edge, worked out for the right wing, raised by the beat about the shoulder, mirrored for the left.
+                for (int step = 0; step <= 8; step++) {
+                    float u = step / 8.0F;
+                    float ex = bezier(0.45F, 1.2F, u) * span;
+                    float ey = bezier(0.8F, 0.45F, u) * span;
+                    RIBBON_S[step] = side * (shoulderS + ex * cos - ey * sin);
+                    RIBBON_T[step] = shoulderT + ex * sin + ey * cos;
+                    RIBBON_W[step] = size * 0.045F * (1.0F - 0.85F * u);
+                    RIBBON_L[step] = bright * (1.0F - ease(u));
+                }
+                ribbon(buffer, world, centre, colour, 9, 1.0F, 1.0F);
+                for (int feather = 0; feather < feathers; feather++) {
+                    float u = (feather + 0.5F) / feathers;
+                    float ex = bezier(0.45F, 1.2F, u) * span;
+                    float ey = bezier(0.8F, 0.45F, u) * span;
+                    // Hanging down from the edge, swept further out toward the tip.
+                    float theta = 0.2F + 0.7F * u;
+                    float dx = (float) Math.sin(theta);
+                    float dy = -(float) Math.cos(theta);
+                    feather(buffer, world, centre, side * (shoulderS + ex * cos - ey * sin), shoulderT + ex * sin + ey * cos,
+                            side * (dx * cos - dy * sin), dx * sin + dy * cos, span * (0.35F + 0.45F * u), size * (0.13F + 0.05F * u),
+                            u < 0.5F ? deep : colour, bright * (0.7F + 0.3F * u));
+                }
+            }
+        }
+
+        /** A curve from 0 through {@code middle} to {@code end}, {@code u} of the way along. */
+        private static float bezier(float middle, float end, float u) {
+            return 2.0F * (1.0F - u) * u * middle + u * u * end;
+        }
+
+        /** A feather of light from (s0, t0) along (ds, dt): widest a third of the way, drooping a little, tapering to its tip. */
+        private void feather(VertexConsumer buffer, boolean world, float height, float s0, float t0, float ds, float dt, float length,
+                float width, int colour, float light) {
+            float lastS = s0;
+            float lastT = t0;
+            float lastWidth = width * (float) Math.sin(Math.PI * 0.2D);
+            float lastLight = 0.0F;
+            for (int step = 1; step <= 5; step++) {
+                float f = step / 5.0F;
+                float s = s0 + ds * length * f;
+                float t = t0 + dt * length * f - length * 0.12F * f * f;
+                float stepWidth = width * (float) Math.sin(Math.PI * (0.2F + 0.8F * f));
+                float stepLight = light * Math.min(1.0F, f * 5.0F) * (1.0F - 0.6F * f);
+                band(buffer, world, height, colour, lastS, lastT, lastWidth, lastLight, s, t, stepWidth, stepLight, -dt, ds);
+                lastS = s;
+                lastT = t;
+                lastWidth = stepWidth;
+                lastLight = stepLight;
+            }
+        }
+
+        /** A crown of light floating above the crystal: a level band, thorns standing up from it, a gem on each tall one. */
+        private void crown(VertexConsumer buffer, Matrix4f base, boolean world, float centre, float size, int colour, int hot,
+                float gain) {
+            int thorns = Settings.THORNS.value();
+            float turn = this.age * 0.025F * Settings.CROWN_SPIN.factor();
+            float y = centre + size * (0.62F + 0.5F * Settings.CROWN_HEIGHT.factor());
+            float radius = size * 0.5F;
+            float light = Math.min(1.0F, gain * 1.8F) * (0.8F + 0.2F * (float) Math.sin(this.age * 0.1F));
+            groundRing(buffer, base, y, radius, size * 0.05F, colour, light);
+            float half = (float) (Math.PI / thorns) * 0.55F;
+            for (int thorn = 0; thorn < thorns; thorn++) {
+                float angle = turn + thorn * (float) (Math.PI * 2.0D / thorns);
+                boolean tall = thorn % 2 == 0;
+                float top = y + size * (tall ? 0.5F : 0.32F);
+                float cos = (float) Math.cos(angle);
+                float sin = (float) Math.sin(angle);
+                float tipX = cos * radius * 1.08F;
+                float tipZ = sin * radius * 1.08F;
+                int shade = colour;
+                // Two blades crossed, round the band and across it, so a thorn seen edge on still shows.
+                standing(buffer, base, world, shade, (float) Math.cos(angle - half) * radius, y, (float) Math.sin(angle - half) * radius,
+                        light, (float) Math.cos(angle + half) * radius, y, (float) Math.sin(angle + half) * radius, light, tipX, top, tipZ, 0.0F);
+                standing(buffer, base, world, shade, cos * radius * 0.88F, y, sin * radius * 0.88F, light, cos * radius * 1.12F, y,
+                        sin * radius * 1.12F, light, tipX, top, tipZ, 0.0F);
+                if (tall) {
+                    facing(base, tipX, top, tipZ);
+                    disc(buffer, world, top, size * 0.05F, hot, light);
+                }
+            }
+        }
+
+        /** A spiral of the void behind the crystal: its arms wind in toward it, motes of light falling down them. */
+        private void vortex(VertexConsumer buffer, Matrix4f base, boolean world, float centre, float size, int colour, int deep,
+                int hot, float gain) {
+            int arms = Settings.ARMS.value();
+            float spin = -this.age * 0.035F * Settings.VORTEX_SPIN.factor();
+            float pull = Settings.PULL.factor();
+            float bright = Math.min(1.0F, gain * 2.0F);
+            facingBehind(base, centre, 0.6F * size);
+            for (int arm = 0; arm < arms; arm++) {
+                float start = spin + arm * (float) (Math.PI * 2.0D / arms);
+                for (int step = 0; step <= 16; step++) {
+                    float u = step / 16.0F;
+                    RIBBON_S[step] = spiralS(start, u, size);
+                    RIBBON_T[step] = spiralT(start, u, size);
+                    // Born out of nothing far out, brightest near the crystal, gone in its heart: no end is cut.
+                    float born = ease(u / 0.3F);
+                    RIBBON_W[step] = size * (0.22F - 0.15F * u) * (0.3F + 0.7F * born);
+                    RIBBON_L[step] = bright * born * (0.25F + 0.75F * u) * (1.0F - u * u * u);
+                }
+                // A wide glow, and a bright core along it.
+                ribbon(buffer, world, centre, deep, 17, 1.0F, 0.55F);
+                ribbon(buffer, world, centre, colour, 17, 0.35F, 1.0F);
+                if (pull > 0.0F) {
+                    for (int mote = 0; mote < 3; mote++) {
+                        float u = (this.age * 0.008F * pull + mote / 3.0F + arm * 0.37F) % 1.0F;
+                        // Born with the arm, out of nothing: no spark pops up at its far end.
+                        float light = bright * ease(u / 0.3F) * (1.0F - u * u);
+                        disc(buffer, world, centre, spiralS(start, u, size), spiralT(start, u, size), size * 0.08F * (1.3F - 0.6F * u),
+                                hot, light);
+                    }
+                }
+            }
+        }
+
+        /** Where an arm of the vortex is, {@code u} of the way in from its outer end. */
+        private static float spiralS(float start, float u, float size) {
+            return (float) Math.cos(start + u * 2.6F) * spiralRadius(u, size);
+        }
+
+        private static float spiralT(float start, float u, float size) {
+            return (float) Math.sin(start + u * 2.6F) * spiralRadius(u, size);
+        }
+
+        private static float spiralRadius(float u, float size) {
+            return size * (1.55F - 1.3F * u);
+        }
+
+        /** Souls of light rising round the crystal on a slow spiral, swaying, each trailing a tail, fading as they go. */
+        private void souls(VertexConsumer buffer, Matrix4f base, boolean world, float centre, float size, int colour, int deep,
+                int hot, float gain) {
+            int souls = Settings.SOUL_COUNT.value();
+            float rise = Settings.RISE.factor();
+            float sway = Settings.SWAY.factor();
+            for (int soul = 0; soul < souls; soul++) {
+                // 0 when it leaves the ground, 1 when it is gone, well above the crystal.
+                float life = (this.age * 0.006F * rise + soul / (float) souls) % 1.0F;
+                float angle = soul * 2.39996F + life * 2.6F;
+                float radius = size * (0.95F - 0.25F * life);
+                float y = size * (0.1F + 2.4F * life);
+                float drift = sway * size * 0.12F * (float) Math.sin(this.age * 0.07F + soul * 1.7F);
+                float light = Math.min(1.0F, gain * 2.0F) * Math.min(1.0F, life / 0.15F) * Math.min(1.0F, (1.0F - life) / 0.35F);
+                facing(base, (float) Math.cos(angle) * radius, y, (float) Math.sin(angle) * radius);
+                disc(buffer, world, y, drift, 0.0F, size * 0.36F, colour, light * 0.45F);
+                disc(buffer, world, y, drift, 0.0F, size * 0.16F, hot, light);
+                float lastS = drift;
+                float lastT = 0.0F;
+                float lastWidth = size * 0.12F;
+                float lastLight = light * 0.8F;
+                for (int step = 1; step <= 5; step++) {
+                    float f = step / 5.0F;
+                    float s = drift * (1.0F - f) + sway * size * 0.08F * (float) Math.sin(this.age * 0.15F + soul + f * 3.0F);
+                    float t = -size * 0.75F * f;
+                    float stepWidth = size * 0.12F * (1.0F - f);
+                    float stepLight = light * 0.8F * (1.0F - f);
+                    // The tail hangs down: its width runs level.
+                    band(buffer, world, y, deep, lastS, lastT, lastWidth, lastLight, s, t, stepWidth, stepLight, 1.0F, 0.0F);
+                    lastS = s;
+                    lastT = t;
+                    lastWidth = stepWidth;
+                    lastLight = stepLight;
+                }
+            }
+        }
+
+        /** A ribbon's points, sideways directions, widths and light: the render thread's alone, made once. */
+        private static final int RIBBON_MAX = 24;
+        private static final float[] RIBBON_S = new float[RIBBON_MAX];
+        private static final float[] RIBBON_T = new float[RIBBON_MAX];
+        private static final float[] RIBBON_W = new float[RIBBON_MAX];
+        private static final float[] RIBBON_L = new float[RIBBON_MAX];
+        private static final float[] RIBBON_NS = new float[RIBBON_MAX];
+        private static final float[] RIBBON_NT = new float[RIBBON_MAX];
+
+        /** 0 to 1 over 0 to 1, flat at both ends: light that comes and goes without an edge. */
+        private static float ease(float x) {
+            float t = Math.max(0.0F, Math.min(1.0F, x));
+            return t * t * (3.0F - 2.0F * t);
+        }
+
+        /** A steady number in [0, 1) for two whole numbers: the same pair, the same number, every frame. */
+        private static float noise(int a, int b) {
+            int hash = a * 0x27D4EB2D ^ b * 0x165667B1;
+            hash ^= hash >>> 15;
+            hash *= 0x85EBCA77;
+            hash ^= hash >>> 13;
+            return (hash & 0xFFFFFF) / (float) 0x1000000;
+        }
+
         // ------------------------------------------------------------------------------------------
         // Pieces facing the camera, about a point set with facing()
         // ------------------------------------------------------------------------------------------
@@ -652,6 +928,64 @@ public final class CrystalLight {
             base.transformPosition(x, y, z, CENTRE);
             base.transformDirection(this.right.x, this.right.y, this.right.z, AXIS_RIGHT);
             base.transformDirection(this.up.x, this.up.y, this.up.z, AXIS_UP);
+        }
+
+        /**
+         * Places the pieces that follow {@code distance} blocks behind the crystal's middle, away from
+         * the camera: straight back along the ground, or a camera looking down would sink them into it.
+         */
+        private void facingBehind(Matrix4f base, float centre, float distance) {
+            float awayX = this.up.y * this.right.z - this.up.z * this.right.y;
+            float awayZ = this.up.x * this.right.y - this.up.y * this.right.x;
+            float flat = (float) Math.sqrt(awayX * awayX + awayZ * awayZ);
+            float back = flat < 1.0E-3F ? 0.0F : distance / flat;
+            facing(base, awayX * back, centre, awayZ * back);
+        }
+
+        /**
+         * A band of light from (s0, t0) to (s1, t1), {@code w0} and {@code w1} wide each way along the
+         * unit (ps, pt): lit along its middle, dark at its edges.
+         */
+        private void band(VertexConsumer buffer, boolean world, float height, int colour, float s0, float t0, float w0, float l0,
+                float s1, float t1, float w1, float l1, float ps, float pt) {
+            flatTriangle(buffer, world, height, colour, s0 + ps * w0, t0 + pt * w0, 0.0F, s0, t0, l0, s1, t1, l1);
+            flatTriangle(buffer, world, height, colour, s0 + ps * w0, t0 + pt * w0, 0.0F, s1, t1, l1, s1 + ps * w1, t1 + pt * w1, 0.0F);
+            flatTriangle(buffer, world, height, colour, s0, t0, l0, s0 - ps * w0, t0 - pt * w0, 0.0F, s1 - ps * w1, t1 - pt * w1, 0.0F);
+            flatTriangle(buffer, world, height, colour, s0, t0, l0, s1 - ps * w1, t1 - pt * w1, 0.0F, s1, t1, l1);
+        }
+
+        /**
+         * A band of light through the first {@code count} points set in the ribbon's arrays, lit along
+         * its middle, dark at its edges, {@code widthScale} and {@code lightScale} times as set. Each
+         * point has one sideways direction, its bend's, shared by the pieces on either side of it: the
+         * band shows no seam where it turns.
+         */
+        private void ribbon(VertexConsumer buffer, boolean world, float height, int colour, int count, float widthScale, float lightScale) {
+            for (int i = 0; i < count; i++) {
+                int before = Math.max(0, i - 1);
+                int after = Math.min(count - 1, i + 1);
+                float ds = RIBBON_S[after] - RIBBON_S[before];
+                float dt = RIBBON_T[after] - RIBBON_T[before];
+                float length = Math.max(1.0E-4F, (float) Math.sqrt(ds * ds + dt * dt));
+                RIBBON_NS[i] = -dt / length;
+                RIBBON_NT[i] = ds / length;
+            }
+            for (int i = 0; i + 1 < count; i++) {
+                float s0 = RIBBON_S[i];
+                float t0 = RIBBON_T[i];
+                float s1 = RIBBON_S[i + 1];
+                float t1 = RIBBON_T[i + 1];
+                float l0 = RIBBON_L[i] * lightScale;
+                float l1 = RIBBON_L[i + 1] * lightScale;
+                float a0 = RIBBON_NS[i] * RIBBON_W[i] * widthScale;
+                float b0 = RIBBON_NT[i] * RIBBON_W[i] * widthScale;
+                float a1 = RIBBON_NS[i + 1] * RIBBON_W[i + 1] * widthScale;
+                float b1 = RIBBON_NT[i + 1] * RIBBON_W[i + 1] * widthScale;
+                flatTriangle(buffer, world, height, colour, s0 + a0, t0 + b0, 0.0F, s0, t0, l0, s1, t1, l1);
+                flatTriangle(buffer, world, height, colour, s0 + a0, t0 + b0, 0.0F, s1, t1, l1, s1 + a1, t1 + b1, 0.0F);
+                flatTriangle(buffer, world, height, colour, s0, t0, l0, s0 - a0, t0 - b0, 0.0F, s1 - a1, t1 - b1, 0.0F);
+                flatTriangle(buffer, world, height, colour, s0, t0, l0, s1 - a1, t1 - b1, 0.0F, s1, t1, l1);
+            }
         }
 
         /** A soft ring: dark at both edges, lit along its middle. */
@@ -669,10 +1003,15 @@ public final class CrystalLight {
 
         /** A soft round spark: lit in the middle, dark at the rim. */
         private void disc(VertexConsumer buffer, boolean world, float height, float radius, int colour, float light) {
+            disc(buffer, world, height, 0.0F, 0.0F, radius, colour, light);
+        }
+
+        /** A soft round spark at (s, t) from the point set last. */
+        private void disc(VertexConsumer buffer, boolean world, float height, float s, float t, float radius, int colour, float light) {
             for (int index = 0; index < SEGMENTS; index += 3) {
                 int next = Math.min(SEGMENTS, index + 3);
-                flatTriangle(buffer, world, height, colour, 0.0F, 0.0F, light, radius * COS[index], radius * SIN[index], 0.0F,
-                        radius * COS[next], radius * SIN[next], 0.0F);
+                flatTriangle(buffer, world, height, colour, s, t, light, s + radius * COS[index], t + radius * SIN[index], 0.0F,
+                        s + radius * COS[next], t + radius * SIN[next], 0.0F);
             }
         }
 

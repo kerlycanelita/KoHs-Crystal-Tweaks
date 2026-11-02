@@ -154,7 +154,7 @@ public final class CrystalStage {
 
     public void explode(long now, CrystalAppearance look, boolean withSound) {
         if (withSound) {
-            CrystalSoundManager.playPreviewExplosion();
+            CrystalSoundManager.playPreviewExplosion(look);
         }
         if (look.flashActive()) {
             CrystalAfterglowState light = CrystalAfterglow.snapshot(this.state);
@@ -175,6 +175,7 @@ public final class CrystalStage {
             }
         } else {
             appear(now);
+            CrystalSoundManager.playPreviewAppear(look);
         }
     }
 
@@ -358,6 +359,24 @@ public final class CrystalStage {
                             up = Math.max(up, 2.7F * Settings.FLAME_HEIGHT.factor() - 0.7F + 0.4F);
                         }
                         case SIGIL -> side = Math.max(side, 1.2F * Settings.SIGIL_SIZE.factor());
+                        case STORM -> {
+                            float bolt = 0.42F + 1.4F * Settings.BOLT_REACH.factor() * 1.15F;
+                            side = Math.max(side, bolt);
+                            up = Math.max(up, bolt + 0.4F);
+                        }
+                        case WINGS -> {
+                            side = Math.max(side, 0.22F + 1.9F * Settings.SPAN.factor());
+                            up = Math.max(up, 0.45F + 0.95F * Settings.SPAN.factor() + 0.4F);
+                        }
+                        case CROWN -> up = Math.max(up, 0.62F + 0.5F * Settings.CROWN_HEIGHT.factor() + 0.42F + 0.4F);
+                        case VORTEX -> {
+                            side = Math.max(side, 1.7F);
+                            up = Math.max(up, 2.1F);
+                        }
+                        case SOULS -> {
+                            side = Math.max(side, 1.3F + 0.12F * Settings.SWAY.factor());
+                            up = Math.max(up, 1.9F);
+                        }
                         default -> {
                         }
                     }
@@ -442,8 +461,8 @@ public final class CrystalStage {
         }
         // The styles with light round the crystal reach past its aura: the heartbeat's rings furthest.
         return switch (CrystalVisualConfig.glowStyle()) {
-            case HEARTBEAT, AURORA, FLAMES -> 0.30F;
-            case ORBIT, SIGIL -> 0.33F;
+            case HEARTBEAT, AURORA, FLAMES, STORM, WINGS, VORTEX, SOULS -> 0.30F;
+            case ORBIT, SIGIL, CROWN -> 0.33F;
             default -> 0.38F;
         };
     }

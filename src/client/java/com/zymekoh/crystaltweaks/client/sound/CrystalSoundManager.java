@@ -2,6 +2,9 @@ package com.zymekoh.crystaltweaks.client.sound;
 
 import com.mojang.blaze3d.audio.SoundBuffer;
 import com.zymekoh.crystaltweaks.CrystalTweaksClient;
+import com.zymekoh.crystaltweaks.client.CrystalAppearance;
+import com.zymekoh.crystaltweaks.client.CrystalConverter;
+import com.zymekoh.crystaltweaks.client.CrystalOwnership;
 import com.zymekoh.crystaltweaks.client.CrystalVisualConfig;
 import com.zymekoh.crystaltweaks.mixin.client.SoundManagerAccessor;
 import java.io.ByteArrayOutputStream;
@@ -27,6 +30,7 @@ import net.minecraft.client.sounds.SoundEngine;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.client.sounds.WeighedSoundEvents;
 import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.valueproviders.ConstantFloat;
@@ -53,6 +57,11 @@ public final class CrystalSoundManager {
     private static final Identifier RUNTIME_LOCATION = Sound.SOUND_LISTER.idToFile(RUNTIME_SOUND_ID);
     private static final String EXPLOSION_SUBTITLE = "subtitles.entity.generic.explode";
     private static final ArrayDeque<RecentCrystal> RECENT_CRYSTALS = new ArrayDeque<>();
+    /** How near a crystal must appear to speak with its own voice, in blocks, and how far apart two may. */
+    private static final double VOICE_RANGE = 16.0D;
+    private static final long VOICE_GAP_NANOS = 60_000_000L;
+    private static final RandomSource VOICE_RANDOM = RandomSource.create();
+    private static long lastVoiceNanos;
 
     private static DecodedAudio decodedAudio;
     private static String loadedFileName = "";
@@ -143,10 +152,42 @@ public final class CrystalSoundManager {
         applyConfiguredOverrides(soundManager);
     }
 
+    /**
+     * A crystal came into the world near the player: speaking with its own voice, it says what it was
+     * converted into. Not the crystals already standing as the player arrives, and not two at once.
+     */
+    public static void onEntityLoaded(Entity entity) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (!(entity instanceof EndCrystal crystal) || minecraft.player == null || minecraft.level == null
+                || minecraft.player.tickCount < 40 || minecraft.player.distanceToSqr(crystal) > VOICE_RANGE * VOICE_RANGE) {
+            return;
+        }
+        long now = System.nanoTime();
+        SoundEvent voice = CrystalConverter.appearSound(CrystalVisualConfig.visuals(CrystalOwnership.useOtherProfile(crystal)));
+        if (voice != null && now - lastVoiceNanos >= VOICE_GAP_NANOS) {
+            lastVoiceNanos = now;
+            minecraft.level.playLocalSound(crystal.getX(), crystal.getY(), crystal.getZ(), voice, SoundSource.NEUTRAL, 1.0F,
+                    0.9F + 0.2F * VOICE_RANDOM.nextFloat(), false);
+        }
+    }
+
     public static SoundInstance replaceCrystalExplosion(SoundInstance original) {
+        if (!EXPLOSION_EVENT_ID.equals(original.getIdentifier())) {
+            return original;
+        }
+        CrystalAppearance own = CrystalVisualConfig.visuals(false);
+        if (own.voiced()) {
+            // Its own voice has the say over the Sound section: what the crystal became, or Vanilla's
+            // blast when that has nothing to say.
+            SoundEvent voice = CrystalConverter.vanishSound(own);
+            if (voice == null || !isCrystalExplosionAt(original.getX(), original.getY(), original.getZ())) {
+                return original;
+            }
+            return new SimpleSoundInstance(voice, original.getSource(), 2.0F, 0.9F + 0.2F * VOICE_RANDOM.nextFloat(),
+                    RandomSource.create(), original.getX(), original.getY(), original.getZ());
+        }
         if (!CrystalVisualConfig.customSoundEnabled()
                 || decodedAudio == null
-                || !EXPLOSION_EVENT_ID.equals(original.getIdentifier())
                 || !isCrystalExplosionAt(original.getX(), original.getY(), original.getZ())) {
             return original;
         }
@@ -166,9 +207,28 @@ public final class CrystalSoundManager {
                 false);
     }
 
-    public static void playPreviewExplosion() {
+    /** The preview's crystal came back: with its own voice, it says what it became. */
+    public static void playPreviewAppear(CrystalAppearance look) {
+        SoundEvent voice = CrystalConverter.appearSound(look);
+        Minecraft minecraft = Minecraft.getInstance();
+        if (voice != null && minecraft.getSoundManager() != null) {
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(voice, 1.0F));
+        }
+    }
+
+    public static void playPreviewExplosion(CrystalAppearance look) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft == null || minecraft.getSoundManager() == null) {
+            return;
+        }
+        if (look.voiced()) {
+            SoundEvent voice = CrystalConverter.vanishSound(look);
+            if (voice != null) {
+                minecraft.getSoundManager().play(SimpleSoundInstance.forUI(voice, 1.0F));
+                return;
+            }
+            // Nothing to say: Vanilla's blast, never the Sound section's while the voice is on.
+            minecraft.getSoundManager().play(SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvents.GENERIC_EXPLODE, 1.0F));
             return;
         }
 

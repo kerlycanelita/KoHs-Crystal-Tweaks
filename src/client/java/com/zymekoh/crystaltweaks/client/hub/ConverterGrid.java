@@ -3,10 +3,13 @@ package com.zymekoh.crystaltweaks.client.hub;
 import com.zymekoh.crystaltweaks.client.CrystalConverter;
 import com.zymekoh.crystaltweaks.client.CrystalTheme;
 import com.zymekoh.crystaltweaks.client.CrystalUi;
+import com.zymekoh.crystaltweaks.client.ObsidianConverter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -46,9 +49,10 @@ public final class ConverterGrid extends AbstractWidget implements Clippable {
             "block_display", "text_display", "falling_block", "end_crystal", "lightning_bolt", "ominous_item_spawner");
     private static List<Entry> items;
     private static List<Entry> entities;
+    private static List<Entry> solidBlocks;
 
-    private static String namedTarget;
-    private static String namedAs;
+    /** Names of stored choices, looked up once each: two labels ask for theirs every frame. */
+    private static final Map<String, String> NAMES = new HashMap<>();
 
     private final Font font;
     private final String needsWorld;
@@ -100,6 +104,24 @@ public final class ConverterGrid extends AbstractWidget implements Clippable {
         return items;
     }
 
+    /** The blocks obsidian may be drawn as: solid, opaque and untinted (see {@link ObsidianConverter#offered}). */
+    public static List<Entry> solidBlocks() {
+        if (solidBlocks == null) {
+            List<Entry> all = items();
+            if (all.isEmpty()) {
+                return List.of();
+            }
+            List<Entry> found = new ArrayList<>();
+            for (Entry entry : all) {
+                if (entry.icon().getItem() instanceof BlockItem block && ObsidianConverter.offered(block.getBlock())) {
+                    found.add(entry);
+                }
+            }
+            solidBlocks = found;
+        }
+        return solidBlocks;
+    }
+
     /** Every entity a command could summon, by its spawn egg where it has one. */
     public static List<Entry> entities() {
         if (entities == null) {
@@ -137,8 +159,9 @@ public final class ConverterGrid extends AbstractWidget implements Clippable {
 
     /** The name of a stored choice, for a label; the choice itself when this version has no such thing. */
     public static String nameOf(String target) {
-        if (target.equals(namedTarget)) {
-            return namedAs;
+        String known = NAMES.get(target);
+        if (known != null) {
+            return known;
         }
         List<Entry> catalogue = target.startsWith(CrystalConverter.ENTITY) ? entities() : items();
         String name = target;
@@ -149,9 +172,10 @@ public final class ConverterGrid extends AbstractWidget implements Clippable {
             }
         }
         if (!catalogue.isEmpty()) {
-            // Asked every frame for the label: looked up once per choice.
-            namedTarget = target;
-            namedAs = name;
+            if (NAMES.size() > 64) {
+                NAMES.clear();
+            }
+            NAMES.put(target, name);
         }
         return name;
     }

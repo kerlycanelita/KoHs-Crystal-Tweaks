@@ -47,6 +47,8 @@ public final class CrystalAppearance {
     public boolean converterEnabled;
     /** What it draws, as "item:<id>" or "entity:<id>"; empty while nothing is chosen. */
     public String converterTarget = "";
+    /** Its own voice: a converted crystal sounds as what it became, as it appears and as it explodes. */
+    public boolean converterVoice;
     /** Whether the glow style's own moving light round the crystal is drawn; icons leave it out. Never saved. */
     public transient boolean styleMotion = true;
 
@@ -72,6 +74,7 @@ public final class CrystalAppearance {
         copy.motionBlurPercent = clamp(motionBlurPercent, 100);
         copy.converterEnabled = converterEnabled;
         copy.converterTarget = converterTarget == null ? "" : converterTarget;
+        copy.converterVoice = converterVoice;
         copy.styleMotion = styleMotion;
         return copy;
     }
@@ -79,6 +82,11 @@ public final class CrystalAppearance {
     /** True when something else is drawn in the crystal's place. */
     public boolean converted() {
         return converterEnabled && converterTarget != null && !converterTarget.isEmpty();
+    }
+
+    /** True when the crystal sounds as what it was converted into, and the Sound section steps aside. */
+    public boolean voiced() {
+        return converted() && converterVoice;
     }
 
     /** True when the glow, its reflections and the crystal's own light are drawn. */

@@ -25,6 +25,7 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.util.RandomSource;
+import org.lwjgl.CLongBuffer;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
@@ -32,8 +33,8 @@ import org.lwjgl.util.freetype.FT_Face;
 import org.lwjgl.util.freetype.FreeType;
 
 /**
- * The settings' own lettering: UnifrakturMaguntia for titles and buttons, Texturina, a text face cut
- * from the same blackletter but made to be read, for everything else.
+ * The settings' own lettering: Texturina, a text face born of blackletter but made to be read, heavier
+ * for titles and buttons, with UnifrakturMaguntia's upright figures.
  *
  * <p>Both fonts ship inside the mod, outside its assets, and are read straight from its own files,
  * never through the game's resources: a resource pack that changes Minecraft's font, or even ships
@@ -50,18 +51,27 @@ public final class GrimoireFonts {
     public static final Identifier GOTHIC = Identifier.fromNamespaceAndPath("crystal_tweaks", "grimoire_gothic");
     /** The same letters rasterised finer, for titles drawn several times larger. */
     public static final Identifier GOTHIC_LARGE = Identifier.fromNamespaceAndPath("crystal_tweaks", "grimoire_gothic_large");
+    /** Upright figures for both: Texturina's are old style, its 0 a small o. */
+    public static final Identifier FIGURES = Identifier.fromNamespaceAndPath("crystal_tweaks", "grimoire_figures");
 
     private static final String TEXTURINA = "/crystal_tweaks_fixed/fonts/Texturina.ttf";
     private static final String FRAKTUR = "/crystal_tweaks_fixed/fonts/UnifrakturMaguntia-Book.ttf";
 
-    /** One font set: its id, its file, its size in GUI pixels, how finely it is rasterised, and its nudge down. */
-    public record Face(Identifier id, String file, float size, float oversample, float shiftY) {
+    /**
+     * One font set: its id, its file, its size in GUI pixels, how finely it is rasterised, its nudge
+     * down, and where a variable font is set on its axes (Texturina: weight, then optical size; none:
+     * the file's own).
+     */
+    public record Face(Identifier id, String file, float size, float oversample, float shiftY, float... axes) {
     }
 
+    // Titles and buttons were blackletter until players found it hard to read (2026-11-02): they are
+    // Texturina too now, heavier, and only the figures stay blackletter.
     public static final List<Face> FACES = List.of(
             new Face(TEXT, TEXTURINA, 10.0F, 4.0F, 0.0F),
-            new Face(GOTHIC, FRAKTUR, 11.0F, 4.0F, 0.0F),
-            new Face(GOTHIC_LARGE, FRAKTUR, 11.0F, 12.0F, 0.0F));
+            new Face(GOTHIC, TEXTURINA, 11.0F, 4.0F, 0.0F, 700.0F, 12.0F),
+            new Face(GOTHIC_LARGE, TEXTURINA, 11.0F, 12.0F, 0.0F, 700.0F, 24.0F),
+            new Face(FIGURES, FRAKTUR, 11.0F, 4.0F, 0.0F));
 
     private static final Style GOTHIC_STYLE = Style.EMPTY.withFont(new FontDescription.Resource(GOTHIC));
     private static final Style GOTHIC_LARGE_STYLE = Style.EMPTY.withFont(new FontDescription.Resource(GOTHIC_LARGE));
@@ -75,8 +85,8 @@ public final class GrimoireFonts {
     private static final Map<String, Label> GOTHIC_LARGE_LABELS = new HashMap<>();
     private static final int CACHE_LIMIT = 512;
 
-    private static final FontSet[] SETS = new FontSet[3];
-    private static final IntSet[] SUPPORTED = {IntSets.EMPTY_SET, IntSets.EMPTY_SET, IntSets.EMPTY_SET};
+    private static final FontSet[] SETS = new FontSet[4];
+    private static final IntSet[] SUPPORTED = {IntSets.EMPTY_SET, IntSets.EMPTY_SET, IntSets.EMPTY_SET, IntSets.EMPTY_SET};
     private static GlyphSource text;
     private static GlyphSource gothic;
     private static GlyphSource gothicLarge;
@@ -103,6 +113,16 @@ public final class GrimoireFonts {
                     handle = FT_Face.create(pointer.get());
                 }
                 FreeTypeUtil.assertError(FreeType.FT_Select_Charmap(handle, FreeType.FT_ENCODING_UNICODE), "Unicode map of " + face.file());
+                if (face.axes().length > 0) {
+                    try (MemoryStack stack = MemoryStack.stackPush()) {
+                        // Design coordinates are 16.16 fixed point, one per axis in the font's order.
+                        CLongBuffer coordinates = stack.mallocCLong(face.axes().length);
+                        for (float axis : face.axes()) {
+                            coordinates.put(Math.round(axis * 65536.0F));
+                        }
+                        FreeTypeUtil.assertError(FreeType.FT_Set_Var_Design_Coordinates(handle, coordinates.flip()), "Axes of " + face.file());
+                    }
+                }
                 return new TrueTypeGlyphProvider(data, handle, face.size(), face.oversample(), 0.0F, face.shiftY(), "");
             }
         } catch (Exception exception) {
@@ -142,19 +162,23 @@ public final class GrimoireFonts {
             }
         };
         GlyphSource words = layered(0, fallback);
-        gothic = layered(1, words);
-        gothicLarge = layered(2, words);
-        // Texturina's figures are old style, its 0 a small o: the text takes the gothic letters' upright ones.
-        GlyphSource figures = gothic;
-        text = new GlyphSource() {
+        // Texturina's figures are old style, its 0 a small o: every face takes the blackletter's upright ones.
+        GlyphSource figures = layered(3, words);
+        text = withFigures(words, figures);
+        gothic = withFigures(layered(1, words), figures);
+        gothicLarge = withFigures(layered(2, words), figures);
+    }
+
+    private static GlyphSource withFigures(GlyphSource letters, GlyphSource figures) {
+        return new GlyphSource() {
             @Override
             public BakedGlyph getGlyph(int codepoint) {
-                return codepoint >= '0' && codepoint <= '9' ? figures.getGlyph(codepoint) : words.getGlyph(codepoint);
+                return codepoint >= '0' && codepoint <= '9' ? figures.getGlyph(codepoint) : letters.getGlyph(codepoint);
             }
 
             @Override
             public BakedGlyph getRandomGlyph(RandomSource random, int width) {
-                return words.getRandomGlyph(random, width);
+                return letters.getRandomGlyph(random, width);
             }
         };
     }
@@ -187,7 +211,7 @@ public final class GrimoireFonts {
         return game;
     }
 
-    /** The font the settings draw with: Texturina for plain text, the gothic letters where a style asks. */
+    /** The font the settings draw with: Texturina for plain text, its heavier cut where a style asks for the gothic ids. */
     public static Font font() {
         if (font == null) {
             font = new Font(new Font.Provider() {

@@ -3,7 +3,7 @@
 [![Report an issue](https://img.shields.io/badge/GitHub-Report%20an%20issue-D73A49?logo=github&logoColor=white)](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/issues/new)
 [![Wiki](https://img.shields.io/badge/Wiki-Guide-7B2CBF?logo=readthedocs&logoColor=white)](https://github.com/kerlycanelita/KoHs-Crystal-Tweaks/wiki)
 
-# Crystal Tweaks 2.7.0
+# Crystal Tweaks 2.8.0
 
 ## The settings
 
@@ -16,7 +16,7 @@ sound, at its real size, floating over an obsidian floor before a castle wall.
 - Left click the crystal to explode it, right click to place it again.
 - The settings always open at GUI scale 3, whatever yours is, and give yours back when they close.
 
-![Settings](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/hub-2.7-colours.png)
+![Settings](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/hub-2.8-colours.png)
 
 
 ## Glow
@@ -24,7 +24,7 @@ sound, at its real size, floating over an obsidian floor before a castle wall.
 Open the **Glow** section:
 
 - **The glow is in the crystal:** its layers shine, each in its own colour, and the light turns and floats with them.
-- **Style:** **Light**, a soft glow round every frame that keeps its colour in daylight, **Layers**, stronger and more saturated, or **Heartbeat**, **Aurora**, **Orbit**, **Flames** and **Sigil**, which add light of their own round the crystal. Each style has settings of its own, such as the heartbeat's rhythm, the orbits' trail or the sigil's points.
+- **Style:** **Light**, a soft glow round every frame that keeps its colour in daylight, **Layers**, stronger and more saturated, or **Heartbeat**, **Aurora**, **Orbit**, **Flames**, **Sigil**, **Storm**, **Wings**, **Crown**, **Vortex** and **Souls**, which add light of their own round the crystal. Each style has settings of its own, such as the heartbeat's rhythm, the storm's bolts, the wings' span or the crown's thorns.
 - **Power:** from 0 to 300%. An extra glow layer keeps the effect visible in any lighting, not only at night.
 - **Core:** how much the core glows, from 0 to 300%, with every kind of glow.
 - **Motion blur:** the layers trail behind them as they turn, from 0 to 100%, with the glow on or off.
@@ -39,9 +39,9 @@ The glow respects walls and does not use Vanilla's outline that shows through te
 
 ![Flash styles](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/flash-styles.png)
 
-![Glow styles](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/hub-2.7-glow-styles.png)
+![Glow styles](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/hub-2.8-glow-styles.png)
 
-![Flash shapes](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/hub-2.7-shapes.png)
+![Flash shapes](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/hub-2.8-shapes.png)
 
 ## Converter My Crystal
 
@@ -51,6 +51,8 @@ Turn your crystals into something else: any block, item or entity of your game v
 - The enemy menu has a Converter of its own, for when it is back from repair.
 - Your choice is drawn over Minecraft's own texture and over any resource pack's.
 - Drawing only: the crystal stays where it is, with the same box to hit.
+- **Converter My Obsidian**, under it: your obsidian drawn as another block. Only solid, opaque blocks are offered, so obsidian keeps hiding exactly what it hid and nobody sees through it.
+- **Its own voice**, for both: a converted crystal sounds as what it became, its voice as it appears and its death or its breaking as it explodes; converted obsidian places, breaks and steps with the sounds of its block. While the crystal's voice is on, the Sound section steps aside.
 
 ![Converter My Crystal](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/converter.png)
 
@@ -96,7 +98,7 @@ Instant break and instant explosion were tested on a local server with Grim Anti
 Ravenclaw's Ping Equalizer, walking and placing obsidian and crystals: no alerts, and the same
 packets, cycle for cycle, as Vanilla.
 
-![Client crystal](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/hub-2.7-client-crystal.png)
+![Client crystal](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/hub-2.8-client-crystal.png)
 
 ## In the fight
 
@@ -107,7 +109,7 @@ screen or in chat, the blasts of your last 8 seconds and whose crystals they wer
 what you already see. **Don't break obsidian** and **Obsidian debounce** filter clicks, so they send
 fewer actions than Vanilla: leave them off if your server forbids input filters.
 
-![Helpers](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/hub-2.7-helpers.png)
+![Helpers](https://raw.githubusercontent.com/kerlycanelita/KoHs-Crystal-Tweaks/main/docs/images/hub-2.8-helpers.png)
 
 ## Built for fair play
 

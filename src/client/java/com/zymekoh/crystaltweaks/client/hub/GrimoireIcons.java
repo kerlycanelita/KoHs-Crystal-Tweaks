@@ -15,6 +15,7 @@ import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.IoSupplier;
+import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * The settings' small art: Minecraft's own sprites, read from the game's built-in pack and kept as
@@ -140,7 +141,10 @@ public final class GrimoireIcons {
     private static final Identifier COPING = Identifier.fromNamespaceAndPath("crystal_tweaks", "grimoire/merlon_cap");
     /** The floor in front of the wall: the game's obsidian, redrawn, one block of 16 pixels, tiled. */
     private static final Identifier FLOOR = Identifier.fromNamespaceAndPath("crystal_tweaks", "grimoire/floor");
+    private static final Identifier CONVERTED_FLOOR = Identifier.fromNamespaceAndPath("crystal_tweaks", "grimoire/converted_floor");
     private static boolean courtyardMade;
+    /** The block the converted floor was made of; another choice makes it again. */
+    private static BlockState convertedFloorOf;
 
     /** How a texture is sampled: pixel art as it is, smooth shapes scaled without steps, strips repeated along their length. */
     private enum Sampling { PIXEL, SMOOTH, TILED }
@@ -200,6 +204,45 @@ public final class GrimoireIcons {
     public static Identifier floor() {
         courtyard();
         return FLOOR;
+    }
+
+    /**
+     * The floor as the player's obsidian looks with Converter My Obsidian: the chosen block's own face,
+     * in its own colours and as the resource packs draw it, since it shows the world; the book's
+     * obsidian when nothing is chosen.
+     */
+    public static Identifier floor(BlockState shown) {
+        if (shown == null) {
+            return floor();
+        }
+        if (shown != convertedFloorOf) {
+            convertedFloorOf = shown;
+            register(CONVERTED_FLOOR, blockFace(shown), Sampling.TILED);
+        }
+        return CONVERTED_FLOOR;
+    }
+
+    /** The first square of the texture a block shows when it breaks; plain obsidian if it cannot be read. */
+    private static NativeImage blockFace(BlockState state) {
+        Minecraft minecraft = Minecraft.getInstance();
+        try {
+            Identifier sprite = minecraft.getModelManager().getBlockStateModelSet().getParticleMaterial(state).sprite().contents().name();
+            Identifier file = sprite.withPath(path -> "textures/" + path + ".png");
+            try (InputStream in = minecraft.getResourceManager().open(file); NativeImage source = NativeImage.read(in)) {
+                // An animated texture is a strip of frames: its first square, at the floor's 16 texels.
+                int side = Math.min(source.getWidth(), source.getHeight());
+                NativeImage face = new NativeImage(16, 16, true);
+                for (int y = 0; y < 16; y++) {
+                    for (int x = 0; x < 16; x++) {
+                        face.setPixel(x, y, source.getPixel(x * side / 16, y * side / 16) | 0xFF000000);
+                    }
+                }
+                return face;
+            }
+        } catch (Exception exception) {
+            CrystalTweaksClient.LOGGER.warn("Crystal Tweaks could not show the converted obsidian on its floor", exception);
+            return obsidian();
+        }
     }
 
     /**

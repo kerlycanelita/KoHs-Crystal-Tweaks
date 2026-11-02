@@ -3,10 +3,12 @@ package com.zymekoh.crystaltweaks.client.hub;
 import com.zymekoh.crystaltweaks.client.CrystalAppearance;
 import com.zymekoh.crystaltweaks.client.CrystalGlowMath;
 import com.zymekoh.crystaltweaks.client.CrystalTheme;
+import com.zymekoh.crystaltweaks.client.ObsidianConverter;
 import com.zymekoh.crystaltweaks.client.hub.HubLayout.Rect;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.level.block.Blocks;
 
 /**
  * Behind the crystal in the settings: a castle's curtain wall under a dark violet sky, its merlons
@@ -105,7 +107,8 @@ final class CurtainWall {
         // The floor: its top seen at the tilt, one polished block deep (squeezed any further, its
         // stone would break into stripes), then its front, darker.
         HubDraw.isolate(graphics);
-        Identifier floor = GrimoireIcons.floor();
+        // The player's own obsidian: Converter My Obsidian's block when one is drawn in its place.
+        Identifier floor = GrimoireIcons.floor(ObsidianConverter.standIn(Blocks.OBSIDIAN.defaultBlockState()));
         tiled(graphics, floor, 16, 16, left, farY, right, nearY, columnX, farY, zoom, nearY - farY, CrystalTheme.fade(FLOOR_TOP_TINT, alpha));
         tiled(graphics, floor, 16, 16, left, nearY, right, bottom, columnX, nearY, zoom, COS_TILT * zoom, CrystalTheme.fade(FLOOR_FRONT_TINT, alpha));
         graphics.fill(left, Math.round(nearY), right, Math.round(nearY) + 1, CrystalTheme.fade(0x40F4EEFA, alpha));
